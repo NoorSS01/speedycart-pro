@@ -1,0 +1,453 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
+import {
+  LogOut,
+  ShoppingCart,
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  Package,
+  User,
+  ClipboardList
+} from 'lucide-react';
+
+interface Category {
+  id: string;
+  name: string;
+  image_url: string | null;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  image_url: string | null;
+  stock_quantity: number;
+  unit: string;
+  category_id: string | null;
+}
+
+interface CartItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  products: Product;
+}
+
+export default function Shop() {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    fetchCategories();
+    fetchProducts();
+    fetchCart();
+  }, [user, navigate]);
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order');
+
+    if (!error && data) {
+      setCategories(data);
+    }
+    setLoading(false);
+  };
+
+  const fetchProducts = async () => {
+    let query = supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true);
+
+    if (selectedCategory) {
+      query = query.eq('category_id', selectedCategory);
+    }
+
+    const { data, error } = await query;
+
+    if (!error && data) {
+      setProducts(data);
+    }
+  };
+
+  const fetchCart = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('cart_items')
+      .select('*, products(*)')
+      .eq('user_id', user.id);
+
+    if (!error && data) {
+      setCartItems(data as CartItem[]);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, [selectedCategory]);
+
+  const addToCart = async (productId: string) => {
+    if (!user) return;
+
+    const existingItem = cartItems.find(item => item.product_id === productId);
+
+    if (existingItem) {
+      const { error } = await supabase
+        .from('cart_items')
+        .update({ quantity: existingItem.quantity + 1 })
+        .eq('id', existingItem.id);
+
+      if (error) {
+        toast.error('Failed to update cart');
+      } else {
+        fetchCart();
+        toast.success('Cart updated');
+      }
+    } else {
+      const { error } = await supabase
+        .from('cart_items')
+        .insert({ user_id: user.id, product_id: productId, quantity: 1 });
+
+      if (error) {
+        toast.error('Failed to add to cart');
+      } else {
+        fetchCart();
+        toast.success('Added to cart');
+      }
+    }
+  };
+
+  const updateCartQuantity = async (cartItemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      await removeFromCart(cartItemId);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('cart_items')
+      .update({ quantity: newQuantity })
+      .eq('id', cartItemId);
+
+    if (!error) {
+      fetchCart();
+    }
+  };
+
+  const removeFromCart = async (cartItemId: string) => {
+    const { error } = await supabase
+      .from('cart_items')
+      .delete()
+      .eq('id', cartItemId);
+
+    if (!error) {
+      fetchCart();
+      toast.success('Removed from cart');
+    }
+  };
+
+  const placeOrder = async () => {
+    if (!user || cartItems.length === 0) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('address')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile?.address) {
+      toast.error('Please update your delivery address in your profile');
+      return;
+    }
+
+    const totalAmount = cartItems.reduce(
+      (sum, item) => sum + item.products.price * item.quantity,
+      0
+    );
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        user_id: user.id,
+        total_amount: totalAmount,
+        delivery_address: profile.address,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (orderError || !order) {
+      toast.error('Failed to place order');
+      return;
+    }
+
+    const orderItems = cartItems.map(item => ({
+      order_id: order.id,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.products.price
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (itemsError) {
+      toast.error('Failed to create order items');
+      return;
+    }
+
+    // Auto-assign to a delivery person (simplified - just get first available)
+    const { data: deliveryPerson } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'delivery')
+      .limit(1)
+      .single();
+
+    if (deliveryPerson) {
+      await supabase
+        .from('delivery_assignments')
+        .insert({
+          order_id: order.id,
+          delivery_person_id: deliveryPerson.user_id
+        });
+    }
+
+    // Clear cart
+    await supabase
+      .from('cart_items')
+      .delete()
+      .eq('user_id', user.id);
+
+    fetchCart();
+    toast.success('Order placed successfully!');
+  };
+
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const cartTotal = cartItems.reduce(
+    (sum, item) => sum + item.products.price * item.quantity,
+    0
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Package className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Package className="h-6 w-6 text-primary" />
+            <h1 className="text-xl font-bold">QuickCommerce</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/orders')}>
+              <ClipboardList className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
+              <User className="h-5 w-5" />
+            </Button>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartItems.length > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                      {cartItems.length}
+                    </Badge>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Your Cart</SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-200px)] mt-4">
+                  {cartItems.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">Your cart is empty</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {cartItems.map(item => (
+                        <Card key={item.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1">
+                                <h4 className="font-medium">{item.products.name}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  ${item.products.price} / {item.products.unit}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7"
+                                    onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-8 text-center">{item.quantity}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7"
+                                    onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 ml-auto"
+                                    onClick={() => removeFromCart(item.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+                {cartItems.length > 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 p-6 bg-background border-t">
+                    <div className="flex justify-between mb-4">
+                      <span className="font-medium">Total:</span>
+                      <span className="font-bold text-lg">${cartTotal.toFixed(2)}</span>
+                    </div>
+                    <Button className="w-full" onClick={placeOrder}>
+                      Place Order
+                    </Button>
+                  </div>
+                )}
+              </SheetContent>
+            </Sheet>
+            <Button variant="ghost" size="icon" onClick={signOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Search */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="relative max-w-md mx-auto">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search products..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Categories */}
+      <div className="container mx-auto px-4 pb-4">
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-2 pb-2">
+            <Button
+              variant={selectedCategory === null ? 'default' : 'outline'}
+              onClick={() => setSelectedCategory(null)}
+              className="rounded-full"
+            >
+              All
+            </Button>
+            {categories.map(category => (
+              <Button
+                key={category.id}
+                variant={selectedCategory === category.id ? 'default' : 'outline'}
+                onClick={() => setSelectedCategory(category.id)}
+                className="rounded-full"
+              >
+                {category.name}
+              </Button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Products Grid */}
+      <div className="container mx-auto px-4 pb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {filteredProducts.map(product => (
+            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <CardContent className="p-0">
+                <div className="aspect-square bg-muted flex items-center justify-center">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Package className="h-12 w-12 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="p-3">
+                  <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.name}</h3>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-lg font-bold text-primary">${product.price}</p>
+                      <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                    </div>
+                    <Button
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      onClick={() => addToCart(product.id)}
+                      disabled={product.stock_quantity <= 0}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {product.stock_quantity <= 0 && (
+                    <Badge variant="destructive" className="w-full mt-2 justify-center">
+                      Out of Stock
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
