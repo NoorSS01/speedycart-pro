@@ -8,6 +8,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import {
   LogOut,
@@ -54,6 +58,10 @@ export default function Shop() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showAddressDialog, setShowAddressDialog] = useState(false);
+  const [savedAddress, setSavedAddress] = useState<string>('');
+  const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
+  const [newAddress, setNewAddress] = useState('');
 
   useEffect(() => {
     if (!user) {
@@ -63,6 +71,7 @@ export default function Shop() {
     fetchCategories();
     fetchProducts();
     fetchCart();
+    fetchSavedAddress();
   }, [user, navigate]);
 
   const fetchCategories = async () => {
@@ -105,6 +114,23 @@ export default function Shop() {
 
     if (!error && data) {
       setCartItems(data as CartItem[]);
+    }
+  };
+
+  const fetchSavedAddress = async () => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('address')
+      .eq('id', user.id)
+      .single();
+
+    if (data?.address) {
+      setSavedAddress(data.address);
+      setAddressOption('saved');
+    } else {
+      setAddressOption('new');
     }
   };
 
@@ -171,18 +197,28 @@ export default function Shop() {
     }
   };
 
-  const placeOrder = async () => {
+  const handlePlaceOrderClick = () => {
+    if (!user || cartItems.length === 0) return;
+    setShowAddressDialog(true);
+  };
+
+  const confirmOrder = async () => {
     if (!user || cartItems.length === 0) return;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('address')
-      .eq('id', user.id)
-      .single();
+    const deliveryAddress = addressOption === 'saved' ? savedAddress : newAddress.trim();
 
-    if (!profile?.address) {
-      toast.error('Please update your delivery address in your profile');
+    if (!deliveryAddress) {
+      toast.error('Please provide a delivery address');
       return;
+    }
+
+    // Save new address to profile if using new address
+    if (addressOption === 'new' && newAddress.trim()) {
+      await supabase
+        .from('profiles')
+        .update({ address: newAddress.trim() })
+        .eq('id', user.id);
+      setSavedAddress(newAddress.trim());
     }
 
     const totalAmount = cartItems.reduce(
@@ -195,7 +231,7 @@ export default function Shop() {
       .insert({
         user_id: user.id,
         total_amount: totalAmount,
-        delivery_address: profile.address,
+        delivery_address: deliveryAddress,
         status: 'pending'
       })
       .select()
@@ -246,6 +282,8 @@ export default function Shop() {
       .eq('user_id', user.id);
 
     fetchCart();
+    setShowAddressDialog(false);
+    setNewAddress('');
     toast.success('Order placed successfully!');
   };
 
@@ -352,7 +390,7 @@ export default function Shop() {
                       <span className="font-medium">Total:</span>
                       <span className="font-bold text-lg">${cartTotal.toFixed(2)}</span>
                     </div>
-                    <Button className="w-full" onClick={placeOrder}>
+                    <Button className="w-full" onClick={handlePlaceOrderClick}>
                       Place Order
                     </Button>
                   </div>
@@ -448,6 +486,55 @@ export default function Shop() {
           ))}
         </div>
       </div>
+
+      {/* Address Dialog */}
+      <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Delivery Address</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <RadioGroup value={addressOption} onValueChange={(value) => setAddressOption(value as 'saved' | 'new')}>
+              {savedAddress && (
+                <div className="flex items-start space-x-3 p-4 border rounded-lg">
+                  <RadioGroupItem value="saved" id="saved" />
+                  <div className="flex-1">
+                    <Label htmlFor="saved" className="font-medium cursor-pointer">
+                      Use Saved Address
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">{savedAddress}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start space-x-3 p-4 border rounded-lg">
+                <RadioGroupItem value="new" id="new" />
+                <div className="flex-1">
+                  <Label htmlFor="new" className="font-medium cursor-pointer">
+                    Enter New Address
+                  </Label>
+                  {addressOption === 'new' && (
+                    <Textarea
+                      placeholder="Enter your complete delivery address..."
+                      className="mt-3"
+                      rows={4}
+                      value={newAddress}
+                      onChange={(e) => setNewAddress(e.target.value)}
+                    />
+                  )}
+                </div>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddressDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmOrder}>
+              Confirm Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
