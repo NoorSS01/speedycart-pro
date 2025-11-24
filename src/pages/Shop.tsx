@@ -220,79 +220,92 @@ export default function Shop() {
       return;
     }
 
-    // Save new address to profile if using new address
-    if (addressOption === 'new' && newAddress.trim()) {
-      await supabase
-        .from('profiles')
-        .update({ address: newAddress.trim() })
-        .eq('id', user.id);
-      setSavedAddress(newAddress.trim());
-    }
+    try {
+      // Save new address to profile if using new address
+      if (addressOption === 'new' && newAddress.trim()) {
+        await supabase
+          .from('profiles')
+          .update({ address: newAddress.trim() })
+          .eq('id', user.id);
+        setSavedAddress(newAddress.trim());
+      }
 
-    const totalAmount = cartItems.reduce(
-      (sum, item) => sum + item.products.price * item.quantity,
-      0
-    );
+      const totalAmount = cartItems.reduce(
+        (sum, item) => sum + item.products.price * item.quantity,
+        0
+      );
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        user_id: user.id,
-        total_amount: totalAmount,
-        delivery_address: deliveryAddress,
-        status: 'pending'
-      })
-      .select()
-      .single();
-
-    if (orderError || !order) {
-      toast.error('Failed to place order');
-      return;
-    }
-
-    const orderItems = cartItems.map(item => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      price: item.products.price
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
-
-    if (itemsError) {
-      toast.error('Failed to create order items');
-      return;
-    }
-
-    // Auto-assign to a delivery person (simplified - just get first available)
-    const { data: deliveryPerson } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'delivery')
-      .limit(1)
-      .single();
-
-    if (deliveryPerson) {
-      await supabase
-        .from('delivery_assignments')
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
         .insert({
-          order_id: order.id,
-          delivery_person_id: deliveryPerson.user_id
-        });
+          user_id: user.id,
+          total_amount: totalAmount,
+          delivery_address: deliveryAddress,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error('Order creation error:', orderError);
+        toast.error(`Failed to place order: ${orderError.message}`);
+        return;
+      }
+
+      if (!order) {
+        toast.error('Failed to place order');
+        return;
+      }
+
+      const orderItems = cartItems.map(item => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.products.price
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error('Order items error:', itemsError);
+        toast.error(`Failed to create order items: ${itemsError.message}`);
+        return;
+      }
+
+      // Auto-assign to a delivery person (simplified - just get first available)
+      const { data: deliveryPerson, error: deliveryError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'delivery')
+        .limit(1)
+        .maybeSingle();
+
+      if (deliveryPerson) {
+        await supabase
+          .from('delivery_assignments')
+          .insert({
+            order_id: order.id,
+            delivery_person_id: deliveryPerson.user_id
+          });
+      }
+
+      // Clear cart
+      await supabase
+        .from('cart_items')
+        .delete()
+        .eq('user_id', user.id);
+
+      fetchCart();
+      setShowAddressDialog(false);
+      setShowCartSheet(false);
+      setNewAddress('');
+      toast.success('Order placed successfully!');
+    } catch (error) {
+      console.error('Unexpected error placing order:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     }
-
-    // Clear cart
-    await supabase
-      .from('cart_items')
-      .delete()
-      .eq('user_id', user.id);
-
-    fetchCart();
-    setShowAddressDialog(false);
-    setNewAddress('');
-    toast.success('Order placed successfully!');
   };
 
   const filteredProducts = products.filter(product =>
