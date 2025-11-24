@@ -24,6 +24,7 @@ import {
   User,
   ClipboardList
 } from 'lucide-react';
+import BottomNav from '@/components/BottomNav';
 
 interface Category {
   id: string;
@@ -305,7 +306,7 @@ export default function Shop() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-20">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -535,6 +536,9 @@ export default function Shop() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
