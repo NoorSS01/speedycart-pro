@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Save, User } from 'lucide-react';
 import { toast } from 'sonner';
+import BottomNav from '@/components/BottomNav';
 
 interface Profile {
   phone: string;
@@ -84,7 +85,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-20">
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
@@ -139,6 +140,9 @@ export default function Profile() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
