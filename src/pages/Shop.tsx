@@ -63,6 +63,7 @@ export default function Shop() {
   const [savedAddress, setSavedAddress] = useState<string>('');
   const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
   const [newAddress, setNewAddress] = useState('');
+  const [showCartSheet, setShowCartSheet] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -73,6 +74,12 @@ export default function Shop() {
     fetchProducts();
     fetchCart();
     fetchSavedAddress();
+
+    // Listen for cart open event from bottom nav
+    const handleOpenCart = () => setShowCartSheet(true);
+    window.addEventListener('openCart', handleOpenCart);
+    
+    return () => window.removeEventListener('openCart', handleOpenCart);
   }, [user, navigate]);
 
   const fetchCategories = async () => {
@@ -314,96 +321,83 @@ export default function Shop() {
             <Package className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">QuickCommerce</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/orders')}>
-              <ClipboardList className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
-              <User className="h-5 w-5" />
-            </Button>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <ShoppingCart className="h-5 w-5" />
-                  {cartItems.length > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                      {cartItems.length}
-                    </Badge>
-                  )}
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle>Your Cart</SheetTitle>
-                </SheetHeader>
-                <ScrollArea className="h-[calc(100vh-200px)] mt-4">
-                  {cartItems.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">Your cart is empty</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {cartItems.map(item => (
-                        <Card key={item.id}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                              <div className="flex-1">
-                                <h4 className="font-medium">{item.products.name}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  ${item.products.price} / {item.products.unit}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Button
-                                    size="icon"
-                                    variant="outline"
-                                    className="h-7 w-7"
-                                    onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="w-8 text-center">{item.quantity}</span>
-                                  <Button
-                                    size="icon"
-                                    variant="outline"
-                                    className="h-7 w-7"
-                                    onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 ml-auto"
-                                    onClick={() => removeFromCart(item.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-                {cartItems.length > 0 && (
-                  <div className="absolute bottom-0 left-0 right-0 p-6 bg-background border-t">
-                    <div className="flex justify-between mb-4">
-                      <span className="font-medium">Total:</span>
-                      <span className="font-bold text-lg">${cartTotal.toFixed(2)}</span>
-                    </div>
-                    <Button className="w-full" onClick={handlePlaceOrderClick}>
-                      Place Order
-                    </Button>
-                  </div>
-                )}
-              </SheetContent>
-            </Sheet>
-            <Button variant="ghost" size="icon" onClick={signOut}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={signOut}>
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </header>
+
+      {/* Cart Sheet - opened from bottom nav */}
+      <Sheet open={showCartSheet} onOpenChange={setShowCartSheet}>
+        <SheetTrigger asChild>
+          <button id="cart-trigger" className="hidden" />
+        </SheetTrigger>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Your Cart</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-200px)] mt-4">
+            {cartItems.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Your cart is empty</p>
+            ) : (
+              <div className="space-y-4">
+                {cartItems.map(item => (
+                  <Card key={item.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{item.products.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            ${item.products.price} / {item.products.unit}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-7 w-7"
+                              onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-8 text-center">{item.quantity}</span>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-7 w-7"
+                              onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 ml-auto"
+                              onClick={() => removeFromCart(item.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          {cartItems.length > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 p-6 bg-background border-t">
+              <div className="flex justify-between mb-4">
+                <span className="font-medium">Total:</span>
+                <span className="font-bold text-lg">${cartTotal.toFixed(2)}</span>
+              </div>
+              <Button className="w-full" onClick={handlePlaceOrderClick}>
+                Place Order
+              </Button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Search */}
       <div className="container mx-auto px-4 py-6">
@@ -538,7 +532,7 @@ export default function Shop() {
       </Dialog>
 
       {/* Bottom Navigation */}
-      <BottomNav />
+      <BottomNav cartItemCount={cartItems.length} />
     </div>
   );
 }

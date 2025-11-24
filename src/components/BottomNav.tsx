@@ -1,16 +1,26 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, ShoppingBag, ClipboardList, User } from 'lucide-react';
+import { Home, ShoppingCart, ClipboardList, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
-export default function BottomNav() {
+interface BottomNavProps {
+  cartItemCount?: number;
+}
+
+export default function BottomNav({ cartItemCount = 0 }: BottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleCartClick = () => {
+    // Dispatch custom event to open cart sheet
+    window.dispatchEvent(new Event('openCart'));
+  };
+
   const navItems = [
-    { icon: Home, label: 'Home', path: '/shop' },
-    { icon: ShoppingBag, label: 'Shop', path: '/shop' },
-    { icon: ClipboardList, label: 'Orders', path: '/orders' },
-    { icon: User, label: 'Profile', path: '/profile' },
+    { icon: Home, label: 'Home', path: '/shop', action: () => navigate('/shop') },
+    { icon: ShoppingCart, label: 'Cart', path: '/shop', showBadge: true, action: handleCartClick },
+    { icon: ClipboardList, label: 'Orders', path: '/orders', action: () => navigate('/orders') },
+    { icon: User, label: 'Profile', path: '/profile', action: () => navigate('/profile') },
   ];
 
   return (
@@ -19,14 +29,14 @@ export default function BottomNav() {
         <div className="flex items-center justify-around py-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path && item.label !== 'Cart';
             
             return (
               <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
+                key={item.label}
+                onClick={item.action}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-lg transition-all",
+                  "relative flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-lg transition-all",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground hover:text-foreground"
@@ -34,6 +44,11 @@ export default function BottomNav() {
               >
                 <Icon className={cn("h-5 w-5", isActive && "scale-110")} />
                 <span className="text-xs font-medium">{item.label}</span>
+                {item.showBadge && cartItemCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {cartItemCount}
+                  </Badge>
+                )}
               </button>
             );
           })}
