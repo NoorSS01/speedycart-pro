@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, Package } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Package, Shield, Truck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Auth() {
@@ -19,7 +21,17 @@ export default function Auth() {
     phone: '',
     fullName: ''
   });
-  const { signIn, signUp } = useAuth();
+  const [tapCount, setTapCount] = useState(0);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
+  const [showDeliveryApp, setShowDeliveryApp] = useState(false);
+  const [deliveryAppForm, setDeliveryAppForm] = useState({
+    fullName: '',
+    phone: '',
+    vehicleType: 'bike',
+    licenseNumber: ''
+  });
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -82,12 +94,64 @@ export default function Auth() {
     }
   };
 
+  const handleLogoTap = () => {
+    setTapCount(prev => prev + 1);
+    if (tapCount + 1 === 5) {
+      setShowAdminLogin(true);
+      setTapCount(0);
+    }
+    setTimeout(() => setTapCount(0), 2000);
+  };
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminCredentials.username === 'superadmin111' && adminCredentials.password === 'superadmin@111') {
+      toast.success('Admin access granted!');
+      setShowAdminLogin(false);
+      navigate('/super-admin');
+    } else {
+      toast.error('Invalid admin credentials');
+    }
+  };
+
+  const handleDeliveryApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      toast.error('Please sign in first to apply');
+      return;
+    }
+
+    if (!deliveryAppForm.fullName || !deliveryAppForm.phone) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await supabase.from('delivery_applications').insert({
+      user_id: user.id,
+      full_name: deliveryAppForm.fullName,
+      phone: deliveryAppForm.phone,
+      vehicle_type: deliveryAppForm.vehicleType,
+      license_number: deliveryAppForm.licenseNumber || null,
+      status: 'pending'
+    });
+
+    if (error) {
+      toast.error('Failed to submit application');
+    } else {
+      toast.success('Application submitted successfully! Awaiting admin approval.');
+      setShowDeliveryApp(false);
+      setDeliveryAppForm({ fullName: '', phone: '', vehicleType: 'bike', licenseNumber: '' });
+    }
+    setIsLoading(false);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary rounded-2xl">
+          <div className="flex justify-center mb-4" onClick={handleLogoTap}>
+            <div className="p-3 bg-primary rounded-2xl cursor-pointer transition-transform active:scale-95">
               <Package className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
@@ -96,9 +160,13 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="delivery">
+                <Truck className="h-4 w-4 mr-1" />
+                Delivery
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin">
@@ -299,9 +367,123 @@ export default function Auth() {
                 </div>
               </div>
             </TabsContent>
+
+            <TabsContent value="delivery">
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-5 w-5 text-primary" />
+                    Join as Delivery Partner
+                  </CardTitle>
+                  <CardDescription>Apply to become a delivery partner and earn with us</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleDeliveryApplication} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="delivery-name">Full Name *</Label>
+                      <Input
+                        id="delivery-name"
+                        type="text"
+                        placeholder="John Doe"
+                        value={deliveryAppForm.fullName}
+                        onChange={(e) => setDeliveryAppForm({ ...deliveryAppForm, fullName: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="delivery-phone">Phone Number *</Label>
+                      <Input
+                        id="delivery-phone"
+                        type="tel"
+                        placeholder="+1234567890"
+                        value={deliveryAppForm.phone}
+                        onChange={(e) => setDeliveryAppForm({ ...deliveryAppForm, phone: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vehicle-type">Vehicle Type *</Label>
+                      <Select 
+                        value={deliveryAppForm.vehicleType} 
+                        onValueChange={(value) => setDeliveryAppForm({ ...deliveryAppForm, vehicleType: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bike">Bike</SelectItem>
+                          <SelectItem value="scooter">Scooter</SelectItem>
+                          <SelectItem value="car">Car</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="license">Driving License Number</Label>
+                      <Input
+                        id="license"
+                        type="text"
+                        placeholder="DL1234567890"
+                        value={deliveryAppForm.licenseNumber}
+                        onChange={(e) => setDeliveryAppForm({ ...deliveryAppForm, licenseNumber: e.target.value })}
+                      />
+                    </div>
+                    {!user && (
+                      <div className="p-3 bg-accent/10 rounded-md">
+                        <p className="text-sm text-muted-foreground">
+                          Please sign in first to submit your delivery partner application
+                        </p>
+                      </div>
+                    )}
+                    <Button type="submit" className="w-full" disabled={isLoading || !user}>
+                      {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Submit Application
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog open={showAdminLogin} onOpenChange={setShowAdminLogin}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-destructive" />
+              Super Admin Access
+            </DialogTitle>
+            <DialogDescription>
+              Enter super admin credentials to access the admin panel
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="admin-username">Username</Label>
+              <Input
+                id="admin-username"
+                type="text"
+                value={adminCredentials.username}
+                onChange={(e) => setAdminCredentials({ ...adminCredentials, username: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="admin-password">Password</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                value={adminCredentials.password}
+                onChange={(e) => setAdminCredentials({ ...adminCredentials, password: e.target.value })}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Login as Super Admin
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

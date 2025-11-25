@@ -66,6 +66,17 @@ interface UserRole {
   created_at: string;
 }
 
+interface DeliveryApplication {
+  id: string;
+  user_id: string;
+  full_name: string;
+  phone: string;
+  vehicle_type: string;
+  license_number: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+}
+
 export default function SuperAdmin() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -74,13 +85,15 @@ export default function SuperAdmin() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [maliciousActivities, setMaliciousActivities] = useState<MaliciousActivity[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
+  const [deliveryApplications, setDeliveryApplications] = useState<DeliveryApplication[]>([]);
   const [stats, setStats] = useState({ 
     totalOrders: 0, 
     pendingOrders: 0, 
     deliveredOrders: 0, 
     revenue: 0,
     totalUsers: 0,
-    deliveryPersons: 0
+    deliveryPersons: 0,
+    pendingApplications: 0
   });
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -135,6 +148,7 @@ export default function SuperAdmin() {
       fetchOrders(),
       fetchMaliciousActivities(),
       fetchUserRoles(),
+      fetchDeliveryApplications(),
       fetchStats()
     ]);
   };
@@ -174,9 +188,18 @@ export default function SuperAdmin() {
     if (data) setUserRoles(data);
   };
 
+  const fetchDeliveryApplications = async () => {
+    const { data } = await supabase
+      .from('delivery_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setDeliveryApplications(data as DeliveryApplication[]);
+  };
+
   const fetchStats = async () => {
     const { data: ordersData } = await supabase.from('orders').select('status, total_amount');
     const { data: rolesData } = await supabase.from('user_roles').select('role');
+    const { data: appsData } = await supabase.from('delivery_applications').select('status');
     
     if (ordersData) {
       const totalOrders = ordersData.length;
@@ -186,8 +209,9 @@ export default function SuperAdmin() {
       
       const totalUsers = rolesData?.filter(r => r.role === 'user').length || 0;
       const deliveryPersons = rolesData?.filter(r => r.role === 'delivery').length || 0;
+      const pendingApplications = appsData?.filter(a => a.status === 'pending').length || 0;
       
-      setStats({ totalOrders, pendingOrders, deliveredOrders, revenue, totalUsers, deliveryPersons });
+      setStats({ totalOrders, pendingOrders, deliveredOrders, revenue, totalUsers, deliveryPersons, pendingApplications });
     }
   };
 
@@ -275,6 +299,35 @@ export default function SuperAdmin() {
     }
   };
 
+  const handleApplicationAction = async (appId: string, userId: string, action: 'approved' | 'rejected') => {
+    const { error: updateError } = await supabase
+      .from('delivery_applications')
+      .update({ status: action })
+      .eq('id', appId);
+
+    if (updateError) {
+      toast.error('Failed to update application');
+      return;
+    }
+
+    if (action === 'approved') {
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ role: 'delivery' })
+        .eq('user_id', userId);
+
+      if (roleError) {
+        toast.error('Failed to assign delivery role');
+        return;
+      }
+    }
+
+    toast.success(`Application ${action} successfully`);
+    fetchDeliveryApplications();
+    fetchStats();
+    fetchUserRoles();
+  };
+
   const resetForm = () => {
     setEditingProduct(null);
     setProductForm({
@@ -309,7 +362,7 @@ export default function SuperAdmin() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
@@ -381,12 +434,32 @@ export default function SuperAdmin() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Applications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-2xl font-bold text-foreground">{stats.pendingApplications}</p>
+                <Plus className="h-6 w-6 text-accent" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="products" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="applications">
+              Delivery Apps
+              {stats.pendingApplications > 0 && (
+                <span className="ml-2 px-2 py-0.5 text-xs bg-destructive text-destructive-foreground rounded-full">
+                  {stats.pendingApplications}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="malicious">Malicious Activity</TabsTrigger>
           </TabsList>
@@ -538,6 +611,73 @@ export default function SuperAdmin() {
                       </p>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="applications" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" />
+                  Delivery Partner Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {deliveryApplications.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No applications yet</p>
+                  ) : (
+                    deliveryApplications.map((app) => (
+                      <div key={app.id} className={`p-4 border rounded-lg ${
+                        app.status === 'pending' ? 'border-accent bg-accent/5' :
+                        app.status === 'approved' ? 'border-primary/20 bg-primary/5' :
+                        'border-destructive/20 bg-destructive/5'
+                      }`}>
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="font-semibold text-foreground">{app.full_name}</h3>
+                            <p className="text-sm text-muted-foreground">Phone: {app.phone}</p>
+                            <p className="text-sm text-muted-foreground">Vehicle: {app.vehicle_type}</p>
+                            {app.license_number && (
+                              <p className="text-sm text-muted-foreground">License: {app.license_number}</p>
+                            )}
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            app.status === 'pending' ? 'bg-accent text-accent-foreground' :
+                            app.status === 'approved' ? 'bg-primary text-primary-foreground' :
+                            'bg-destructive text-destructive-foreground'
+                          }`}>
+                            {app.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-3">
+                          Applied: {new Date(app.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-3">
+                          User ID: {app.user_id}
+                        </div>
+                        {app.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApplicationAction(app.id, app.user_id, 'approved')}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleApplicationAction(app.id, app.user_id, 'rejected')}
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

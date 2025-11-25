@@ -76,6 +76,42 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_applications: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          license_number: string | null
+          phone: string
+          status: string
+          updated_at: string
+          user_id: string
+          vehicle_type: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          license_number?: string | null
+          phone: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          vehicle_type: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          license_number?: string | null
+          phone?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vehicle_type?: string
+        }
+        Relationships: []
+      }
       delivery_assignments: {
         Row: {
           assigned_at: string | null
