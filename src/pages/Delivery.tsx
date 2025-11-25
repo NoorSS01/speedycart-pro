@@ -21,10 +21,20 @@ interface DeliveryOrder {
     delivery_address: string;
     status: string;
     created_at: string;
+    user_id: string;
     profiles: {
       phone: string;
       full_name: string | null;
     };
+    order_items: Array<{
+      id: string;
+      quantity: number;
+      price: number;
+      products: {
+        name: string;
+        image_url: string | null;
+      };
+    }>;
   };
 }
 
@@ -83,8 +93,8 @@ export default function Delivery() {
       .order('assigned_at', { ascending: false });
 
     if (!error && data) {
-      // Fetch user profiles separately
-      const ordersWithProfiles = await Promise.all(
+      // Fetch user profiles and order items separately
+      const ordersWithDetails = await Promise.all(
         data.map(async (assignment) => {
           const { data: profile } = await supabase
             .from('profiles')
@@ -92,33 +102,50 @@ export default function Delivery() {
             .eq('id', assignment.orders.user_id)
             .single();
 
+          const { data: orderItems } = await supabase
+            .from('order_items')
+            .select(`
+              id,
+              quantity,
+              price,
+              products (
+                name,
+                image_url
+              )
+            `)
+            .eq('order_id', assignment.orders.id);
+
           return {
             ...assignment,
             orders: {
               ...assignment.orders,
-              profiles: profile || { phone: '', full_name: null }
+              profiles: profile || { phone: '', full_name: null },
+              order_items: orderItems || []
             }
           };
         })
       );
-      setAssignments(ordersWithProfiles as DeliveryOrder[]);
+      setAssignments(ordersWithDetails as DeliveryOrder[]);
     }
     setLoading(false);
   };
 
   const markAsDelivered = async (assignmentId: string, orderId: string) => {
-    const { error } = await supabase
+    const { error: assignmentError } = await supabase
       .from('delivery_assignments')
-      .update({ marked_delivered_at: new Date().toISOString() })
+      .update({ 
+        marked_delivered_at: new Date().toISOString(),
+        is_rejected: false // Reset rejection status
+      })
       .eq('id', assignmentId);
 
-    if (!error) {
+    if (!assignmentError) {
       await supabase
         .from('orders')
         .update({ status: 'out_for_delivery' })
         .eq('id', orderId);
 
-      toast.success('Marked as delivered. Waiting for customer confirmation.');
+      toast.success('Marked as delivered. Customer will be notified for confirmation.');
       fetchAssignments();
     } else {
       toast.error('Failed to mark as delivered');
@@ -126,7 +153,7 @@ export default function Delivery() {
   };
 
   const pendingOrders = assignments.filter(
-    a => !a.marked_delivered_at && !a.is_rejected
+    a => (!a.marked_delivered_at && !a.is_rejected) || a.is_rejected
   );
 
   const awaitingConfirmation = assignments.filter(
@@ -138,7 +165,7 @@ export default function Delivery() {
   );
 
   const rejectedOrders = assignments.filter(
-    a => a.is_rejected
+    a => a.is_rejected && a.marked_delivered_at
   );
 
   const OrderCard = ({ assignment, showDeliveredButton = false }: { assignment: DeliveryOrder; showDeliveredButton?: boolean }) => (
@@ -161,10 +188,33 @@ export default function Delivery() {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
+          {/* Product List */}
+          <div>
+            <p className="text-sm font-medium mb-2">Products:</p>
+            <div className="space-y-2">
+              {assignment.orders.order_items.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                  {item.products.image_url && (
+                    <img
+                      src={item.products.image_url}
+                      alt={item.products.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{item.products.name}</p>
+                    <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ${item.price.toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
           <div>
             <p className="text-sm font-medium mb-1">Delivery Address:</p>
             <p className="text-sm text-muted-foreground">{assignment.orders.delivery_address}</p>
           </div>
+          
           {showDeliveredButton && (
             <Button
               onClick={() => markAsDelivered(assignment.id, assignment.order_id)}
@@ -174,11 +224,21 @@ export default function Delivery() {
               Mark as Delivered
             </Button>
           )}
+          
           {assignment.marked_delivered_at && !assignment.user_confirmed_at && !assignment.is_rejected && (
             <div className="p-3 bg-warning/10 rounded-lg">
               <p className="text-sm text-warning flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
                 Awaiting customer confirmation
+              </p>
+            </div>
+          )}
+
+          {assignment.is_rejected && (
+            <div className="p-3 bg-destructive/10 rounded-lg">
+              <p className="text-sm text-destructive flex items-center gap-2 mb-2">
+                <AlertCircle className="h-4 w-4" />
+                Delivery was rejected - Ready for retry
               </p>
             </div>
           )}
@@ -283,7 +343,7 @@ export default function Delivery() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No rejected deliveries</p>
+                  <p className="text-muted-foreground">No rejected deliveries - Great job!</p>
                 </CardContent>
               </Card>
             ) : (
@@ -292,9 +352,12 @@ export default function Delivery() {
                   <OrderCard assignment={assignment} />
                   <Card className="mt-2 border-destructive">
                     <CardContent className="p-4">
-                      <p className="text-sm text-destructive flex items-center gap-2">
+                      <p className="text-sm text-destructive flex items-center gap-2 mb-2">
                         <AlertCircle className="h-4 w-4" />
-                        This delivery was rejected by the customer
+                        Delivery was rejected - This has been reported as suspicious activity
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Admin has been notified. You can attempt redelivery from the Pending tab.
                       </p>
                     </CardContent>
                   </Card>

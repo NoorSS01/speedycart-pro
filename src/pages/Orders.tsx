@@ -70,12 +70,29 @@ export default function Orders() {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'delivery_assignments'
         },
-        () => {
-          fetchOrders();
+        (payload) => {
+          // Auto-show confirmation dialog when delivery is marked
+          if (payload.new.marked_delivered_at && !payload.new.user_confirmed_at && !payload.old.marked_delivered_at) {
+            fetchOrders();
+            // Find the order and show dialog
+            setTimeout(() => {
+              const assignment = payload.new;
+              setConfirmDialog({
+                open: true,
+                orderId: assignment.order_id,
+                assignmentId: assignment.id
+              });
+              toast.info('Delivery person marked your order as delivered!', {
+                duration: 5000,
+              });
+            }, 500);
+          } else {
+            fetchOrders();
+          }
         }
       )
       .subscribe();
@@ -132,27 +149,29 @@ export default function Orders() {
   const rejectDelivery = async () => {
     if (!confirmDialog.assignmentId) return;
 
+    // First get assignment details before updating
+    const { data: assignment } = await supabase
+      .from('delivery_assignments')
+      .select('delivery_person_id, order_id')
+      .eq('id', confirmDialog.assignmentId)
+      .single();
+
     const { error: assignmentError } = await supabase
       .from('delivery_assignments')
       .update({ 
         is_rejected: true,
-        rejection_reason: 'User rejected delivery'
+        rejection_reason: 'User rejected delivery',
+        marked_delivered_at: null // Reset to allow retry
       })
       .eq('id', confirmDialog.assignmentId);
 
     if (!assignmentError) {
       await supabase
         .from('orders')
-        .update({ status: 'rejected' })
+        .update({ status: 'pending' }) // Reset to pending for retry
         .eq('id', confirmDialog.orderId);
 
       // Log malicious activity
-      const { data: assignment } = await supabase
-        .from('delivery_assignments')
-        .select('delivery_person_id, order_id')
-        .eq('id', confirmDialog.assignmentId)
-        .single();
-
       if (assignment) {
         await supabase
           .from('malicious_activities')
@@ -161,14 +180,14 @@ export default function Orders() {
             user_id: user?.id,
             delivery_person_id: assignment.delivery_person_id,
             activity_type: 'delivery_rejected',
-            description: 'User rejected the delivery after delivery person marked as delivered'
+            description: 'User rejected the delivery after delivery person marked as delivered. This could indicate fraudulent delivery attempt or genuine delivery failure.'
           });
       }
 
-      toast.success('Delivery rejected and reported');
+      toast.success('Issue reported. Admin has been notified and delivery will be reattempted.');
       fetchOrders();
     } else {
-      toast.error('Failed to reject delivery');
+      toast.error('Failed to report issue');
     }
 
     setConfirmDialog({ open: false, orderId: null, assignmentId: null });
