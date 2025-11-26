@@ -106,6 +106,7 @@ export default function Auth() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (adminCredentials.username === 'superadmin111' && adminCredentials.password === 'superadmin@111') {
+      sessionStorage.setItem('superadmin_access', 'true');
       toast.success('Admin access granted!');
       setShowAdminLogin(false);
       navigate('/super-admin');
