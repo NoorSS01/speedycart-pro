@@ -21,8 +21,19 @@ import {
   Edit,
   Trash2,
   Plus,
-  Truck
+  Truck,
+  Minus
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Product {
   id: string;
@@ -113,6 +124,18 @@ export default function SuperAdmin() {
   }>({
     userId: '',
     newRole: 'user'
+  });
+
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    type: 'product' | 'role' | null;
+    id: string;
+    name: string;
+  }>({
+    open: false,
+    type: null,
+    id: '',
+    name: ''
   });
 
   useEffect(() => {
@@ -267,14 +290,21 @@ export default function SuperAdmin() {
     });
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const handleDeleteProduct = async (id: string, name: string) => {
+    setDeleteDialog({ open: true, type: 'product', id, name });
+  };
+
+  const handleUpdateStock = async (productId: string, currentStock: number, change: number) => {
+    const newStock = Math.max(0, currentStock + change);
+    const { error } = await supabase
+      .from('products')
+      .update({ stock_quantity: newStock })
+      .eq('id', productId);
     
-    const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) {
-      toast.error('Failed to delete product: ' + error.message);
+      toast.error('Failed to update stock');
     } else {
-      toast.success('Product deleted successfully');
+      toast.success('Stock updated successfully');
       fetchProducts();
     }
   };
@@ -338,21 +368,34 @@ export default function SuperAdmin() {
     }
   };
 
-  const handleDeleteRole = async (roleId: string) => {
-    if (!confirm('Are you sure you want to remove this role?')) return;
+  const handleDeleteRole = async (roleId: string, userId: string) => {
+    setDeleteDialog({ open: true, type: 'role', id: roleId, name: userId });
+  };
 
-    const { error } = await supabase
-      .from('user_roles')
-      .delete()
-      .eq('id', roleId);
+  const confirmDelete = async () => {
+    if (deleteDialog.type === 'product') {
+      const { error } = await supabase.from('products').delete().eq('id', deleteDialog.id);
+      if (error) {
+        toast.error('Failed to delete product: ' + error.message);
+      } else {
+        toast.success('Product deleted successfully');
+        fetchProducts();
+      }
+    } else if (deleteDialog.type === 'role') {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('id', deleteDialog.id);
 
-    if (error) {
-      toast.error('Failed to delete role: ' + error.message);
-    } else {
-      toast.success('Role removed successfully');
-      fetchUserRoles();
-      fetchStats();
+      if (error) {
+        toast.error('Failed to delete role: ' + error.message);
+      } else {
+        toast.success('Role removed successfully');
+        fetchUserRoles();
+        fetchStats();
+      }
     }
+    setDeleteDialog({ open: false, type: null, id: '', name: '' });
   };
 
   const resetForm = () => {
@@ -585,21 +628,43 @@ export default function SuperAdmin() {
 
             <Card>
               <CardHeader>
-                <CardTitle>All Products</CardTitle>
+                <CardTitle>All Products ({products.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {products.map((product) => (
-                    <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                    <div key={product.id} className="flex items-center gap-4 p-4 border border-border rounded-lg hover:border-primary/50 transition-colors">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-foreground">{product.name}</h3>
-                        <p className="text-sm text-muted-foreground">₹{product.price} • Stock: {product.stock_quantity}</p>
+                        <h3 className="font-semibold text-foreground mb-1">{product.name}</h3>
+                        <p className="text-sm text-muted-foreground">₹{product.price} • {product.unit}</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-muted-foreground">Stock</span>
+                          <div className="flex items-center gap-2 bg-muted rounded-md px-2 py-1">
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6"
+                              onClick={() => handleUpdateStock(product.id, product.stock_quantity, -1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="font-semibold min-w-[2rem] text-center">{product.stock_quantity}</span>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-6 w-6"
+                              onClick={() => handleUpdateStock(product.id, product.stock_quantity, 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
                         <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
+                        <Button size="sm" variant="destructive" onClick={() => handleDeleteProduct(product.id, product.name)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -776,7 +841,7 @@ export default function SuperAdmin() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteRole(userRole.id)}
+                            onClick={() => handleDeleteRole(userRole.id, userRole.user_id)}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -825,6 +890,26 @@ export default function SuperAdmin() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, type: null, id: '', name: '' })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteDialog.type === 'product' 
+                ? `This will permanently delete the product "${deleteDialog.name}". This action cannot be undone.`
+                : `This will remove the role for user "${deleteDialog.name.slice(0, 8)}...". This action cannot be undone.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
