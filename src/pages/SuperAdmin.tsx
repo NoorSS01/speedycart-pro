@@ -116,7 +116,8 @@ export default function SuperAdmin() {
   });
 
   useEffect(() => {
-    if (!user) {
+    const hasSuperAdminAccess = sessionStorage.getItem('superadmin_access') === 'true';
+    if (!user && !hasSuperAdminAccess) {
       navigate('/auth');
       return;
     }
@@ -342,6 +343,7 @@ export default function SuperAdmin() {
   };
 
   const handleLogout = async () => {
+    sessionStorage.removeItem('superadmin_access');
     await signOut();
     navigate('/auth');
   };
