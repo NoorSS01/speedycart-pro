@@ -19,7 +19,10 @@ import {
   Users,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  Truck,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 
 interface Product {
@@ -57,6 +60,17 @@ interface MaliciousActivity {
   delivery_person_id: string | null;
 }
 
+interface DeliveryApplication {
+  id: string;
+  user_id: string;
+  full_name: string;
+  phone: string;
+  vehicle_type: string;
+  license_number: string | null;
+  status: string;
+  created_at: string;
+}
+
 export default function Admin() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -64,6 +78,7 @@ export default function Admin() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [maliciousActivities, setMaliciousActivities] = useState<MaliciousActivity[]>([]);
+  const [deliveryApplications, setDeliveryApplications] = useState<DeliveryApplication[]>([]);
   const [stats, setStats] = useState({ totalOrders: 0, pendingOrders: 0, deliveredOrders: 0, revenue: 0 });
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -109,6 +124,7 @@ export default function Admin() {
       fetchCategories(),
       fetchOrders(),
       fetchMaliciousActivities(),
+      fetchDeliveryApplications(),
       fetchStats()
     ]);
   };
@@ -138,6 +154,14 @@ export default function Admin() {
       .select('*')
       .order('detected_at', { ascending: false });
     if (data) setMaliciousActivities(data);
+  };
+
+  const fetchDeliveryApplications = async () => {
+    const { data } = await supabase
+      .from('delivery_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setDeliveryApplications(data);
   };
 
   const fetchStats = async () => {
@@ -232,6 +256,39 @@ export default function Admin() {
     navigate('/auth');
   };
 
+  const handleApplicationAction = async (applicationId: string, action: 'approved' | 'rejected') => {
+    const { error } = await supabase
+      .from('delivery_applications')
+      .update({ status: action })
+      .eq('id', applicationId);
+
+    if (error) {
+      toast.error(`Failed to ${action === 'approved' ? 'approve' : 'reject'} application`);
+      return;
+    }
+
+    // If approved, add delivery role to user
+    if (action === 'approved') {
+      const application = deliveryApplications.find(app => app.id === applicationId);
+      if (application) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({ user_id: application.user_id, role: 'delivery' });
+
+        if (roleError) {
+          console.error('Role assignment error:', roleError);
+          toast.error('Application approved but failed to assign role');
+        } else {
+          toast.success('Application approved! User is now a delivery partner.');
+        }
+      }
+    } else {
+      toast.success('Application rejected');
+    }
+
+    fetchDeliveryApplications();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-50">
@@ -296,9 +353,10 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="products" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="delivery">Delivery Partners</TabsTrigger>
             <TabsTrigger value="malicious">Malicious Activity</TabsTrigger>
           </TabsList>
 
@@ -449,6 +507,70 @@ export default function Admin() {
                       </p>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="delivery" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" />
+                  Delivery Partner Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {deliveryApplications.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No applications submitted yet</p>
+                  ) : (
+                    deliveryApplications.map((application) => (
+                      <div key={application.id} className="p-4 border border-border rounded-lg">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-foreground">{application.full_name}</h3>
+                            <p className="text-sm text-muted-foreground">Phone: {application.phone}</p>
+                            <p className="text-sm text-muted-foreground">Vehicle: {application.vehicle_type}</p>
+                            {application.license_number && (
+                              <p className="text-sm text-muted-foreground">License: {application.license_number}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Applied: {new Date(application.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            application.status === 'approved' ? 'bg-primary/10 text-primary' :
+                            application.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                            'bg-accent/10 text-accent'
+                          }`}>
+                            {application.status}
+                          </span>
+                        </div>
+                        {application.status === 'pending' && (
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApplicationAction(application.id, 'approved')}
+                              className="flex-1"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleApplicationAction(application.id, 'rejected')}
+                              className="flex-1"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
