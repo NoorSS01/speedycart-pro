@@ -272,31 +272,10 @@ export default function SuperAdmin() {
     
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) {
-      toast.error('Failed to delete product');
+      toast.error('Failed to delete product: ' + error.message);
     } else {
       toast.success('Product deleted successfully');
       fetchProducts();
-    }
-  };
-
-  const handleUpdateRole = async () => {
-    if (!roleManagement.userId) {
-      toast.error('Please enter a user ID');
-      return;
-    }
-
-    const { error } = await supabase
-      .from('user_roles')
-      .update({ role: roleManagement.newRole })
-      .eq('user_id', roleManagement.userId);
-
-    if (error) {
-      toast.error('Failed to update role');
-    } else {
-      toast.success('Role updated successfully');
-      setRoleManagement({ userId: '', newRole: 'user' });
-      fetchUserRoles();
-      fetchStats();
     }
   };
 
@@ -312,10 +291,13 @@ export default function SuperAdmin() {
     }
 
     if (action === 'approved') {
+      // Use upsert to handle both insert and update cases
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({ role: 'delivery' })
-        .eq('user_id', userId);
+        .upsert(
+          { user_id: userId, role: 'delivery' },
+          { onConflict: 'user_id,role' }
+        );
 
       if (roleError) {
         toast.error('Failed to assign delivery role');
@@ -327,6 +309,50 @@ export default function SuperAdmin() {
     fetchDeliveryApplications();
     fetchStats();
     fetchUserRoles();
+  };
+
+  const handleAddRole = async () => {
+    if (!roleManagement.userId) {
+      toast.error('Please enter a user ID');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('user_roles')
+      .insert({ 
+        user_id: roleManagement.userId, 
+        role: roleManagement.newRole 
+      });
+
+    if (error) {
+      if (error.code === '23505') {
+        toast.error('User already has this role');
+      } else {
+        toast.error('Failed to add role: ' + error.message);
+      }
+    } else {
+      toast.success('Role added successfully');
+      setRoleManagement({ userId: '', newRole: 'user' });
+      fetchUserRoles();
+      fetchStats();
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    if (!confirm('Are you sure you want to remove this role?')) return;
+
+    const { error } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('id', roleId);
+
+    if (error) {
+      toast.error('Failed to delete role: ' + error.message);
+    } else {
+      toast.success('Role removed successfully');
+      fetchUserRoles();
+      fetchStats();
+    }
   };
 
   const resetForm = () => {
@@ -719,7 +745,7 @@ export default function SuperAdmin() {
                     </Select>
                   </div>
                 </div>
-                <Button onClick={handleUpdateRole}>Update Role</Button>
+                <Button onClick={handleAddRole}>Add Role</Button>
               </CardContent>
             </Card>
 
@@ -731,21 +757,30 @@ export default function SuperAdmin() {
                 <div className="space-y-2">
                   {userRoles.map((userRole) => (
                     <div key={userRole.id} className="p-4 border border-border rounded-lg">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-center">
                         <div>
                           <h3 className="font-semibold text-foreground">
                             User #{userRole.user_id.slice(0, 8)}
                           </h3>
                           <p className="text-xs text-muted-foreground mt-1">ID: {userRole.user_id}</p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          userRole.role === 'super_admin' ? 'bg-destructive/10 text-destructive' :
-                          userRole.role === 'admin' ? 'bg-accent/10 text-accent' :
-                          userRole.role === 'delivery' ? 'bg-primary/10 text-primary' :
-                          'bg-muted text-muted-foreground'
-                        }`}>
-                          {userRole.role}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            userRole.role === 'super_admin' ? 'bg-destructive/10 text-destructive' :
+                            userRole.role === 'admin' ? 'bg-accent/10 text-accent' :
+                            userRole.role === 'delivery' ? 'bg-primary/10 text-primary' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {userRole.role}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteRole(userRole.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}

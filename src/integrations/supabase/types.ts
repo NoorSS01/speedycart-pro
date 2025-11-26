@@ -373,6 +373,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_delivery_person_for_order: {
+        Args: { _order_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "user" | "admin" | "delivery" | "super_admin"
