@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import Delivery from "./pages/Delivery";
 import Admin from "./pages/Admin";
 import SuperAdmin from "./pages/SuperAdmin";
+import DeliveryApplication from "./pages/DeliveryApplication";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/delivery" element={<Delivery />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
+            <Route path="/delivery-application" element={<DeliveryApplication />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
