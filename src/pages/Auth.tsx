@@ -7,9 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, Package, Shield, Truck } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Package, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Auth() {
@@ -24,13 +23,6 @@ export default function Auth() {
   const [tapCount, setTapCount] = useState(0);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
-  const [showDeliveryApp, setShowDeliveryApp] = useState(false);
-  const [deliveryAppForm, setDeliveryAppForm] = useState({
-    fullName: '',
-    phone: '',
-    vehicleType: 'bike',
-    licenseNumber: ''
-  });
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
@@ -115,34 +107,6 @@ export default function Auth() {
     }
   };
 
-  const handleDeliveryApplication = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!deliveryAppForm.fullName || !deliveryAppForm.phone) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    setIsLoading(true);
-    const { error } = await supabase.from('delivery_applications').insert({
-      user_id: user!.id,
-      full_name: deliveryAppForm.fullName,
-      phone: deliveryAppForm.phone,
-      vehicle_type: deliveryAppForm.vehicleType,
-      license_number: deliveryAppForm.licenseNumber || null,
-      status: 'pending'
-    });
-
-    if (error) {
-      toast.error('Failed to submit application');
-    } else {
-      toast.success('Application submitted successfully! Awaiting admin approval.');
-      setShowDeliveryApp(false);
-      setDeliveryAppForm({ fullName: '', phone: '', vehicleType: 'bike', licenseNumber: '' });
-    }
-    setIsLoading(false);
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md shadow-xl">
@@ -156,15 +120,11 @@ export default function Auth() {
           <CardDescription>Your favorite groceries in minutes</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              <TabsTrigger value="delivery">
-                <Truck className="h-4 w-4 mr-1" />
-                Delivery
-              </TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="signin" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="signin">Sign In</TabsTrigger>
+            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          </TabsList>
 
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
@@ -363,106 +323,6 @@ export default function Auth() {
                   </Button>
                 </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="delivery">
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Truck className="h-5 w-5 text-primary" />
-                    Join as Delivery Partner
-                  </CardTitle>
-                  <CardDescription>Apply to become a delivery partner and earn with us</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {!user ? (
-                    <div className="space-y-4 py-8 text-center">
-                      <div className="p-4 bg-accent/10 rounded-lg">
-                        <Truck className="h-12 w-12 text-primary mx-auto mb-3" />
-                        <h3 className="text-lg font-semibold mb-2">Sign In Required</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          You need to sign in or create an account before submitting a delivery partner application.
-                        </p>
-                        <div className="flex gap-2 justify-center">
-                          <Button 
-                            variant="default" 
-                            onClick={() => {
-                              const signInTab = document.querySelector('[value="signin"]') as HTMLElement;
-                              signInTab?.click();
-                            }}
-                          >
-                            Sign In
-                          </Button>
-                          <Button 
-                            variant="outline"
-                            onClick={() => {
-                              const signUpTab = document.querySelector('[value="signup"]') as HTMLElement;
-                              signUpTab?.click();
-                            }}
-                          >
-                            Create Account
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleDeliveryApplication} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery-name">Full Name *</Label>
-                        <Input
-                          id="delivery-name"
-                          type="text"
-                          placeholder="John Doe"
-                          value={deliveryAppForm.fullName}
-                          onChange={(e) => setDeliveryAppForm({ ...deliveryAppForm, fullName: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery-phone">Phone Number *</Label>
-                        <Input
-                          id="delivery-phone"
-                          type="tel"
-                          placeholder="+1234567890"
-                          value={deliveryAppForm.phone}
-                          onChange={(e) => setDeliveryAppForm({ ...deliveryAppForm, phone: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="vehicle-type">Vehicle Type *</Label>
-                        <Select 
-                          value={deliveryAppForm.vehicleType} 
-                          onValueChange={(value) => setDeliveryAppForm({ ...deliveryAppForm, vehicleType: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="bike">Bike</SelectItem>
-                            <SelectItem value="scooter">Scooter</SelectItem>
-                            <SelectItem value="car">Car</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="license">Driving License Number</Label>
-                        <Input
-                          id="license"
-                          type="text"
-                          placeholder="DL1234567890"
-                          value={deliveryAppForm.licenseNumber}
-                          onChange={(e) => setDeliveryAppForm({ ...deliveryAppForm, licenseNumber: e.target.value })}
-                        />
-                      </div>
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Submit Application
-                      </Button>
-                    </form>
-                  )}
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </CardContent>
