@@ -374,8 +374,13 @@ export default function SuperAdmin() {
 
   const confirmDelete = async () => {
     if (deleteDialog.type === 'product') {
-      const { error } = await supabase.from('products').delete().eq('id', deleteDialog.id);
+      // Soft-delete products to avoid breaking existing orders/carts
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active: false, stock_quantity: 0 })
+        .eq('id', deleteDialog.id);
       if (error) {
+        console.error('Product delete error', error);
         toast.error('Failed to delete product: ' + error.message);
       } else {
         toast.success('Product deleted successfully');
