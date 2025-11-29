@@ -44,7 +44,8 @@ export default function DeliveryApplication() {
         full_name: formData.fullName,
         phone: formData.phone,
         vehicle_type: formData.vehicleType,
-        license_number: formData.licenseNumber || null
+        license_number: formData.licenseNumber || null,
+        status: 'pending'
       });
 
     setLoading(false);
@@ -61,13 +62,13 @@ export default function DeliveryApplication() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      <header className="sticky top-0 z-50 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 border-b border-border/40">
         <div className="container mx-auto px-4 py-4 flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Package className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold">QuickCommerce</h1>
+          <h1 className="text-xl font-bold">PremaShop</h1>
         </div>
       </header>
 

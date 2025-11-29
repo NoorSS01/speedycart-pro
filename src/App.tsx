@@ -11,8 +11,10 @@ import Orders from "./pages/Orders";
 import Profile from "./pages/Profile";
 import Delivery from "./pages/Delivery";
 import Admin from "./pages/Admin";
+import AdminToPay from "./pages/AdminToPay";
 import SuperAdmin from "./pages/SuperAdmin";
 import DeliveryApplication from "./pages/DeliveryApplication";
+import PhoneSetup from "./pages/PhoneSetup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,8 +34,10 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/delivery" element={<Delivery />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/to-pay" element={<AdminToPay />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/delivery-application" element={<DeliveryApplication />} />
+            <Route path="/phone-setup" element={<PhoneSetup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

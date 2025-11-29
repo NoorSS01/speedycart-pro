@@ -39,14 +39,19 @@ interface DeliveryOrder {
 }
 
 export default function Delivery() {
-  const { user, signOut } = useAuth();
+  const { user, userRole, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [assignments, setAssignments] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate('/auth');
+      return;
+    }
+    if (userRole !== 'delivery' && userRole !== 'super_admin') {
+      navigate('/');
       return;
     }
     fetchAssignments();
@@ -71,7 +76,7 @@ export default function Delivery() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, navigate]);
+  }, [user, userRole, authLoading, navigate]);
 
   const fetchAssignments = async () => {
     if (!user) return;
@@ -165,7 +170,7 @@ export default function Delivery() {
   );
 
   const rejectedOrders = assignments.filter(
-    a => a.is_rejected && a.marked_delivered_at
+    a => a.is_rejected
   );
 
   const OrderCard = ({ assignment, showDeliveredButton = false }: { assignment: DeliveryOrder; showDeliveredButton?: boolean }) => (

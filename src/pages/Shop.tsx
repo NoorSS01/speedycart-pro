@@ -51,7 +51,7 @@ interface CartItem {
 }
 
 export default function Shop() {
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -66,6 +66,7 @@ export default function Shop() {
   const [showCartSheet, setShowCartSheet] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate('/auth');
       return;
@@ -80,7 +81,7 @@ export default function Shop() {
     window.addEventListener('openCart', handleOpenCart);
     
     return () => window.removeEventListener('openCart', handleOpenCart);
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const fetchCategories = async () => {
     const { data, error } = await supabase
@@ -274,23 +275,6 @@ export default function Shop() {
         return;
       }
 
-      // Auto-assign to a delivery person (simplified - just get first available)
-      const { data: deliveryPerson, error: deliveryError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'delivery')
-        .limit(1)
-        .maybeSingle();
-
-      if (deliveryPerson) {
-        await supabase
-          .from('delivery_assignments')
-          .insert({
-            order_id: order.id,
-            delivery_person_id: deliveryPerson.user_id
-          });
-      }
-
       // Clear cart
       await supabase
         .from('cart_items')
@@ -326,13 +310,13 @@ export default function Shop() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Package className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">QuickCommerce</h1>
+            <h1 className="text-xl font-bold tracking-tight">PremaShop</h1>
           </div>
         </div>
       </header>
@@ -451,7 +435,7 @@ export default function Shop() {
       <div className="container mx-auto px-4 pb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredProducts.map(product => (
-            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card key={product.id} className="overflow-hidden rounded-2xl border border-border/40 bg-card/90 hover:shadow-xl hover:border-primary/40 transition-all">
               <CardContent className="p-0">
                 <div className="aspect-square bg-muted flex items-center justify-center">
                   {product.image_url ? (

@@ -89,7 +89,7 @@ interface DeliveryApplication {
 }
 
 export default function SuperAdmin() {
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -104,7 +104,10 @@ export default function SuperAdmin() {
     revenue: 0,
     totalUsers: 0,
     deliveryPersons: 0,
-    pendingApplications: 0
+    pendingApplications: 0,
+    commissionDeveloper: 0,
+    commissionDelivery: 0,
+    profit: 0
   });
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -139,6 +142,7 @@ export default function SuperAdmin() {
   });
 
   useEffect(() => {
+    if (authLoading) return;
     const hasSuperAdminAccess = sessionStorage.getItem('superadmin_access') === 'true';
     if (!user && !hasSuperAdminAccess) {
       navigate('/auth');
@@ -146,7 +150,7 @@ export default function SuperAdmin() {
     }
     fetchData();
     subscribeToChanges();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const subscribeToChanges = () => {
     const ordersChannel = supabase
@@ -234,8 +238,23 @@ export default function SuperAdmin() {
       const totalUsers = rolesData?.filter(r => r.role === 'user').length || 0;
       const deliveryPersons = rolesData?.filter(r => r.role === 'delivery').length || 0;
       const pendingApplications = appsData?.filter(a => a.status === 'pending').length || 0;
+
+      const commissionDeveloper = deliveredOrders * 4; // ₹4 per delivered order to website builder
+      const commissionDelivery = deliveredOrders * 5;  // ₹5 per delivered order to delivery partners
+      const profit = revenue - commissionDeveloper - commissionDelivery;
       
-      setStats({ totalOrders, pendingOrders, deliveredOrders, revenue, totalUsers, deliveryPersons, pendingApplications });
+      setStats({ 
+        totalOrders, 
+        pendingOrders, 
+        deliveredOrders, 
+        revenue, 
+        totalUsers, 
+        deliveryPersons, 
+        pendingApplications,
+        commissionDeveloper,
+        commissionDelivery,
+        profit
+      });
     }
   };
 
@@ -438,43 +457,8 @@ export default function SuperAdmin() {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.totalOrders}</p>
-                <ShoppingBag className="h-6 w-6 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.pendingOrders}</p>
-                <Package className="h-6 w-6 text-accent" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Delivered</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.deliveredOrders}</p>
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          {/* Revenue */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
@@ -487,38 +471,71 @@ export default function SuperAdmin() {
             </CardContent>
           </Card>
 
+          {/* Profit */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Users</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Profit</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.totalUsers}</p>
-                <Users className="h-6 w-6 text-primary" />
+                <p className="text-2xl font-bold text-foreground">₹{stats.profit.toFixed(2)}</p>
+                <TrendingUp className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">After commissions (₹4 dev, ₹5 delivery per order)</p>
+            </CardContent>
+          </Card>
+
+          {/* To Pay */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">To Pay</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-2xl font-bold text-foreground">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(2)}</p>
+                <ShoppingBag className="h-6 w-6 text-primary" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Developer: ₹{stats.commissionDeveloper.toFixed(2)} • Delivery: ₹{stats.commissionDelivery.toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Total Orders */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-2xl font-bold text-foreground">{stats.totalOrders}</p>
+                <ShoppingBag className="h-6 w-6 text-primary" />
               </div>
             </CardContent>
           </Card>
 
+          {/* Pending Orders */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Delivery</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Orders</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.deliveryPersons}</p>
-                <Truck className="h-6 w-6 text-primary" />
+                <p className="text-2xl font-bold text-foreground">{stats.pendingOrders}</p>
+                <Package className="h-6 w-6 text-accent" />
               </div>
             </CardContent>
           </Card>
 
+          {/* Delivered */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Applications</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Delivered</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.pendingApplications}</p>
-                <Plus className="h-6 w-6 text-accent" />
+                <p className="text-2xl font-bold text-foreground">{stats.deliveredOrders}</p>
+                <TrendingUp className="h-6 w-6 text-primary" />
               </div>
             </CardContent>
           </Card>

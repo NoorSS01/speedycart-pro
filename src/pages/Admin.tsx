@@ -72,14 +72,23 @@ interface DeliveryApplication {
 }
 
 export default function Admin() {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [maliciousActivities, setMaliciousActivities] = useState<MaliciousActivity[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; phone: string | null }>>({});
   const [deliveryApplications, setDeliveryApplications] = useState<DeliveryApplication[]>([]);
-  const [stats, setStats] = useState({ totalOrders: 0, pendingOrders: 0, deliveredOrders: 0, revenue: 0 });
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    pendingOrders: 0,
+    deliveredOrders: 0,
+    revenue: 0,
+    commissionDeveloper: 0,
+    commissionDelivery: 0,
+    profit: 0
+  });
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({
@@ -93,13 +102,14 @@ export default function Admin() {
   });
 
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       navigate('/auth');
       return;
     }
     fetchData();
     subscribeToChanges();
-  }, [user, navigate]);
+  }, [user, loading, navigate]);
 
   const subscribeToChanges = () => {
     const ordersChannel = supabase
@@ -153,7 +163,38 @@ export default function Admin() {
       .from('malicious_activities')
       .select('*')
       .order('detected_at', { ascending: false });
-    if (data) setMaliciousActivities(data);
+    if (data) {
+      setMaliciousActivities(data);
+
+      const profileIds = Array.from(
+        new Set(
+          data
+            .flatMap((activity) => [activity.user_id, activity.delivery_person_id])
+            .filter((id): id is string => Boolean(id))
+        )
+      );
+
+      if (profileIds.length === 0) {
+        setProfiles({});
+        return;
+      }
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', profileIds);
+
+      if (!profilesError && profilesData) {
+        const profileMap: Record<string, { full_name: string | null; phone: string | null }> = {};
+        profilesData.forEach((profile: any) => {
+          profileMap[profile.id] = {
+            full_name: profile.full_name ?? null,
+            phone: profile.phone ?? null
+          };
+        });
+        setProfiles(profileMap);
+      }
+    }
   };
 
   const fetchDeliveryApplications = async () => {
@@ -171,7 +212,19 @@ export default function Admin() {
       const pendingOrders = ordersData.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'out_for_delivery').length;
       const deliveredOrders = ordersData.filter(o => o.status === 'delivered').length;
       const revenue = ordersData.filter(o => o.status === 'delivered').reduce((sum, o) => sum + Number(o.total_amount), 0);
-      setStats({ totalOrders, pendingOrders, deliveredOrders, revenue });
+      const commissionDeveloper = deliveredOrders * 4; // ₹4 per delivered order to website builder
+      const commissionDelivery = deliveredOrders * 5;  // ₹5 per delivered order to delivery partners
+      const profit = revenue - commissionDeveloper - commissionDelivery;
+
+      setStats({
+        totalOrders,
+        pendingOrders,
+        deliveredOrders,
+        revenue,
+        commissionDeveloper,
+        commissionDelivery,
+        profit
+      });
     }
   };
 
@@ -303,6 +356,53 @@ export default function Admin() {
 
       <main className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {/* Revenue */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-3xl font-bold text-foreground">₹{stats.revenue.toFixed(2)}</p>
+                <TrendingUp className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Profit */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Profit</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-3xl font-bold text-foreground">₹{stats.profit.toFixed(2)}</p>
+                <TrendingUp className="h-8 w-8 text-primary" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">After commissions (₹4 dev, ₹5 delivery per order)</p>
+            </CardContent>
+          </Card>
+
+          {/* To Pay */}
+          <Card
+            className="cursor-pointer hover:bg-accent/5 transition"
+            onClick={() => navigate('/admin/to-pay')}
+          >
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-muted-foreground">To Pay</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <p className="text-3xl font-bold text-foreground">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(2)}</p>
+                <ShoppingBag className="h-8 w-8 text-primary" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Developer: ₹{stats.commissionDeveloper.toFixed(2)} • Delivery: ₹{stats.commissionDelivery.toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Total Orders */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
@@ -315,6 +415,7 @@ export default function Admin() {
             </CardContent>
           </Card>
 
+          {/* Pending Orders */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Pending Orders</CardTitle>
@@ -327,6 +428,7 @@ export default function Admin() {
             </CardContent>
           </Card>
 
+          {/* Delivered */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Delivered</CardTitle>
@@ -334,18 +436,6 @@ export default function Admin() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <p className="text-3xl font-bold text-foreground">{stats.deliveredOrders}</p>
-                <TrendingUp className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-3xl font-bold text-foreground">₹{stats.revenue.toFixed(2)}</p>
                 <TrendingUp className="h-8 w-8 text-primary" />
               </div>
             </CardContent>
@@ -597,12 +687,61 @@ export default function Admin() {
                             {new Date(activity.detected_at || '').toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">{activity.description}</p>
-                        <div className="flex gap-4 text-xs text-muted-foreground">
-                          {activity.user_id && <span>User ID: {activity.user_id.slice(0, 8)}...</span>}
-                          {activity.delivery_person_id && <span>Delivery: {activity.delivery_person_id.slice(0, 8)}...</span>}
-                          {activity.order_id && <span>Order ID: {activity.order_id.slice(0, 8)}...</span>}
-                        </div>
+                        <p className="text-sm text-muted-foreground mb-3">{activity.description}</p>
+                        {(() => {
+                          const relatedOrder = orders.find((order) => order.id === activity.order_id);
+                          const deliveryProfile = activity.delivery_person_id
+                            ? profiles[activity.delivery_person_id]
+                            : undefined;
+                          const customerProfile = activity.user_id
+                            ? profiles[activity.user_id]
+                            : undefined;
+
+                          return (
+                            <div className="space-y-1 text-xs text-muted-foreground">
+                              {relatedOrder && (
+                                <p>
+                                  <span className="font-medium">Order:</span>{' '}
+                                  Order #{relatedOrder.id.slice(0, 8)} • ₹
+                                  {Number(relatedOrder.total_amount).toFixed(2)} •{' '}
+                                  <span className="capitalize">{relatedOrder.status.replace('_', ' ')}</span>
+                                </p>
+                              )}
+                              {!relatedOrder && activity.order_id && (
+                                <p>
+                                  <span className="font-medium">Order:</span>{' '}
+                                  Order #{activity.order_id.slice(0, 8)}
+                                </p>
+                              )}
+                              {customerProfile && (
+                                <p>
+                                  <span className="font-medium">Customer:</span>{' '}
+                                  {customerProfile.full_name || 'Unknown customer'}
+                                  {customerProfile.phone && ` (${customerProfile.phone})`}
+                                </p>
+                              )}
+                              {!customerProfile && activity.user_id && (
+                                <p>
+                                  <span className="font-medium">Customer:</span>{' '}
+                                  Unknown customer
+                                </p>
+                              )}
+                              {deliveryProfile && activity.delivery_person_id && (
+                                <p>
+                                  <span className="font-medium">Delivery Person:</span>{' '}
+                                  {deliveryProfile.full_name || 'Unknown delivery partner'}
+                                  {deliveryProfile.phone && ` (${deliveryProfile.phone})`}
+                                </p>
+                              )}
+                              {!deliveryProfile && activity.delivery_person_id && (
+                                <p>
+                                  <span className="font-medium">Delivery Person:</span>{' '}
+                                  Unknown delivery partner
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))
                   )}

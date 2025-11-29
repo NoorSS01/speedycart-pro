@@ -56,13 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .order('role', { ascending: false })
-        .limit(1)
-        .single();
+        .eq('user_id', userId);
 
-      if (!error && data) {
-        setUserRole(data.role);
+      if (!error && data && data.length > 0) {
+        const roles = data.map((r: { role: string }) => r.role);
+        const rolePriority = ['super_admin', 'admin', 'delivery', 'user'];
+        const primaryRole = rolePriority.find((role) => roles.includes(role)) ?? roles[0];
+        setUserRole(primaryRole);
       }
     } catch (error) {
       console.error('Error fetching user role:', error);

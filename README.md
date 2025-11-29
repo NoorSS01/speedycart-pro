@@ -71,3 +71,12 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Supabase database setup (one file)
+
+- Open `supabase/schema.sql` in this repo.
+- Copy **all** the SQL in that file.
+- In your Supabase project, go to **SQL editor** → **New query**.
+- Paste the SQL and click **Run**.
+
+This creates all required tables, enums, policies and triggers for the app.

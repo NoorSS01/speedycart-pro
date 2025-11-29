@@ -23,7 +23,7 @@ export default function Auth() {
   const [tapCount, setTapCount] = useState(0);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -63,7 +63,7 @@ export default function Auth() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Account created successfully!');
+      toast.success('Conformation sent to email');
       navigate('/');
     }
     setIsLoading(false);
@@ -116,7 +116,7 @@ export default function Auth() {
               <Package className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">QuickCommerce</CardTitle>
+          <CardTitle className="text-2xl font-bold">PremaShop</CardTitle>
           <CardDescription>Your favorite groceries in minutes</CardDescription>
         </CardHeader>
         <CardContent>
