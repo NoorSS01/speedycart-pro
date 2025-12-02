@@ -80,3 +80,11 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
 - Paste the SQL and click **Run**.
 
 This creates all required tables, enums, policies and triggers for the app.
+
+## Hostinger deployment notes (for coding agents only)
+
+- The project uses Vite + React with `BrowserRouter`, so the build must be served from `dist/` and all non-file routes must rewrite to `index.html`.
+- Deployment flow now relies on `.github/workflows/deploy-hostinger.yml`: GitHub Actions runs `npm run build` and uses SamKirkland/FTP-Deploy-Action to push `dist/` to `/public_html/` via FTP.
+- Ensure `vite.config.ts` keeps `base: "/"` and `public/.htaccess` exists so `dist/` contains the rewrite rules before FTP deploy.
+- Hostinger Advanced Git was abandoned because it served the source `index.html`; keep using the FTP action triggered by pushes to `main`.
+- Update GitHub secrets (`FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`) whenever FTP credentials change, then rerun the action (via a new commit or rerun) to redeploy.
