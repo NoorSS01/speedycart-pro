@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# Serve the built React app from /dist
+RewriteCond %{REQUEST_URI} !^/dist/
+RewriteRule ^$ /dist/index.html [L]
+
+# For client-side routes, send everything to the SPA entry
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ /dist/index.html [L]

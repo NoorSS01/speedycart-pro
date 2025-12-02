@@ -81,10 +81,22 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
 
 This creates all required tables, enums, policies and triggers for the app.
 
-## Hostinger deployment notes (for coding agents only)
+## Hostinger Advanced Git Deployment
 
-- The project uses Vite + React with `BrowserRouter`, so the build must be served from `dist/` and all non-file routes must rewrite to `index.html`.
-- Deployment flow now relies on `.github/workflows/deploy-hostinger.yml`: GitHub Actions runs `npm run build` and uses SamKirkland/FTP-Deploy-Action to push `dist/` to `/public_html/` via FTP.
-- Ensure `vite.config.ts` keeps `base: "/"` and `public/.htaccess` exists so `dist/` contains the rewrite rules before FTP deploy.
-- Hostinger Advanced Git was abandoned because it served the source `index.html`; keep using the FTP action triggered by pushes to `main`.
-- Update GitHub secrets (`FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`) whenever FTP credentials change, then rerun the action (via a new commit or rerun) to redeploy.
+This project is configured for Hostinger Advanced Git deployment:
+
+1. **Build Configuration**: 
+   - Build output directory: `dist/`
+   - Base path: `/` (configured in `vite.config.ts`)
+   - The `.htaccess` file in `public/` is automatically copied to `dist/` during build for SPA routing
+
+2. **Setup in Hostinger**:
+   - Connect your GitHub repository in Hostinger's Advanced Git options
+   - Set build command: `npm run build`
+   - Set publish directory: `dist`
+   - The `.htaccess` file ensures all routes are properly handled for React Router
+
+3. **Important Notes**:
+   - The project uses Vite + React with `BrowserRouter`, so all non-file routes must rewrite to `index.html`
+   - The `.htaccess` file in `public/` handles this automatically
+   - After pushing to your main branch, Hostinger will automatically build and deploy
