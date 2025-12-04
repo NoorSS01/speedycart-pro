@@ -400,46 +400,57 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <Button onClick={() => navigate('/admin/stock')} variant="outline" size="sm" className="gap-2">
-              <Boxes className="h-4 w-4" />
-              Manage Stock
-            </Button>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="7days">Last 7 Days</SelectItem>
-                  <SelectItem value="1month">Last 1 Month</SelectItem>
-                  <SelectItem value="6months">Last 6 Months</SelectItem>
-                  <SelectItem value="1year">Last 1 Year</SelectItem>
-                </SelectContent>
-              </Select>
+      <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-50 supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
+              <p className="text-xs text-muted-foreground md:hidden mt-1">
+                {dateRangeLabels[dateRange]}
+              </p>
             </div>
-            <Button onClick={handleLogout} variant="outline" size="sm">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={() => navigate('/admin/stock')} variant="outline" size="sm" className="gap-2 flex-1 md:flex-none">
+                <Boxes className="h-4 w-4" />
+                Manage Stock
+              </Button>
+
+              <div className="flex items-center gap-2 flex-1 md:flex-none min-w-[140px]">
+                <Calendar className="h-4 w-4 text-muted-foreground hidden md:block" />
+                <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
+                  <SelectTrigger className="w-full md:w-[160px]">
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="7days">Last 7 Days</SelectItem>
+                    <SelectItem value="1month">Last 1 Month</SelectItem>
+                    <SelectItem value="6months">Last 6 Months</SelectItem>
+                    <SelectItem value="1year">Last 1 Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={handleLogout} variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
+      <main className="container mx-auto px-4 py-6 pb-24">
+        <div className="hidden md:flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
             📊 Showing data for: <span className="font-medium text-foreground">{dateRangeLabels[dateRange]}</span>
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+
+        {/* Stats Carousel on Mobile, Grid on Desktop */}
+        <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
           {/* Revenue */}
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800">
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-2">
                 💰 Total Sales
@@ -452,7 +463,7 @@ export default function Admin() {
           </Card>
 
           {/* Profit */}
-          <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
                 📈 Your Profit
@@ -466,7 +477,7 @@ export default function Admin() {
 
           {/* To Pay */}
           <Card
-            className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition"
+            className="min-w-[260px] snap-center bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition"
             onClick={() => navigate('/admin/to-pay')}
           >
             <CardHeader className="pb-2">
@@ -481,7 +492,7 @@ export default function Admin() {
           </Card>
 
           {/* Total Orders */}
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
                 📦 All Orders
@@ -494,7 +505,7 @@ export default function Admin() {
           </Card>
 
           {/* Pending Orders */}
-          <Card className={`bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'}`}>
+          <Card className={`min-w-[260px] snap-center bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'}`}>
             <CardHeader className="pb-2">
               <CardTitle className={`text-sm font-medium flex items-center gap-2 ${stats.pendingOrders > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
                 ⏳ In Progress
@@ -507,7 +518,7 @@ export default function Admin() {
           </Card>
 
           {/* Delivered */}
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30">
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
                 ✅ Delivered
@@ -521,12 +532,14 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="products" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="delivery">Delivery Partners</TabsTrigger>
-            <TabsTrigger value="malicious">Malicious Activity</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 scrollbar-hide">
+            <TabsList className="w-auto inline-flex md:grid md:w-full md:grid-cols-4 h-auto p-1">
+              <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
+              <TabsTrigger value="orders" className="px-4 py-2">Orders</TabsTrigger>
+              <TabsTrigger value="delivery" className="px-4 py-2">Delivery Partners</TabsTrigger>
+              <TabsTrigger value="malicious" className="px-4 py-2">Malicious Activity</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="products" className="space-y-4">
             <Card>

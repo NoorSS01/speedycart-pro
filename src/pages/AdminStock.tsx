@@ -164,9 +164,9 @@ export default function AdminStock() {
     return (
         <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="border-b border-border bg-card sticky top-0 z-50">
+            <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-50 supports-[backdrop-filter]:bg-background/60">
                 <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
                                 <ArrowLeft className="h-5 w-5" />
@@ -179,7 +179,7 @@ export default function AdminStock() {
                                 <p className="text-sm text-muted-foreground">Manage your inventory levels</p>
                             </div>
                         </div>
-                        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
+                        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="w-full md:w-auto">
                             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
@@ -187,11 +187,11 @@ export default function AdminStock() {
                 </div>
             </header>
 
-            <main className="container mx-auto px-4 py-6">
-                {/* Stats Overview */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <main className="container mx-auto px-4 py-6 pb-24">
+                {/* Stats Carousel on Mobile, Grid on Desktop */}
+                <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-2 lg:grid-cols-5 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
                     <Card
-                        className={`cursor-pointer transition-all ${filterStatus === 'all' ? 'ring-2 ring-primary' : 'hover:bg-accent/50'}`}
+                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'all' ? 'ring-2 ring-primary' : 'hover:bg-accent/50'}`}
                         onClick={() => setFilterStatus('all')}
                     >
                         <CardContent className="p-4">
@@ -206,7 +206,7 @@ export default function AdminStock() {
                     </Card>
 
                     <Card
-                        className={`cursor-pointer transition-all ${filterStatus === 'out' ? 'ring-2 ring-red-500' : 'hover:bg-red-50 dark:hover:bg-red-950/20'}`}
+                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'out' ? 'ring-2 ring-red-500' : 'hover:bg-red-50 dark:hover:bg-red-950/20'}`}
                         onClick={() => setFilterStatus('out')}
                     >
                         <CardContent className="p-4">
@@ -221,7 +221,7 @@ export default function AdminStock() {
                     </Card>
 
                     <Card
-                        className={`cursor-pointer transition-all ${filterStatus === 'low' ? 'ring-2 ring-orange-500' : 'hover:bg-orange-50 dark:hover:bg-orange-950/20'}`}
+                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'low' ? 'ring-2 ring-orange-500' : 'hover:bg-orange-50 dark:hover:bg-orange-950/20'}`}
                         onClick={() => setFilterStatus('low')}
                     >
                         <CardContent className="p-4">
@@ -236,7 +236,7 @@ export default function AdminStock() {
                     </Card>
 
                     <Card
-                        className={`cursor-pointer transition-all ${filterStatus === 'good' ? 'ring-2 ring-green-500' : 'hover:bg-green-50 dark:hover:bg-green-950/20'}`}
+                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'good' ? 'ring-2 ring-green-500' : 'hover:bg-green-50 dark:hover:bg-green-950/20'}`}
                         onClick={() => setFilterStatus('good')}
                     >
                         <CardContent className="p-4">
@@ -250,7 +250,7 @@ export default function AdminStock() {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
+                    <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/5">
                         <CardContent className="p-4">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -307,7 +307,7 @@ export default function AdminStock() {
                                             <tr
                                                 key={product.id}
                                                 className={`border-b border-border/50 hover:bg-accent/30 transition-colors ${product.stock_quantity === 0 ? 'bg-red-50/50 dark:bg-red-950/10' :
-                                                        product.stock_quantity <= 10 ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''
+                                                    product.stock_quantity <= 10 ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''
                                                     }`}
                                             >
                                                 <td className="py-3 px-4">
