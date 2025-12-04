@@ -150,7 +150,33 @@ export default function Shop() {
   const addToCart = async (productId: string) => {
     if (!user) return;
 
+    // Fetch fresh product data to get current stock
+    const { data: freshProduct, error: fetchError } = await supabase
+      .from('products')
+      .select('stock_quantity, name')
+      .eq('id', productId)
+      .single();
+
+    if (fetchError || !freshProduct) {
+      toast.error('Failed to check stock availability');
+      return;
+    }
+
     const existingItem = cartItems.find(item => item.product_id === productId);
+    const currentCartQty = existingItem ? existingItem.quantity : 0;
+    const requestedQty = currentCartQty + 1;
+
+    // Check if we have enough stock
+    if (requestedQty > freshProduct.stock_quantity) {
+      if (freshProduct.stock_quantity === 0) {
+        toast.error(`${freshProduct.name} is out of stock`);
+      } else if (currentCartQty >= freshProduct.stock_quantity) {
+        toast.error(`Only ${freshProduct.stock_quantity} ${freshProduct.name} available. You already have ${currentCartQty} in cart.`);
+      } else {
+        toast.error(`Only ${freshProduct.stock_quantity} ${freshProduct.name} available`);
+      }
+      return;
+    }
 
     if (existingItem) {
       const { error } = await supabase
@@ -181,6 +207,39 @@ export default function Shop() {
   const updateCartQuantity = async (cartItemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       await removeFromCart(cartItemId);
+      return;
+    }
+
+    // Find the cart item to get product info
+    const cartItem = cartItems.find(item => item.id === cartItemId);
+    if (!cartItem) return;
+
+    // Fetch fresh stock data
+    const { data: freshProduct, error: fetchError } = await supabase
+      .from('products')
+      .select('stock_quantity, name')
+      .eq('id', cartItem.product_id)
+      .single();
+
+    if (fetchError || !freshProduct) {
+      toast.error('Failed to check stock availability');
+      return;
+    }
+
+    // Check if requested quantity exceeds available stock
+    if (newQuantity > freshProduct.stock_quantity) {
+      toast.error(`Only ${freshProduct.stock_quantity} ${freshProduct.name} available`);
+      // Update to max available if trying to increase
+      if (freshProduct.stock_quantity > 0 && freshProduct.stock_quantity !== cartItem.quantity) {
+        const { error } = await supabase
+          .from('cart_items')
+          .update({ quantity: freshProduct.stock_quantity })
+          .eq('id', cartItemId);
+        if (!error) {
+          fetchCart();
+          toast.info(`Cart updated to maximum available (${freshProduct.stock_quantity})`);
+        }
+      }
       return;
     }
 
@@ -222,6 +281,36 @@ export default function Shop() {
     }
 
     try {
+      // Step 1: Re-validate stock availability for all items before placing order
+      const productIds = cartItems.map(item => item.product_id);
+      const { data: freshProducts, error: stockCheckError } = await supabase
+        .from('products')
+        .select('id, name, stock_quantity')
+        .in('id', productIds);
+
+      if (stockCheckError || !freshProducts) {
+        toast.error('Failed to verify stock. Please try again.');
+        return;
+      }
+
+      // Create a map of fresh stock data
+      const stockMap = new Map(freshProducts.map(p => [p.id, { name: p.name, stock: p.stock_quantity }]));
+
+      // Check if any item exceeds available stock
+      const insufficientStock = cartItems.filter(item => {
+        const productStock = stockMap.get(item.product_id);
+        return productStock && item.quantity > productStock.stock;
+      });
+
+      if (insufficientStock.length > 0) {
+        const messages = insufficientStock.map(item => {
+          const productStock = stockMap.get(item.product_id);
+          return `${productStock?.name}: Only ${productStock?.stock} available (you have ${item.quantity} in cart)`;
+        });
+        toast.error(`Cannot place order:\n${messages.join(', ')}`);
+        return;
+      }
+
       // Save new address to profile if using new address
       if (addressOption === 'new' && newAddress.trim()) {
         await supabase
@@ -275,17 +364,37 @@ export default function Shop() {
         return;
       }
 
+      // Step 2: Reduce stock for each product purchased
+      for (const item of cartItems) {
+        const productStock = stockMap.get(item.product_id);
+        if (productStock) {
+          const newStock = Math.max(0, productStock.stock - item.quantity);
+
+          const { error: stockError } = await supabase
+            .from('products')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product_id);
+
+          if (stockError) {
+            console.error(`Failed to update stock for product ${item.product_id}:`, stockError);
+            // Don't return - order is already placed, just log the error
+          }
+        }
+      }
+
       // Clear cart
       await supabase
         .from('cart_items')
         .delete()
         .eq('user_id', user.id);
 
+      // Refresh products to show updated stock
+      fetchProducts();
       fetchCart();
       setShowAddressDialog(false);
       setShowCartSheet(false);
       setNewAddress('');
-      toast.success('Order placed successfully!');
+      toast.success('🎉 Order placed successfully! Stock updated.');
     } catch (error) {
       console.error('Unexpected error placing order:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -443,19 +552,19 @@ export default function Shop() {
               <Card
                 key={product.id}
                 className={`overflow-hidden rounded-2xl border-2 bg-card/90 hover:shadow-xl transition-all relative ${isOutOfStock
-                    ? 'border-destructive/60 bg-destructive/5'
-                    : isLowStock
-                      ? 'border-red-500/60 bg-red-50/50 dark:bg-red-950/20'
-                      : isLimitedStock
-                        ? 'border-orange-400/60 bg-orange-50/50 dark:bg-orange-950/20'
-                        : 'border-border/40 hover:border-primary/40'
+                  ? 'border-destructive/60 bg-destructive/5'
+                  : isLowStock
+                    ? 'border-red-500/60 bg-red-50/50 dark:bg-red-950/20'
+                    : isLimitedStock
+                      ? 'border-orange-400/60 bg-orange-50/50 dark:bg-orange-950/20'
+                      : 'border-border/40 hover:border-primary/40'
                   }`}
               >
                 {/* Stock Warning Badge */}
                 {(isLowStock || isLimitedStock) && !isOutOfStock && (
                   <div className={`absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold ${isLowStock
-                      ? 'bg-red-500 text-white animate-pulse'
-                      : 'bg-orange-500 text-white'
+                    ? 'bg-red-500 text-white animate-pulse'
+                    : 'bg-orange-500 text-white'
                     }`}>
                     {isLowStock ? `Only ${product.stock_quantity} left!` : `${product.stock_quantity} left`}
                   </div>

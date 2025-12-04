@@ -506,3 +506,59 @@ ON products
 FOR DELETE
 TO authenticated
 USING (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role));
+
+-- =============================
+-- Stock Management Trigger
+-- Automatically reduces product stock when order items are created
+-- =============================
+
+-- Function to reduce stock when order is placed
+CREATE OR REPLACE FUNCTION reduce_stock_on_order_item()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Reduce the stock quantity by the ordered quantity
+  UPDATE products 
+  SET stock_quantity = GREATEST(0, stock_quantity - NEW.quantity),
+      updated_at = NOW()
+  WHERE id = NEW.product_id;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop existing trigger if it exists (for idempotency)
+DROP TRIGGER IF EXISTS trigger_reduce_stock_on_order ON order_items;
+
+-- Create the trigger
+CREATE TRIGGER trigger_reduce_stock_on_order
+AFTER INSERT ON order_items
+FOR EACH ROW
+EXECUTE FUNCTION reduce_stock_on_order_item();
+
+-- Function to restore stock when order is cancelled
+CREATE OR REPLACE FUNCTION restore_stock_on_order_cancel()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Only restore stock if status changed to 'cancelled' or 'rejected'
+  IF NEW.status IN ('cancelled', 'rejected') AND OLD.status NOT IN ('cancelled', 'rejected') THEN
+    -- Restore stock for each order item
+    UPDATE products p
+    SET stock_quantity = stock_quantity + oi.quantity,
+        updated_at = NOW()
+    FROM order_items oi
+    WHERE oi.order_id = NEW.id AND p.id = oi.product_id;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop existing trigger if it exists (for idempotency)
+DROP TRIGGER IF EXISTS trigger_restore_stock_on_cancel ON orders;
+
+-- Create the trigger for cancelled/rejected orders
+CREATE TRIGGER trigger_restore_stock_on_cancel
+AFTER UPDATE ON orders
+FOR EACH ROW
+WHEN (OLD.status IS DISTINCT FROM NEW.status)
+EXECUTE FUNCTION restore_stock_on_order_cancel();
