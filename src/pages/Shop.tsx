@@ -79,7 +79,7 @@ export default function Shop() {
     // Listen for cart open event from bottom nav
     const handleOpenCart = () => setShowCartSheet(true);
     window.addEventListener('openCart', handleOpenCart);
-    
+
     return () => window.removeEventListener('openCart', handleOpenCart);
   }, [user, authLoading, navigate]);
 
@@ -434,45 +434,76 @@ export default function Shop() {
       {/* Products Grid */}
       <div className="container mx-auto px-4 pb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredProducts.map(product => (
-            <Card key={product.id} className="overflow-hidden rounded-2xl border border-border/40 bg-card/90 hover:shadow-xl hover:border-primary/40 transition-all">
-              <CardContent className="p-0">
-                <div className="aspect-square bg-muted flex items-center justify-center">
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Package className="h-12 w-12 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="p-3">
-                  <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.name}</h3>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-lg font-bold text-primary">${product.price}</p>
-                      <p className="text-xs text-muted-foreground">/ {product.unit}</p>
-                    </div>
-                    <Button
-                      size="icon"
-                      className="h-8 w-8 rounded-full"
-                      onClick={() => addToCart(product.id)}
-                      disabled={product.stock_quantity <= 0}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+          {filteredProducts.map(product => {
+            const isOutOfStock = product.stock_quantity <= 0;
+            const isLowStock = product.stock_quantity > 0 && product.stock_quantity <= 5;
+            const isLimitedStock = product.stock_quantity > 5 && product.stock_quantity <= 10;
+
+            return (
+              <Card
+                key={product.id}
+                className={`overflow-hidden rounded-2xl border-2 bg-card/90 hover:shadow-xl transition-all relative ${isOutOfStock
+                    ? 'border-destructive/60 bg-destructive/5'
+                    : isLowStock
+                      ? 'border-red-500/60 bg-red-50/50 dark:bg-red-950/20'
+                      : isLimitedStock
+                        ? 'border-orange-400/60 bg-orange-50/50 dark:bg-orange-950/20'
+                        : 'border-border/40 hover:border-primary/40'
+                  }`}
+              >
+                {/* Stock Warning Badge */}
+                {(isLowStock || isLimitedStock) && !isOutOfStock && (
+                  <div className={`absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold ${isLowStock
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : 'bg-orange-500 text-white'
+                    }`}>
+                    {isLowStock ? `Only ${product.stock_quantity} left!` : `${product.stock_quantity} left`}
                   </div>
-                  {product.stock_quantity <= 0 && (
-                    <Badge variant="destructive" className="w-full mt-2 justify-center">
-                      Out of Stock
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                )}
+
+                <CardContent className="p-0">
+                  <div className={`aspect-square bg-muted flex items-center justify-center ${isOutOfStock ? 'opacity-50' : ''}`}>
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package className="h-12 w-12 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-lg font-bold text-primary">₹{product.price}</p>
+                        <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                      </div>
+                      <Button
+                        size="icon"
+                        className={`h-8 w-8 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
+                        onClick={() => addToCart(product.id)}
+                        disabled={isOutOfStock}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {isOutOfStock && (
+                      <Badge variant="destructive" className="w-full mt-2 justify-center">
+                        Out of Stock
+                      </Badge>
+                    )}
+                    {isLowStock && (
+                      <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-2 text-center">
+                        🔥 Hurry! Almost sold out
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 

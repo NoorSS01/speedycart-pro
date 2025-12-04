@@ -530,89 +530,85 @@ export default function SuperAdmin() {
       <main className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
-            Showing data for: <span className="font-medium text-foreground">{dateRangeLabels[dateRange]}</span>
+            📊 Showing data for: <span className="font-medium text-foreground">{dateRangeLabels[dateRange]}</span>
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {/* Revenue */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800">
+            <CardHeader className="pb-2 px-3 pt-3">
+              <CardTitle className="text-xs font-medium text-green-700 dark:text-green-400">
+                💰 Total Sales
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">₹{stats.revenue.toFixed(0)}</p>
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
+            <CardContent className="px-3 pb-3">
+              <p className="text-xl font-bold text-green-800 dark:text-green-300">₹{stats.revenue.toFixed(0)}</p>
+              <p className="text-[10px] text-green-600 dark:text-green-500 mt-1">From delivered orders</p>
             </CardContent>
           </Card>
 
           {/* Profit */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Profit</CardTitle>
+          <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+            <CardHeader className="pb-2 px-3 pt-3">
+              <CardTitle className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                📈 Your Profit
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">₹{stats.profit.toFixed(2)}</p>
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">After commissions (₹4 dev, ₹5 delivery per order)</p>
+            <CardContent className="px-3 pb-3">
+              <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">₹{stats.profit.toFixed(0)}</p>
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-500 mt-1">After ₹9/order commission</p>
             </CardContent>
           </Card>
 
           {/* To Pay */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">To Pay</CardTitle>
+          <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800">
+            <CardHeader className="pb-2 px-3 pt-3">
+              <CardTitle className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                💳 Pending Pay
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(2)}</p>
-                <ShoppingBag className="h-6 w-6 text-primary" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Developer: ₹{stats.commissionDeveloper.toFixed(2)} • Delivery: ₹{stats.commissionDelivery.toFixed(2)}
-              </p>
+            <CardContent className="px-3 pb-3">
+              <p className="text-xl font-bold text-amber-800 dark:text-amber-300">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
+              <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-1">Dev + Delivery fees</p>
             </CardContent>
           </Card>
 
           {/* Total Orders */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
+            <CardHeader className="pb-2 px-3 pt-3">
+              <CardTitle className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                📦 All Orders
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.totalOrders}</p>
-                <ShoppingBag className="h-6 w-6 text-primary" />
-              </div>
+            <CardContent className="px-3 pb-3">
+              <p className="text-xl font-bold text-blue-800 dark:text-blue-300">{stats.totalOrders}</p>
+              <p className="text-[10px] text-blue-600 dark:text-blue-500 mt-1">Total received</p>
             </CardContent>
           </Card>
 
           {/* Pending Orders */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending Orders</CardTitle>
+          <Card className={`bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'}`}>
+            <CardHeader className="pb-2 px-3 pt-3">
+              <CardTitle className={`text-xs font-medium ${stats.pendingOrders > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                ⏳ In Progress
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.pendingOrders}</p>
-                <Package className="h-6 w-6 text-accent" />
-              </div>
+            <CardContent className="px-3 pb-3">
+              <p className={`text-xl font-bold ${stats.pendingOrders > 0 ? 'text-orange-800 dark:text-orange-300' : 'text-gray-700 dark:text-gray-300'}`}>{stats.pendingOrders}</p>
+              <p className={`text-[10px] mt-1 ${stats.pendingOrders > 0 ? 'text-orange-600 dark:text-orange-500' : 'text-gray-500'}`}>Being delivered</p>
             </CardContent>
           </Card>
 
           {/* Delivered */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Delivered</CardTitle>
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30">
+            <CardHeader className="pb-2 px-3 pt-3">
+              <CardTitle className="text-xs font-medium text-primary">
+                ✅ Delivered
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-foreground">{stats.deliveredOrders}</p>
-                <TrendingUp className="h-6 w-6 text-primary" />
-              </div>
+            <CardContent className="px-3 pb-3">
+              <p className="text-xl font-bold text-primary">{stats.deliveredOrders}</p>
+              <p className="text-[10px] text-primary/70 mt-1">Completed</p>
             </CardContent>
           </Card>
         </div>
