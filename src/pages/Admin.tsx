@@ -22,8 +22,47 @@ import {
   Trash2,
   Truck,
   CheckCircle,
-  XCircle
+  XCircle,
+  Calendar
 } from 'lucide-react';
+
+type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
+
+const getDateRangeStart = (range: DateRange): Date => {
+  const now = new Date();
+  const start = new Date(now);
+
+  switch (range) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '7days':
+      start.setDate(now.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '1month':
+      start.setMonth(now.getMonth() - 1);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '6months':
+      start.setMonth(now.getMonth() - 6);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '1year':
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      break;
+  }
+  return start;
+};
+
+const dateRangeLabels: Record<DateRange, string> = {
+  'today': 'Today',
+  '7days': 'Last 7 Days',
+  '1month': 'Last 1 Month',
+  '6months': 'Last 6 Months',
+  '1year': 'Last 1 Year'
+};
 
 interface Product {
   id: string;
@@ -89,7 +128,7 @@ export default function Admin() {
     commissionDelivery: 0,
     profit: 0
   });
-  
+
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({
     name: '',
@@ -100,6 +139,7 @@ export default function Admin() {
     category_id: '',
     image_url: ''
   });
+  const [dateRange, setDateRange] = useState<DateRange>('today');
 
   useEffect(() => {
     if (loading) return;
@@ -110,6 +150,14 @@ export default function Admin() {
     fetchData();
     subscribeToChanges();
   }, [user, loading, navigate]);
+
+  // Refetch data when date range changes
+  useEffect(() => {
+    if (user) {
+      fetchOrders();
+      fetchStats();
+    }
+  }, [dateRange]);
 
   const subscribeToChanges = () => {
     const ordersChannel = supabase
@@ -150,9 +198,11 @@ export default function Admin() {
   };
 
   const fetchOrders = async () => {
+    const startDate = getDateRangeStart(dateRange).toISOString();
     const { data } = await supabase
       .from('orders')
       .select('*')
+      .gte('created_at', startDate)
       .order('created_at', { ascending: false })
       .limit(50);
     if (data) setOrders(data);
@@ -206,7 +256,12 @@ export default function Admin() {
   };
 
   const fetchStats = async () => {
-    const { data: ordersData } = await supabase.from('orders').select('status, total_amount');
+    const startDate = getDateRangeStart(dateRange).toISOString();
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('status, total_amount, created_at')
+      .gte('created_at', startDate);
+
     if (ordersData) {
       const totalOrders = ordersData.length;
       const pendingOrders = ordersData.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'out_for_delivery').length;
@@ -281,7 +336,7 @@ export default function Admin() {
 
   const handleDeleteProduct = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
-    
+
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) {
       toast.error('Failed to delete product');
@@ -347,14 +402,36 @@ export default function Admin() {
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-          <Button onClick={handleLogout} variant="outline" size="sm">
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="7days">Last 7 Days</SelectItem>
+                  <SelectItem value="1month">Last 1 Month</SelectItem>
+                  <SelectItem value="6months">Last 6 Months</SelectItem>
+                  <SelectItem value="1year">Last 1 Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleLogout} variant="outline" size="sm">
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-muted-foreground">
+            Showing data for: <span className="font-medium text-foreground">{dateRangeLabels[dateRange]}</span>
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {/* Revenue */}
           <Card>
@@ -582,11 +659,10 @@ export default function Admin() {
                           <h3 className="font-semibold text-foreground">Order #{order.id.slice(0, 8)}</h3>
                           <p className="text-sm text-muted-foreground">User: {order.user_id.slice(0, 8)}</p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          order.status === 'delivered' ? 'bg-primary/10 text-primary' :
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-primary/10 text-primary' :
                           order.status === 'cancelled' || order.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                          'bg-accent/10 text-accent'
-                        }`}>
+                            'bg-accent/10 text-accent'
+                          }`}>
                           {order.status}
                         </span>
                       </div>
@@ -629,11 +705,10 @@ export default function Admin() {
                               Applied: {new Date(application.created_at).toLocaleString()}
                             </p>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            application.status === 'approved' ? 'bg-primary/10 text-primary' :
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${application.status === 'approved' ? 'bg-primary/10 text-primary' :
                             application.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                            'bg-accent/10 text-accent'
-                          }`}>
+                              'bg-accent/10 text-accent'
+                            }`}>
                             {application.status}
                           </span>
                         </div>

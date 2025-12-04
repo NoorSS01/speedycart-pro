@@ -22,7 +22,8 @@ import {
   Trash2,
   Plus,
   Truck,
-  Minus
+  Minus,
+  Calendar
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -34,6 +35,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
+type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
+
+const getDateRangeStart = (range: DateRange): Date => {
+  const now = new Date();
+  const start = new Date(now);
+
+  switch (range) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '7days':
+      start.setDate(now.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '1month':
+      start.setMonth(now.getMonth() - 1);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '6months':
+      start.setMonth(now.getMonth() - 6);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '1year':
+      start.setFullYear(now.getFullYear() - 1);
+      start.setHours(0, 0, 0, 0);
+      break;
+  }
+  return start;
+};
+
+const dateRangeLabels: Record<DateRange, string> = {
+  'today': 'Today',
+  '7days': 'Last 7 Days',
+  '1month': 'Last 1 Month',
+  '6months': 'Last 6 Months',
+  '1year': 'Last 1 Year'
+};
 
 interface Product {
   id: string;
@@ -97,10 +136,10 @@ export default function SuperAdmin() {
   const [maliciousActivities, setMaliciousActivities] = useState<MaliciousActivity[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [deliveryApplications, setDeliveryApplications] = useState<DeliveryApplication[]>([]);
-  const [stats, setStats] = useState({ 
-    totalOrders: 0, 
-    pendingOrders: 0, 
-    deliveredOrders: 0, 
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    pendingOrders: 0,
+    deliveredOrders: 0,
     revenue: 0,
     totalUsers: 0,
     deliveryPersons: 0,
@@ -109,7 +148,7 @@ export default function SuperAdmin() {
     commissionDelivery: 0,
     profit: 0
   });
-  
+
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({
     name: '',
@@ -140,6 +179,7 @@ export default function SuperAdmin() {
     id: '',
     name: ''
   });
+  const [dateRange, setDateRange] = useState<DateRange>('today');
 
   useEffect(() => {
     if (authLoading) return;
@@ -151,6 +191,14 @@ export default function SuperAdmin() {
     fetchData();
     subscribeToChanges();
   }, [user, authLoading, navigate]);
+
+  // Refetch data when date range changes
+  useEffect(() => {
+    if (user || sessionStorage.getItem('superadmin_access') === 'true') {
+      fetchOrders();
+      fetchStats();
+    }
+  }, [dateRange]);
 
   const subscribeToChanges = () => {
     const ordersChannel = supabase
@@ -192,9 +240,11 @@ export default function SuperAdmin() {
   };
 
   const fetchOrders = async () => {
+    const startDate = getDateRangeStart(dateRange).toISOString();
     const { data } = await supabase
       .from('orders')
       .select('*')
+      .gte('created_at', startDate)
       .order('created_at', { ascending: false })
       .limit(50);
     if (data) setOrders(data);
@@ -225,16 +275,20 @@ export default function SuperAdmin() {
   };
 
   const fetchStats = async () => {
-    const { data: ordersData } = await supabase.from('orders').select('status, total_amount');
+    const startDate = getDateRangeStart(dateRange).toISOString();
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('status, total_amount, created_at')
+      .gte('created_at', startDate);
     const { data: rolesData } = await supabase.from('user_roles').select('role');
     const { data: appsData } = await supabase.from('delivery_applications').select('status');
-    
+
     if (ordersData) {
       const totalOrders = ordersData.length;
       const pendingOrders = ordersData.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'out_for_delivery').length;
       const deliveredOrders = ordersData.filter(o => o.status === 'delivered').length;
       const revenue = ordersData.filter(o => o.status === 'delivered').reduce((sum, o) => sum + Number(o.total_amount), 0);
-      
+
       const totalUsers = rolesData?.filter(r => r.role === 'user').length || 0;
       const deliveryPersons = rolesData?.filter(r => r.role === 'delivery').length || 0;
       const pendingApplications = appsData?.filter(a => a.status === 'pending').length || 0;
@@ -242,14 +296,14 @@ export default function SuperAdmin() {
       const commissionDeveloper = deliveredOrders * 4; // ₹4 per delivered order to website builder
       const commissionDelivery = deliveredOrders * 5;  // ₹5 per delivered order to delivery partners
       const profit = revenue - commissionDeveloper - commissionDelivery;
-      
-      setStats({ 
-        totalOrders, 
-        pendingOrders, 
-        deliveredOrders, 
-        revenue, 
-        totalUsers, 
-        deliveryPersons, 
+
+      setStats({
+        totalOrders,
+        pendingOrders,
+        deliveredOrders,
+        revenue,
+        totalUsers,
+        deliveryPersons,
         pendingApplications,
         commissionDeveloper,
         commissionDelivery,
@@ -319,7 +373,7 @@ export default function SuperAdmin() {
       .from('products')
       .update({ stock_quantity: newStock })
       .eq('id', productId);
-    
+
     if (error) {
       toast.error('Failed to update stock');
     } else {
@@ -368,9 +422,9 @@ export default function SuperAdmin() {
 
     const { error } = await supabase
       .from('user_roles')
-      .insert({ 
-        user_id: roleManagement.userId, 
-        role: roleManagement.newRole 
+      .insert({
+        user_id: roleManagement.userId,
+        role: roleManagement.newRole
       });
 
     if (error) {
@@ -449,14 +503,36 @@ export default function SuperAdmin() {
             <h1 className="text-2xl font-bold text-foreground">Super Admin Dashboard</h1>
             <p className="text-sm text-muted-foreground">Full system control & management</p>
           </div>
-          <Button onClick={handleLogout} variant="outline" size="sm">
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="7days">Last 7 Days</SelectItem>
+                  <SelectItem value="1month">Last 1 Month</SelectItem>
+                  <SelectItem value="6months">Last 6 Months</SelectItem>
+                  <SelectItem value="1year">Last 1 Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleLogout} variant="outline" size="sm">
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-muted-foreground">
+            Showing data for: <span className="font-medium text-foreground">{dateRangeLabels[dateRange]}</span>
+          </p>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           {/* Revenue */}
           <Card>
@@ -664,18 +740,18 @@ export default function SuperAdmin() {
                         <div className="flex flex-col items-center gap-1">
                           <span className="text-xs text-muted-foreground">Stock</span>
                           <div className="flex items-center gap-2 bg-muted rounded-md px-2 py-1">
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-6 w-6"
                               onClick={() => handleUpdateStock(product.id, product.stock_quantity, -1)}
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
                             <span className="font-semibold min-w-[2rem] text-center">{product.stock_quantity}</span>
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-6 w-6"
                               onClick={() => handleUpdateStock(product.id, product.stock_quantity, 1)}
                             >
@@ -711,11 +787,10 @@ export default function SuperAdmin() {
                           <h3 className="font-semibold text-foreground">Order #{order.id.slice(0, 8)}</h3>
                           <p className="text-sm text-muted-foreground">User: {order.user_id.slice(0, 8)}</p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          order.status === 'delivered' ? 'bg-primary/10 text-primary' :
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-primary/10 text-primary' :
                           order.status === 'cancelled' || order.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                          'bg-accent/10 text-accent'
-                        }`}>
+                            'bg-accent/10 text-accent'
+                          }`}>
                           {order.status}
                         </span>
                       </div>
@@ -745,11 +820,10 @@ export default function SuperAdmin() {
                     <p className="text-center text-muted-foreground py-8">No applications yet</p>
                   ) : (
                     deliveryApplications.map((app) => (
-                      <div key={app.id} className={`p-4 border rounded-lg ${
-                        app.status === 'pending' ? 'border-accent bg-accent/5' :
+                      <div key={app.id} className={`p-4 border rounded-lg ${app.status === 'pending' ? 'border-accent bg-accent/5' :
                         app.status === 'approved' ? 'border-primary/20 bg-primary/5' :
-                        'border-destructive/20 bg-destructive/5'
-                      }`}>
+                          'border-destructive/20 bg-destructive/5'
+                        }`}>
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h3 className="font-semibold text-foreground">{app.full_name}</h3>
@@ -759,11 +833,10 @@ export default function SuperAdmin() {
                               <p className="text-sm text-muted-foreground">License: {app.license_number}</p>
                             )}
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            app.status === 'pending' ? 'bg-accent text-accent-foreground' :
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${app.status === 'pending' ? 'bg-accent text-accent-foreground' :
                             app.status === 'approved' ? 'bg-primary text-primary-foreground' :
-                            'bg-destructive text-destructive-foreground'
-                          }`}>
+                              'bg-destructive text-destructive-foreground'
+                            }`}>
                             {app.status}
                           </span>
                         </div>
@@ -852,12 +925,11 @@ export default function SuperAdmin() {
                           <p className="text-xs text-muted-foreground mt-1">ID: {userRole.user_id}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            userRole.role === 'super_admin' ? 'bg-destructive/10 text-destructive' :
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${userRole.role === 'super_admin' ? 'bg-destructive/10 text-destructive' :
                             userRole.role === 'admin' ? 'bg-accent/10 text-accent' :
-                            userRole.role === 'delivery' ? 'bg-primary/10 text-primary' :
-                            'bg-muted text-muted-foreground'
-                          }`}>
+                              userRole.role === 'delivery' ? 'bg-primary/10 text-primary' :
+                                'bg-muted text-muted-foreground'
+                            }`}>
                             {userRole.role}
                           </span>
                           <Button
@@ -918,7 +990,7 @@ export default function SuperAdmin() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteDialog.type === 'product' 
+              {deleteDialog.type === 'product'
                 ? `This will permanently delete the product "${deleteDialog.name}". This action cannot be undone.`
                 : `This will remove the role for user "${deleteDialog.name.slice(0, 8)}...". This action cannot be undone.`
               }
