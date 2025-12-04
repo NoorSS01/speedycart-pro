@@ -23,7 +23,8 @@ import {
   Truck,
   CheckCircle,
   XCircle,
-  Calendar
+  Calendar,
+  Boxes
 } from 'lucide-react';
 
 type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
@@ -403,6 +404,10 @@ export default function Admin() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
           <div className="flex items-center gap-4">
+            <Button onClick={() => navigate('/admin/stock')} variant="outline" size="sm" className="gap-2">
+              <Boxes className="h-4 w-4" />
+              Manage Stock
+            </Button>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>

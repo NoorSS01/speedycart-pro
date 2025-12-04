@@ -11,6 +11,7 @@ import Orders from "./pages/Orders";
 import Profile from "./pages/Profile";
 import Delivery from "./pages/Delivery";
 import Admin from "./pages/Admin";
+import AdminStock from "./pages/AdminStock";
 import AdminToPay from "./pages/AdminToPay";
 import SuperAdmin from "./pages/SuperAdmin";
 import DeliveryApplication from "./pages/DeliveryApplication";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/delivery" element={<Delivery />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/stock" element={<AdminStock />} />
             <Route path="/admin/to-pay" element={<AdminToPay />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/delivery-application" element={<DeliveryApplication />} />

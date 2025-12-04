@@ -23,7 +23,8 @@ import {
   Plus,
   Truck,
   Minus,
-  Calendar
+  Calendar,
+  Boxes
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -504,6 +505,10 @@ export default function SuperAdmin() {
             <p className="text-sm text-muted-foreground">Full system control & management</p>
           </div>
           <div className="flex items-center gap-4">
+            <Button onClick={() => navigate('/admin/stock')} variant="outline" size="sm" className="gap-2">
+              <Boxes className="h-4 w-4" />
+              Manage Stock
+            </Button>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
