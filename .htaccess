@@ -1,10 +1,19 @@
 RewriteEngine On
+RewriteBase /
 
-# Serve the built React app from /dist
-RewriteCond %{REQUEST_URI} !^/dist/
+# IMPORTANT: Redirect /dist and /dist/ to root for old PWA installations
+# This fixes the 404 error when PWA was installed with old manifest
+RewriteRule ^dist/?$ / [R=301,L]
+
+# Serve static assets from /dist/ directly (JS, CSS, images, etc.)
+RewriteCond %{REQUEST_URI} ^/dist/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# For the root path, serve /dist/index.html
 RewriteRule ^$ /dist/index.html [L]
 
-# For client-side routes, send everything to the SPA entry
+# For all other client-side routes, serve /dist/index.html (SPA fallback)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ /dist/index.html [L]
