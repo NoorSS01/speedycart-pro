@@ -18,10 +18,13 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt", "icons/*.png"],
+      includeAssets: ["favicon.ico", "robots.txt", "icons/*.png", "icons/*.svg"],
       manifest: false, // We're using our own manifest.json
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // CRITICAL: This ensures all navigation requests fallback to index.html
+        navigateFallback: "/dist/index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/auth/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

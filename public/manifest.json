@@ -2,12 +2,13 @@
     "name": "PremasShop",
     "short_name": "PremasShop",
     "description": "Fast and simple grocery delivery - Order fresh groceries online",
-    "start_url": "/dist/",
+    "start_url": "/dist/index.html",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#22c55e",
     "orientation": "portrait-primary",
     "scope": "/dist/",
+    "id": "/dist/",
     "icons": [
         {
             "src": "/dist/icons/icon.svg",
@@ -31,7 +32,7 @@
             "name": "Shop Now",
             "short_name": "Shop",
             "description": "Browse and order groceries",
-            "url": "/dist/shop",
+            "url": "/dist/index.html#/shop",
             "icons": [
                 {
                     "src": "/dist/icons/icon.svg",
@@ -43,7 +44,7 @@
             "name": "My Orders",
             "short_name": "Orders",
             "description": "View your order history",
-            "url": "/dist/orders",
+            "url": "/dist/index.html#/orders",
             "icons": [
                 {
                     "src": "/dist/icons/icon.svg",
