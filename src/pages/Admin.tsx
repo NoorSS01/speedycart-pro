@@ -26,6 +26,7 @@ import {
   Calendar,
   Boxes
 } from 'lucide-react';
+import NotificationBell from '@/components/NotificationBell';
 
 type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
 
@@ -431,6 +432,8 @@ export default function Admin() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <NotificationBell />
 
               <Button onClick={handleLogout} variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
                 <LogOut className="h-5 w-5" />

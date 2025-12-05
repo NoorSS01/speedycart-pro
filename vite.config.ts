@@ -18,13 +18,14 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt", "icons/*.png", "icons/*.svg"],
+      includeAssets: ["favicon.ico", "robots.txt", "icons/*.png", "icons/*.svg", "sw-custom.js"],
       manifest: false, // We're using our own manifest.json
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        // CRITICAL: Use relative path for navigation fallback
         navigateFallback: "index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/auth\/callback/],
+        // Import custom service worker for push notifications
+        importScripts: ["sw-custom.js"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

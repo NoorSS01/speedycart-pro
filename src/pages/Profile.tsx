@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, User, LogOut, Truck } from 'lucide-react';
+import { ArrowLeft, Save, User, LogOut, Truck, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
+import NotificationSettings from '@/components/NotificationSettings';
 
 interface Profile {
   phone: string;
@@ -100,7 +101,10 @@ export default function Profile() {
         {/* Profile Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Profile Information
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -142,6 +146,9 @@ export default function Profile() {
           </CardContent>
         </Card>
 
+        {/* Push Notifications Card */}
+        <NotificationSettings />
+
         {/* Delivery Partner Card */}
         <Card className="border-primary/20">
           <CardHeader>
@@ -154,9 +161,9 @@ export default function Profile() {
             <p className="text-sm text-muted-foreground">
               Join our delivery team and earn money on your schedule. Flexible hours, competitive pay, and be your own boss.
             </p>
-            <Button 
-              onClick={() => navigate('/delivery-application')} 
-              variant="outline" 
+            <Button
+              onClick={() => navigate('/delivery-application')}
+              variant="outline"
               className="w-full"
             >
               Apply Now
@@ -167,9 +174,9 @@ export default function Profile() {
         {/* Sign Out Card */}
         <Card>
           <CardContent className="pt-6">
-            <Button 
-              onClick={signOut} 
-              variant="destructive" 
+            <Button
+              onClick={signOut}
+              variant="destructive"
               className="w-full"
             >
               <LogOut className="mr-2 h-4 w-4" />
