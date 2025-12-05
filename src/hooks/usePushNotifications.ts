@@ -98,14 +98,24 @@ export function usePushNotifications() {
                 return false;
             }
 
-            // Get service worker registration
-            const registration = await navigator.serviceWorker.ready;
+            // Get service worker registration with timeout
+            const registrationPromise = navigator.serviceWorker.ready;
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Service worker registration timed out')), 10000)
+            );
 
-            // Subscribe to push
-            const pushSubscription = await registration.pushManager.subscribe({
+            const registration = await Promise.race([registrationPromise, timeoutPromise]) as ServiceWorkerRegistration;
+
+            // Subscribe to push with timeout
+            const subscribePromise = registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any,
             });
+            const subscribeTimeout = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Push subscription timed out')), 10000)
+            );
+
+            const pushSubscription = await Promise.race([subscribePromise, subscribeTimeout]) as PushSubscription;
 
             // Extract subscription data
             const subscriptionJson = pushSubscription.toJSON();

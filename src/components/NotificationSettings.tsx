@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 export function NotificationSettings() {
-    const { user } = useAuth();
+    const { user, userRole } = useAuth();
     const {
         isSupported,
         isSubscribed,
@@ -44,6 +44,9 @@ export function NotificationSettings() {
 
     const [localPrefs, setLocalPrefs] = useState(preferences);
     const [hasChanges, setHasChanges] = useState(false);
+
+    // Check if user is admin
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
     useEffect(() => {
         if (user) {
@@ -102,6 +105,74 @@ export function NotificationSettings() {
         );
     }
 
+    // Simple notification card for regular users
+    if (!isAdmin) {
+        return (
+            <Card className="overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pb-4">
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${isSubscribed
+                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                }`}>
+                                {isSubscribed ? (
+                                    <BellRing className="h-6 w-6 text-white" />
+                                ) : (
+                                    <BellOff className="h-6 w-6 text-white" />
+                                )}
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    Push Notifications
+                                    <Badge variant={isSubscribed ? 'default' : 'secondary'} className="font-normal">
+                                        {isSubscribed ? (
+                                            <><CheckCircle className="h-3 w-3 mr-1" />Enabled</>
+                                        ) : 'Disabled'}
+                                    </Badge>
+                                </CardTitle>
+                                <CardDescription>
+                                    Get alerts for order updates and delivery status
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </div>
+                </CardHeader>
+
+                <CardContent className="p-6">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+                        <div className="flex items-center gap-3">
+                            <Bell className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                                <Label className="text-base font-medium">
+                                    {isSubscribed ? 'Notifications are enabled' : 'Enable notifications'}
+                                </Label>
+                                <p className="text-sm text-muted-foreground">
+                                    {isSubscribed
+                                        ? 'You will receive order and delivery updates'
+                                        : 'Turn on to receive important updates'}
+                                </p>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={isSubscribed}
+                            onCheckedChange={handleToggleNotifications}
+                            disabled={loading}
+                        />
+                    </div>
+
+                    {loading && (
+                        <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Processing...</span>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    }
+
+    // Full notification settings for admins
     const notificationTypes = [
         {
             key: 'orderUpdates',
@@ -155,8 +226,8 @@ export function NotificationSettings() {
                 <div className="flex items-center justify-between flex-wrap gap-4">
                     <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${isSubscribed
-                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                            ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                            : 'bg-gradient-to-br from-gray-400 to-gray-500'
                             }`}>
                             {isSubscribed ? (
                                 <BellRing className="h-6 w-6 text-white" />
@@ -260,17 +331,17 @@ export function NotificationSettings() {
                     <div className="grid gap-3 sm:grid-cols-2">
                         {/* Promotional Alerts */}
                         <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.promotionalAlerts && isSubscribed
-                                ? 'bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800'
-                                : 'bg-muted/30 border-transparent'
+                            ? 'bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800'
+                            : 'bg-muted/30 border-transparent'
                             }`}>
                             <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.promotionalAlerts && isSubscribed
-                                        ? 'bg-pink-100 dark:bg-pink-900/50'
-                                        : 'bg-muted'
+                                    ? 'bg-pink-100 dark:bg-pink-900/50'
+                                    : 'bg-muted'
                                     }`}>
                                     <Gift className={`h-5 w-5 ${localPrefs.promotionalAlerts && isSubscribed
-                                            ? 'text-pink-600 dark:text-pink-400'
-                                            : 'text-muted-foreground'
+                                        ? 'text-pink-600 dark:text-pink-400'
+                                        : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>
@@ -287,17 +358,17 @@ export function NotificationSettings() {
 
                         {/* Delivery Updates */}
                         <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.deliveryUpdates && isSubscribed
-                                ? 'bg-cyan-50/50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800'
-                                : 'bg-muted/30 border-transparent'
+                            ? 'bg-cyan-50/50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800'
+                            : 'bg-muted/30 border-transparent'
                             }`}>
                             <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.deliveryUpdates && isSubscribed
-                                        ? 'bg-cyan-100 dark:bg-cyan-900/50'
-                                        : 'bg-muted'
+                                    ? 'bg-cyan-100 dark:bg-cyan-900/50'
+                                    : 'bg-muted'
                                     }`}>
                                     <Truck className={`h-5 w-5 ${localPrefs.deliveryUpdates && isSubscribed
-                                            ? 'text-cyan-600 dark:text-cyan-400'
-                                            : 'text-muted-foreground'
+                                        ? 'text-cyan-600 dark:text-cyan-400'
+                                        : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>

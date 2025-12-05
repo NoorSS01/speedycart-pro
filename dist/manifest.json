@@ -6,8 +6,8 @@
     "background_color": "#ffffff",
     "display": "standalone",
     "orientation": "portrait",
-    "scope": "/dist/",
-    "start_url": "/dist/",
+    "scope": "/",
+    "start_url": "/",
     "icons": [
         {
             "src": "/dist/icons/icon.svg",
@@ -31,7 +31,7 @@
             "name": "Shop",
             "short_name": "Shop",
             "description": "Browse products",
-            "url": "/dist/shop",
+            "url": "/shop",
             "icons": [
                 {
                     "src": "/dist/icons/icon.svg",
@@ -43,7 +43,7 @@
             "name": "My Orders",
             "short_name": "Orders",
             "description": "View your orders",
-            "url": "/dist/orders",
+            "url": "/orders",
             "icons": [
                 {
                     "src": "/dist/icons/icon.svg",
@@ -55,7 +55,7 @@
             "name": "Profile",
             "short_name": "Profile",
             "description": "Your profile",
-            "url": "/dist/profile",
+            "url": "/profile",
             "icons": [
                 {
                     "src": "/dist/icons/icon.svg",
