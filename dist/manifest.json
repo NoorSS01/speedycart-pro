@@ -2,22 +2,22 @@
     "name": "PremasShop",
     "short_name": "PremasShop",
     "description": "Fast and simple grocery delivery - Order fresh groceries online",
-    "start_url": "/dist/index.html",
+    "start_url": "./",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#22c55e",
     "orientation": "portrait-primary",
-    "scope": "/dist/",
-    "id": "/dist/",
+    "scope": "./",
+    "id": "premasshop-pwa",
     "icons": [
         {
-            "src": "/dist/icons/icon.svg",
+            "src": "./icons/icon.svg",
             "sizes": "any",
             "type": "image/svg+xml",
             "purpose": "any"
         },
         {
-            "src": "/dist/icons/icon-maskable.svg",
+            "src": "./icons/icon-maskable.svg",
             "sizes": "any",
             "type": "image/svg+xml",
             "purpose": "maskable"
@@ -32,10 +32,10 @@
             "name": "Shop Now",
             "short_name": "Shop",
             "description": "Browse and order groceries",
-            "url": "/dist/index.html#/shop",
+            "url": "./shop",
             "icons": [
                 {
-                    "src": "/dist/icons/icon.svg",
+                    "src": "./icons/icon.svg",
                     "sizes": "any"
                 }
             ]
@@ -44,10 +44,10 @@
             "name": "My Orders",
             "short_name": "Orders",
             "description": "View your order history",
-            "url": "/dist/index.html#/orders",
+            "url": "./orders",
             "icons": [
                 {
-                    "src": "/dist/icons/icon.svg",
+                    "src": "./icons/icon.svg",
                     "sizes": "any"
                 }
             ]

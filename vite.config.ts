@@ -22,9 +22,9 @@ export default defineConfig(({ mode }) => ({
       manifest: false, // We're using our own manifest.json
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        // CRITICAL: This ensures all navigation requests fallback to index.html
-        navigateFallback: "/dist/index.html",
-        navigateFallbackDenylist: [/^\/api/, /^\/auth/],
+        // CRITICAL: Use relative path for navigation fallback
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/auth\/callback/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
