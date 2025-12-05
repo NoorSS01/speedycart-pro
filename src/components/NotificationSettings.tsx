@@ -96,8 +96,8 @@ export function NotificationSettings() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${isSubscribed
-                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                            ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                            : 'bg-gradient-to-br from-gray-400 to-gray-500'
                             }`}>
                             {isSubscribed ? (
                                 <BellRing className="h-6 w-6 text-white" />
@@ -146,17 +146,17 @@ export function NotificationSettings() {
                     <div className="grid gap-4">
                         {/* Daily Reminders */}
                         <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.dailyReminders && isSubscribed
-                                ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800'
-                                : 'bg-muted/30 border-transparent'
+                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800'
+                            : 'bg-muted/30 border-transparent'
                             }`}>
                             <div className="flex items-center gap-4">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.dailyReminders && isSubscribed
-                                        ? 'bg-blue-100 dark:bg-blue-900/50'
-                                        : 'bg-muted'
+                                    ? 'bg-blue-100 dark:bg-blue-900/50'
+                                    : 'bg-muted'
                                     }`}>
                                     <Clock className={`h-5 w-5 ${localPrefs.dailyReminders && isSubscribed
-                                            ? 'text-blue-600 dark:text-blue-400'
-                                            : 'text-muted-foreground'
+                                        ? 'text-blue-600 dark:text-blue-400'
+                                        : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>
@@ -177,17 +177,17 @@ export function NotificationSettings() {
 
                         {/* Profit Alerts */}
                         <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.profitAlerts && isSubscribed
-                                ? 'bg-green-50/50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
-                                : 'bg-muted/30 border-transparent'
+                            ? 'bg-green-50/50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
+                            : 'bg-muted/30 border-transparent'
                             }`}>
                             <div className="flex items-center gap-4">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.profitAlerts && isSubscribed
-                                        ? 'bg-green-100 dark:bg-green-900/50'
-                                        : 'bg-muted'
+                                    ? 'bg-green-100 dark:bg-green-900/50'
+                                    : 'bg-muted'
                                     }`}>
                                     <TrendingUp className={`h-5 w-5 ${localPrefs.profitAlerts && isSubscribed
-                                            ? 'text-green-600 dark:text-green-400'
-                                            : 'text-muted-foreground'
+                                        ? 'text-green-600 dark:text-green-400'
+                                        : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>
@@ -208,17 +208,17 @@ export function NotificationSettings() {
 
                         {/* Order Updates */}
                         <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.orderUpdates && isSubscribed
-                                ? 'bg-purple-50/50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800'
-                                : 'bg-muted/30 border-transparent'
+                            ? 'bg-purple-50/50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800'
+                            : 'bg-muted/30 border-transparent'
                             }`}>
                             <div className="flex items-center gap-4">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.orderUpdates && isSubscribed
-                                        ? 'bg-purple-100 dark:bg-purple-900/50'
-                                        : 'bg-muted'
+                                    ? 'bg-purple-100 dark:bg-purple-900/50'
+                                    : 'bg-muted'
                                     }`}>
                                     <Package className={`h-5 w-5 ${localPrefs.orderUpdates && isSubscribed
-                                            ? 'text-purple-600 dark:text-purple-400'
-                                            : 'text-muted-foreground'
+                                        ? 'text-purple-600 dark:text-purple-400'
+                                        : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>
@@ -239,17 +239,17 @@ export function NotificationSettings() {
 
                         {/* Low Stock Alerts */}
                         <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.lowStockAlerts && isSubscribed
-                                ? 'bg-orange-50/50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800'
-                                : 'bg-muted/30 border-transparent'
+                            ? 'bg-orange-50/50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800'
+                            : 'bg-muted/30 border-transparent'
                             }`}>
                             <div className="flex items-center gap-4">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.lowStockAlerts && isSubscribed
-                                        ? 'bg-orange-100 dark:bg-orange-900/50'
-                                        : 'bg-muted'
+                                    ? 'bg-orange-100 dark:bg-orange-900/50'
+                                    : 'bg-muted'
                                     }`}>
                                     <AlertTriangle className={`h-5 w-5 ${localPrefs.lowStockAlerts && isSubscribed
-                                            ? 'text-orange-600 dark:text-orange-400'
-                                            : 'text-muted-foreground'
+                                        ? 'text-orange-600 dark:text-orange-400'
+                                        : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>

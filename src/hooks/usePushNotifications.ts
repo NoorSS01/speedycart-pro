@@ -36,7 +36,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 export function usePushNotifications() {
-    const [isSupported, setIsSupported] = useState(() =>
+    const [isSupported] = useState(() =>
         'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
     );
     const [isSubscribed, setIsSubscribed] = useState(false);
