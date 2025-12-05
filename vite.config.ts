@@ -5,7 +5,8 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: "/dist/",
+  // Use root path for production - hosting serves from dist folder directly
+  base: "/",
   build: {
     outDir: "dist",
     emptyOutDir: true,

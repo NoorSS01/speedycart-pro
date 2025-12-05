@@ -76,7 +76,7 @@ const NOTIFICATION_TEMPLATES = [
         title: '⚡ Flash Sale Live!',
         body: 'Hurry! Up to 50% off on selected items. Limited time only!',
         icon: 'zap',
-        url: '/dist/shop'
+        url: '/shop'
     },
     {
         id: 'new_arrival',
@@ -84,7 +84,7 @@ const NOTIFICATION_TEMPLATES = [
         title: '🆕 Fresh Arrivals!',
         body: 'New products just landed! Check out the latest additions.',
         icon: 'sparkles',
-        url: '/dist/shop'
+        url: '/shop'
     },
     {
         id: 'festive_offer',
@@ -92,7 +92,7 @@ const NOTIFICATION_TEMPLATES = [
         title: '🎉 Festive Special!',
         body: 'Celebrate with special discounts. Shop now!',
         icon: 'gift',
-        url: '/dist/shop'
+        url: '/shop'
     },
     {
         id: 'urgent_update',
@@ -100,7 +100,7 @@ const NOTIFICATION_TEMPLATES = [
         title: '🚨 Important Notice',
         body: 'Please read this important update regarding your orders.',
         icon: 'alert-triangle',
-        url: '/dist/'
+        url: '/'
     },
     {
         id: 'delivery_update',
@@ -108,7 +108,7 @@ const NOTIFICATION_TEMPLATES = [
         title: '🚚 Delivery Update',
         body: 'Important information about deliveries in your area.',
         icon: 'truck',
-        url: '/dist/orders'
+        url: '/orders'
     },
     {
         id: 'custom',
@@ -116,7 +116,7 @@ const NOTIFICATION_TEMPLATES = [
         title: '',
         body: '',
         icon: 'bell',
-        url: '/dist/'
+        url: '/'
     },
 ];
 
@@ -139,7 +139,7 @@ export function AdminBroadcastNotifications() {
     const [selectedTemplate, setSelectedTemplate] = useState('custom');
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
-    const [url, setUrl] = useState('/dist/');
+    const [url, setUrl] = useState('/');
     const [targetAudience, setTargetAudience] = useState('all');
     const [scheduleNotification, setScheduleNotification] = useState(false);
     const [scheduledTime, setScheduledTime] = useState('');
@@ -241,7 +241,7 @@ export function AdminBroadcastNotifications() {
             // Reset form
             setTitle('');
             setBody('');
-            setUrl('/dist/');
+            setUrl('/');
             setSelectedTemplate('custom');
             fetchBroadcasts();
             fetchStats();
@@ -266,7 +266,7 @@ export function AdminBroadcastNotifications() {
                         ...testPayload,
                         title: '💰 Daily Profit Summary',
                         body: 'Today: ₹12,500 revenue, ₹3,200 profit from 45 orders!',
-                        url: '/dist/admin',
+                        url: '/admin',
                         send_to_admins: true,
                     };
                     break;
@@ -275,7 +275,7 @@ export function AdminBroadcastNotifications() {
                         ...testPayload,
                         title: '🛒 New Order #ABC123',
                         body: 'New order worth ₹450 from Test Customer',
-                        url: '/dist/admin',
+                        url: '/admin',
                         send_to_admins: true,
                     };
                     break;
@@ -284,7 +284,7 @@ export function AdminBroadcastNotifications() {
                         ...testPayload,
                         title: '⚠️ Low Stock Alert',
                         body: 'Fresh Tomatoes is running low! Only 3 units left.',
-                        url: '/dist/admin/stock',
+                        url: '/admin/stock',
                         send_to_admins: true,
                     };
                     break;
@@ -293,7 +293,7 @@ export function AdminBroadcastNotifications() {
                         ...testPayload,
                         title: '☀️ Good Morning!',
                         body: 'Time to check your shop! 5 pending orders waiting.',
-                        url: '/dist/admin',
+                        url: '/admin',
                         user_ids: [user?.id],
                     };
                     break;
@@ -438,8 +438,8 @@ export function AdminBroadcastNotifications() {
                                             key={template.id}
                                             variant={selectedTemplate === template.id ? 'default' : 'outline'}
                                             className={`justify-start h-auto py-3 ${selectedTemplate === template.id
-                                                    ? 'bg-gradient-to-r from-purple-500 to-pink-600 border-0'
-                                                    : ''
+                                                ? 'bg-gradient-to-r from-purple-500 to-pink-600 border-0'
+                                                : ''
                                                 }`}
                                             onClick={() => handleTemplateChange(template.id)}
                                         >
@@ -476,7 +476,7 @@ export function AdminBroadcastNotifications() {
                                     <Label htmlFor="url">Target Page URL</Label>
                                     <Input
                                         id="url"
-                                        placeholder="/dist/shop or /dist/orders/abc123"
+                                        placeholder="/shop or /orders/abc123"
                                         value={url}
                                         onChange={(e) => setUrl(e.target.value)}
                                     />

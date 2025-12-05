@@ -19,15 +19,15 @@ self.addEventListener('push', (event) => {
     // Build notification options
     const options = {
         body: data.body || 'You have a new notification',
-        icon: data.icon || '/dist/icons/icon.svg',
-        badge: '/dist/icons/icon.svg',
+        icon: data.icon || '/icons/icon.svg',
+        badge: '/icons/icon.svg',
         vibrate: data.vibrate !== false ? [200, 100, 200] : undefined,
         tag: data.tag || `premasshop-${Date.now()}`,
         renotify: true,
         requireInteraction: data.requireInteraction || false,
         timestamp: data.timestamp || Date.now(),
         data: {
-            url: data.url || '/dist/',
+            url: data.url || '/',
             type: data.type || 'general',
             ...data.data,
         },
@@ -43,7 +43,6 @@ self.addEventListener('push', (event) => {
     switch (data.type) {
         case 'order_status':
             if (data.body?.includes('New order')) {
-                // New order for admin
                 options.actions = [
                     { action: 'view', title: '📦 View Order' },
                     { action: 'accept', title: '✅ Accept' },
@@ -51,7 +50,6 @@ self.addEventListener('push', (event) => {
                 options.tag = 'new-order';
                 options.requireInteraction = true;
             } else {
-                // Order update for customer
                 options.actions = [
                     { action: 'track', title: '📍 Track Order' },
                     { action: 'dismiss', title: '✕ Dismiss' },
@@ -112,27 +110,24 @@ self.addEventListener('notificationclick', (event) => {
     const type = data.type || 'general';
 
     // Default URL
-    let urlToOpen = data.url || '/dist/';
+    let urlToOpen = data.url || '/';
 
     // Handle different actions
     switch (action) {
         case 'view':
         case 'track':
-            urlToOpen = data.url || '/dist/';
+            urlToOpen = data.url || '/';
             break;
 
         case 'accept':
-            // For accepting orders, go to admin with specific order
-            urlToOpen = '/dist/admin';
+            urlToOpen = '/admin';
             break;
 
         case 'snooze':
-            // Snooze reminder for 30 minutes
-            // Note: This would need backend support to actually reschedule
             event.waitUntil(
                 self.registration.showNotification('⏰ Reminder Snoozed', {
                     body: 'We\'ll remind you again in 30 minutes.',
-                    icon: '/dist/icons/icon.svg',
+                    icon: '/icons/icon.svg',
                     tag: 'snooze-confirm',
                     requireInteraction: false,
                 })
@@ -140,24 +135,20 @@ self.addEventListener('notificationclick', (event) => {
             return;
 
         case 'dismiss':
-            // Just close the notification
             return;
 
         default:
-            // Clicking on notification body
-            urlToOpen = data.url || '/dist/';
+            urlToOpen = data.url || '/';
     }
 
     // Focus existing window or open new one
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Try to find an existing window
             for (const client of clientList) {
-                if (client.url.includes('/dist/') && 'focus' in client) {
+                if ('focus' in client) {
                     return client.navigate(urlToOpen).then(() => client.focus());
                 }
             }
-            // Open new window if none exists
             if (clients.openWindow) {
                 return clients.openWindow(urlToOpen);
             }
@@ -165,11 +156,9 @@ self.addEventListener('notificationclick', (event) => {
     );
 });
 
-// Handle notification close events (for analytics)
+// Handle notification close events
 self.addEventListener('notificationclose', (event) => {
     const data = event.notification.data || {};
-
-    // Log dismissed notification for analytics
     console.log('Notification dismissed:', {
         type: data.type,
         tag: event.notification.tag,
@@ -177,7 +166,7 @@ self.addEventListener('notificationclose', (event) => {
     });
 });
 
-// Background sync for offline notification queue
+// Background sync
 self.addEventListener('sync', (event) => {
     if (event.tag === 'send-pending-actions') {
         event.waitUntil(processPendingActions());
@@ -185,11 +174,10 @@ self.addEventListener('sync', (event) => {
 });
 
 async function processPendingActions() {
-    // Process any queued actions from offline usage
     console.log('Processing pending actions...');
 }
 
-// Periodic background sync (if supported)
+// Periodic background sync
 self.addEventListener('periodicsync', (event) => {
     if (event.tag === 'check-notifications') {
         event.waitUntil(checkForNewNotifications());
@@ -197,7 +185,6 @@ self.addEventListener('periodicsync', (event) => {
 });
 
 async function checkForNewNotifications() {
-    // Check for new notifications periodically
     console.log('Checking for new notifications...');
 }
 

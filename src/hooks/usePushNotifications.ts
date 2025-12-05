@@ -269,13 +269,13 @@ export function usePushNotifications() {
 
         await registration.showNotification('PremasShop Test 🛒', {
             body: '🎉 Push notifications are working! You\'ll receive order updates, alerts, and reminders.',
-            icon: '/dist/icons/icon.svg',
-            badge: '/dist/icons/icon.svg',
+            icon: '/icons/icon.svg',
+            badge: '/icons/icon.svg',
             tag: 'test-notification',
             vibrate,
             requireInteraction: false,
             data: {
-                url: '/dist/',
+                url: '/',
                 type: 'test',
             },
             actions: [
