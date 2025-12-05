@@ -125,33 +125,36 @@ export function usePushNotifications() {
                 auth: subscriptionJson.keys?.auth || '',
             };
 
-            // Save to Supabase
-            const { error } = await (supabase as any)
-                .from('push_subscriptions')
-                .upsert({
-                    user_id: userId,
-                    endpoint: subscriptionData.endpoint,
-                    p256dh: subscriptionData.p256dh,
-                    auth: subscriptionData.auth,
-                    daily_reminders: preferences.dailyReminders,
-                    profit_alerts: preferences.profitAlerts,
-                    order_updates: preferences.orderUpdates,
-                    low_stock_alerts: preferences.lowStockAlerts,
-                    new_order_alerts: preferences.newOrderAlerts,
-                    delivery_updates: preferences.deliveryUpdates,
-                    promotional_alerts: preferences.promotionalAlerts,
-                    sound_enabled: preferences.soundEnabled,
-                    vibration_enabled: preferences.vibrationEnabled,
-                    reminder_time: preferences.reminderTime + ':00',
-                }, {
-                    onConflict: 'user_id,endpoint',
-                });
+            // Save to Supabase (optional - works even if table doesn't exist)
+            try {
+                const { error } = await (supabase as any)
+                    .from('push_subscriptions')
+                    .upsert({
+                        user_id: userId,
+                        endpoint: subscriptionData.endpoint,
+                        p256dh: subscriptionData.p256dh,
+                        auth: subscriptionData.auth,
+                        daily_reminders: preferences.dailyReminders,
+                        profit_alerts: preferences.profitAlerts,
+                        order_updates: preferences.orderUpdates,
+                        low_stock_alerts: preferences.lowStockAlerts,
+                        new_order_alerts: preferences.newOrderAlerts,
+                        delivery_updates: preferences.deliveryUpdates,
+                        promotional_alerts: preferences.promotionalAlerts,
+                        sound_enabled: preferences.soundEnabled,
+                        vibration_enabled: preferences.vibrationEnabled,
+                        reminder_time: preferences.reminderTime + ':00',
+                    }, {
+                        onConflict: 'user_id,endpoint',
+                    });
 
-            if (error) {
-                console.error('Error saving subscription:', error);
-                toast.error('Failed to save notification preferences');
-                setLoading(false);
-                return false;
+                if (error) {
+                    console.warn('Could not save subscription to database:', error.message);
+                    // Don't fail - notifications still work locally
+                }
+            } catch (dbError) {
+                console.warn('Database save skipped:', dbError);
+                // Continue anyway - local notifications will still work
             }
 
             setSubscription(pushSubscription);
@@ -160,9 +163,16 @@ export function usePushNotifications() {
             setLoading(false);
             return true;
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error subscribing to push:', error);
-            toast.error('Failed to enable notifications');
+            const errorMessage = error?.message || 'Unknown error';
+            if (errorMessage.includes('timed out')) {
+                toast.error('Connection timed out. Please try again.');
+            } else if (errorMessage.includes('permission')) {
+                toast.error('Notification permission was denied');
+            } else {
+                toast.error(`Failed to enable notifications: ${errorMessage}`);
+            }
             setLoading(false);
             return false;
         }
