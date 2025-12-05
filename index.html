@@ -1,19 +1,66 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PremasShop</title>
-    <meta name="description" content="PremasShop - fast and simple delivery management" />
-    <meta name="author" content="PremasShop" />
 
-    <meta property="og:title" content="PremasShop" />
-    <meta property="og:description" content="PremasShop - fast and simple delivery management" />
-    <meta property="og:type" content="website" />
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PremasShop</title>
+  <meta name="description" content="PremasShop - fast and simple grocery delivery" />
+  <meta name="author" content="PremasShop" />
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#22c55e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="PremasShop" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="application-name" content="PremasShop" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <!-- Manifest -->
+  <link rel="manifest" href="/dist/manifest.json" />
+
+  <!-- Favicon & Icons -->
+  <link rel="icon" type="image/svg+xml" href="/dist/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/dist/icons/icon.svg" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="PremasShop" />
+  <meta property="og:description" content="PremasShop - fast and simple grocery delivery" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/dist/icons/icon.svg" />
+
+  <!-- Prevent pull-to-refresh on mobile for app-like feel -->
+  <style>
+    html,
+    body {
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Hide scrollbar for cleaner mobile experience */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* PWA status bar area */
+    @supports(padding-top: env(safe-area-inset-top)) {
+      body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

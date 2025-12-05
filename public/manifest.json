@@ -1,0 +1,55 @@
+{
+    "name": "PremasShop",
+    "short_name": "PremasShop",
+    "description": "Fast and simple grocery delivery - Order fresh groceries online",
+    "start_url": "/dist/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#22c55e",
+    "orientation": "portrait-primary",
+    "scope": "/dist/",
+    "icons": [
+        {
+            "src": "/dist/icons/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "/dist/icons/icon-maskable.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "maskable"
+        }
+    ],
+    "categories": [
+        "shopping",
+        "food"
+    ],
+    "shortcuts": [
+        {
+            "name": "Shop Now",
+            "short_name": "Shop",
+            "description": "Browse and order groceries",
+            "url": "/dist/shop",
+            "icons": [
+                {
+                    "src": "/dist/icons/icon.svg",
+                    "sizes": "any"
+                }
+            ]
+        },
+        {
+            "name": "My Orders",
+            "short_name": "Orders",
+            "description": "View your order history",
+            "url": "/dist/orders",
+            "icons": [
+                {
+                    "src": "/dist/icons/icon.svg",
+                    "sizes": "any"
+                }
+            ]
+        }
+    ]
+}
