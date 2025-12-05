@@ -104,7 +104,7 @@ export function usePushNotifications() {
             // Subscribe to push
             const pushSubscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any,
             });
 
             // Extract subscription data
@@ -269,13 +269,14 @@ export function usePushNotifications() {
 
         await registration.showNotification('PremasShop Test 🛒', {
             body: '🎉 Push notifications are working! You\'ll receive order updates, alerts, and reminders.',
-            icon: '/icons/icon.svg',
-            badge: '/icons/icon.svg',
+            icon: '/dist/icons/icon.svg',
+            badge: '/dist/icons/icon.svg',
             tag: 'test-notification',
+            // @ts-ignore - vibrate is valid in ServiceWorkerRegistration.showNotification options but missing in TS types
             vibrate,
             requireInteraction: false,
             data: {
-                url: '/',
+                url: '/dist/',
                 type: 'test',
             },
             actions: [

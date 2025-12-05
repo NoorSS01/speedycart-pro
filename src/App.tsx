@@ -22,12 +22,15 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Get basename from Vite's base config for proper routing in production
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Dashboard />} />

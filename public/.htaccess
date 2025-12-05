@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
+  RewriteBase /dist/
 
   # Handle Authorization Header
   RewriteCond %{HTTP:Authorization} .

@@ -19,15 +19,15 @@ self.addEventListener('push', (event) => {
     // Build notification options
     const options = {
         body: data.body || 'You have a new notification',
-        icon: data.icon || '/icons/icon.svg',
-        badge: '/icons/icon.svg',
+        icon: data.icon || '/dist/icons/icon.svg',
+        badge: '/dist/icons/icon.svg',
         vibrate: data.vibrate !== false ? [200, 100, 200] : undefined,
         tag: data.tag || `premasshop-${Date.now()}`,
         renotify: true,
         requireInteraction: data.requireInteraction || false,
         timestamp: data.timestamp || Date.now(),
         data: {
-            url: data.url || '/',
+            url: data.url || '/dist/',
             type: data.type || 'general',
             ...data.data,
         },
@@ -110,24 +110,24 @@ self.addEventListener('notificationclick', (event) => {
     const type = data.type || 'general';
 
     // Default URL
-    let urlToOpen = data.url || '/';
+    let urlToOpen = data.url || '/dist/';
 
     // Handle different actions
     switch (action) {
         case 'view':
         case 'track':
-            urlToOpen = data.url || '/';
+            urlToOpen = data.url || '/dist/';
             break;
 
         case 'accept':
-            urlToOpen = '/admin';
+            urlToOpen = '/dist/admin';
             break;
 
         case 'snooze':
             event.waitUntil(
                 self.registration.showNotification('⏰ Reminder Snoozed', {
                     body: 'We\'ll remind you again in 30 minutes.',
-                    icon: '/icons/icon.svg',
+                    icon: '/dist/icons/icon.svg',
                     tag: 'snooze-confirm',
                     requireInteraction: false,
                 })
@@ -138,14 +138,14 @@ self.addEventListener('notificationclick', (event) => {
             return;
 
         default:
-            urlToOpen = data.url || '/';
+            urlToOpen = data.url || '/dist/';
     }
 
     // Focus existing window or open new one
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
-                if ('focus' in client) {
+                if (client.url.includes('/dist/') && 'focus' in client) {
                     return client.navigate(urlToOpen).then(() => client.focus());
                 }
             }

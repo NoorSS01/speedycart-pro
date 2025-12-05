@@ -6,22 +6,22 @@
     "background_color": "#ffffff",
     "display": "standalone",
     "orientation": "portrait",
-    "scope": "/",
-    "start_url": "/",
+    "scope": "/dist/",
+    "start_url": "/dist/",
     "icons": [
         {
-            "src": "/icons/icon.svg",
+            "src": "/dist/icons/icon.svg",
             "sizes": "any",
             "type": "image/svg+xml",
             "purpose": "any maskable"
         },
         {
-            "src": "/icons/icon-192x192.png",
+            "src": "/dist/icons/icon-192x192.png",
             "sizes": "192x192",
             "type": "image/png"
         },
         {
-            "src": "/icons/icon-512x512.png",
+            "src": "/dist/icons/icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png"
         }
@@ -31,10 +31,10 @@
             "name": "Shop",
             "short_name": "Shop",
             "description": "Browse products",
-            "url": "/shop",
+            "url": "/dist/shop",
             "icons": [
                 {
-                    "src": "/icons/icon.svg",
+                    "src": "/dist/icons/icon.svg",
                     "sizes": "96x96"
                 }
             ]
@@ -43,10 +43,10 @@
             "name": "My Orders",
             "short_name": "Orders",
             "description": "View your orders",
-            "url": "/orders",
+            "url": "/dist/orders",
             "icons": [
                 {
-                    "src": "/icons/icon.svg",
+                    "src": "/dist/icons/icon.svg",
                     "sizes": "96x96"
                 }
             ]
@@ -55,10 +55,10 @@
             "name": "Profile",
             "short_name": "Profile",
             "description": "Your profile",
-            "url": "/profile",
+            "url": "/dist/profile",
             "icons": [
                 {
-                    "src": "/icons/icon.svg",
+                    "src": "/dist/icons/icon.svg",
                     "sizes": "96x96"
                 }
             ]
