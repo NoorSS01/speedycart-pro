@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
     Bell,
     BellOff,
@@ -18,8 +19,12 @@ import {
     Send,
     Loader2,
     Smartphone,
-    Check,
-    X,
+    Volume2,
+    Vibrate,
+    Gift,
+    Truck,
+    ShoppingCart,
+    CheckCircle,
 } from 'lucide-react';
 
 export function NotificationSettings() {
@@ -38,6 +43,7 @@ export function NotificationSettings() {
     } = usePushNotifications();
 
     const [localPrefs, setLocalPrefs] = useState(preferences);
+    const [hasChanges, setHasChanges] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -65,7 +71,13 @@ export function NotificationSettings() {
 
         const newPrefs = { ...localPrefs, [key]: value };
         setLocalPrefs(newPrefs);
-        await updatePreferences(user.id, { [key]: value });
+        setHasChanges(true);
+
+        // Auto-save after a short delay
+        setTimeout(() => {
+            updatePreferences(user.id, { [key]: value });
+            setHasChanges(false);
+        }, 500);
     };
 
     if (!isSupported) {
@@ -90,14 +102,61 @@ export function NotificationSettings() {
         );
     }
 
+    const notificationTypes = [
+        {
+            key: 'orderUpdates',
+            icon: ShoppingCart,
+            title: 'Order Updates',
+            description: 'Status changes for your orders',
+            color: 'blue',
+            bgColor: 'bg-blue-50/50 dark:bg-blue-950/20',
+            borderColor: 'border-blue-200 dark:border-blue-800',
+            iconBg: 'bg-blue-100 dark:bg-blue-900/50',
+            iconColor: 'text-blue-600 dark:text-blue-400',
+        },
+        {
+            key: 'dailyReminders',
+            icon: Clock,
+            title: 'Daily Reminders',
+            description: 'Morning check-in notifications',
+            color: 'purple',
+            bgColor: 'bg-purple-50/50 dark:bg-purple-950/20',
+            borderColor: 'border-purple-200 dark:border-purple-800',
+            iconBg: 'bg-purple-100 dark:bg-purple-900/50',
+            iconColor: 'text-purple-600 dark:text-purple-400',
+        },
+        {
+            key: 'profitAlerts',
+            icon: TrendingUp,
+            title: 'Profit Alerts',
+            description: 'Daily sales & profit summary',
+            color: 'green',
+            bgColor: 'bg-green-50/50 dark:bg-green-950/20',
+            borderColor: 'border-green-200 dark:border-green-800',
+            iconBg: 'bg-green-100 dark:bg-green-900/50',
+            iconColor: 'text-green-600 dark:text-green-400',
+        },
+        {
+            key: 'lowStockAlerts',
+            icon: AlertTriangle,
+            title: 'Low Stock Alerts',
+            description: 'When products are running low',
+            color: 'orange',
+            bgColor: 'bg-orange-50/50 dark:bg-orange-950/20',
+            borderColor: 'border-orange-200 dark:border-orange-800',
+            iconBg: 'bg-orange-100 dark:bg-orange-900/50',
+            iconColor: 'text-orange-600 dark:text-orange-400',
+        },
+    ];
+
     return (
         <Card className="overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pb-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                     <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${isSubscribed
-                            ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                            : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
                             }`}>
                             {isSubscribed ? (
                                 <BellRing className="h-6 w-6 text-white" />
@@ -109,7 +168,9 @@ export function NotificationSettings() {
                             <CardTitle className="text-lg flex items-center gap-2">
                                 Push Notifications
                                 <Badge variant={isSubscribed ? 'default' : 'secondary'} className="font-normal">
-                                    {isSubscribed ? 'Enabled' : 'Disabled'}
+                                    {isSubscribed ? (
+                                        <><CheckCircle className="h-3 w-3 mr-1" />Enabled</>
+                                    ) : 'Disabled'}
                                 </Badge>
                             </CardTitle>
                             <CardDescription>
@@ -139,131 +200,114 @@ export function NotificationSettings() {
             <CardContent className="p-6 space-y-6">
                 {/* Notification Types */}
                 <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                            Notification Types
+                        </h4>
+                        {hasChanges && (
+                            <Badge variant="outline" className="animate-pulse">
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Saving...
+                            </Badge>
+                        )}
+                    </div>
+
+                    <div className="grid gap-3">
+                        {notificationTypes.map((type) => {
+                            const Icon = type.icon;
+                            const isEnabled = localPrefs[type.key as keyof typeof localPrefs] as boolean;
+
+                            return (
+                                <div
+                                    key={type.key}
+                                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isEnabled && isSubscribed ? `${type.bgColor} ${type.borderColor}` : 'bg-muted/30 border-transparent'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isEnabled && isSubscribed ? type.iconBg : 'bg-muted'
+                                            }`}>
+                                            <Icon className={`h-5 w-5 ${isEnabled && isSubscribed ? type.iconColor : 'text-muted-foreground'
+                                                }`} />
+                                        </div>
+                                        <div>
+                                            <Label className="text-base font-medium cursor-pointer">
+                                                {type.title}
+                                            </Label>
+                                            <p className="text-sm text-muted-foreground">
+                                                {type.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={isEnabled}
+                                        onCheckedChange={(checked) => handlePreferenceChange(type.key as keyof typeof localPrefs, checked)}
+                                        disabled={!isSubscribed || loading}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <Separator />
+
+                {/* Additional Preferences */}
+                <div className="space-y-4">
                     <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                        Notification Types
+                        Additional Preferences
                     </h4>
 
-                    <div className="grid gap-4">
-                        {/* Daily Reminders */}
-                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.dailyReminders && isSubscribed
-                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800'
-                            : 'bg-muted/30 border-transparent'
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {/* Promotional Alerts */}
+                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.promotionalAlerts && isSubscribed
+                                ? 'bg-pink-50/50 dark:bg-pink-950/20 border-pink-200 dark:border-pink-800'
+                                : 'bg-muted/30 border-transparent'
                             }`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.dailyReminders && isSubscribed
-                                    ? 'bg-blue-100 dark:bg-blue-900/50'
-                                    : 'bg-muted'
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.promotionalAlerts && isSubscribed
+                                        ? 'bg-pink-100 dark:bg-pink-900/50'
+                                        : 'bg-muted'
                                     }`}>
-                                    <Clock className={`h-5 w-5 ${localPrefs.dailyReminders && isSubscribed
-                                        ? 'text-blue-600 dark:text-blue-400'
-                                        : 'text-muted-foreground'
+                                    <Gift className={`h-5 w-5 ${localPrefs.promotionalAlerts && isSubscribed
+                                            ? 'text-pink-600 dark:text-pink-400'
+                                            : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>
-                                    <Label className="text-base font-medium cursor-pointer">
-                                        Daily Entry Reminders
-                                    </Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        Get reminded to check your shop daily
-                                    </p>
+                                    <Label className="text-sm font-medium">Offers & Sales</Label>
+                                    <p className="text-xs text-muted-foreground">Flash sales, discounts</p>
                                 </div>
                             </div>
                             <Switch
-                                checked={localPrefs.dailyReminders}
-                                onCheckedChange={(checked) => handlePreferenceChange('dailyReminders', checked)}
+                                checked={localPrefs.promotionalAlerts as boolean}
+                                onCheckedChange={(checked) => handlePreferenceChange('promotionalAlerts', checked)}
                                 disabled={!isSubscribed || loading}
                             />
                         </div>
 
-                        {/* Profit Alerts */}
-                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.profitAlerts && isSubscribed
-                            ? 'bg-green-50/50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
-                            : 'bg-muted/30 border-transparent'
+                        {/* Delivery Updates */}
+                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.deliveryUpdates && isSubscribed
+                                ? 'bg-cyan-50/50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800'
+                                : 'bg-muted/30 border-transparent'
                             }`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.profitAlerts && isSubscribed
-                                    ? 'bg-green-100 dark:bg-green-900/50'
-                                    : 'bg-muted'
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.deliveryUpdates && isSubscribed
+                                        ? 'bg-cyan-100 dark:bg-cyan-900/50'
+                                        : 'bg-muted'
                                     }`}>
-                                    <TrendingUp className={`h-5 w-5 ${localPrefs.profitAlerts && isSubscribed
-                                        ? 'text-green-600 dark:text-green-400'
-                                        : 'text-muted-foreground'
+                                    <Truck className={`h-5 w-5 ${localPrefs.deliveryUpdates && isSubscribed
+                                            ? 'text-cyan-600 dark:text-cyan-400'
+                                            : 'text-muted-foreground'
                                         }`} />
                                 </div>
                                 <div>
-                                    <Label className="text-base font-medium cursor-pointer">
-                                        Profit Alerts
-                                    </Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        Daily summary of your earnings and profits
-                                    </p>
+                                    <Label className="text-sm font-medium">Delivery Updates</Label>
+                                    <p className="text-xs text-muted-foreground">Tracking info</p>
                                 </div>
                             </div>
                             <Switch
-                                checked={localPrefs.profitAlerts}
-                                onCheckedChange={(checked) => handlePreferenceChange('profitAlerts', checked)}
-                                disabled={!isSubscribed || loading}
-                            />
-                        </div>
-
-                        {/* Order Updates */}
-                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.orderUpdates && isSubscribed
-                            ? 'bg-purple-50/50 border-purple-200 dark:bg-purple-950/20 dark:border-purple-800'
-                            : 'bg-muted/30 border-transparent'
-                            }`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.orderUpdates && isSubscribed
-                                    ? 'bg-purple-100 dark:bg-purple-900/50'
-                                    : 'bg-muted'
-                                    }`}>
-                                    <Package className={`h-5 w-5 ${localPrefs.orderUpdates && isSubscribed
-                                        ? 'text-purple-600 dark:text-purple-400'
-                                        : 'text-muted-foreground'
-                                        }`} />
-                                </div>
-                                <div>
-                                    <Label className="text-base font-medium cursor-pointer">
-                                        Order Updates
-                                    </Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        New orders, deliveries, and status changes
-                                    </p>
-                                </div>
-                            </div>
-                            <Switch
-                                checked={localPrefs.orderUpdates}
-                                onCheckedChange={(checked) => handlePreferenceChange('orderUpdates', checked)}
-                                disabled={!isSubscribed || loading}
-                            />
-                        </div>
-
-                        {/* Low Stock Alerts */}
-                        <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${localPrefs.lowStockAlerts && isSubscribed
-                            ? 'bg-orange-50/50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800'
-                            : 'bg-muted/30 border-transparent'
-                            }`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${localPrefs.lowStockAlerts && isSubscribed
-                                    ? 'bg-orange-100 dark:bg-orange-900/50'
-                                    : 'bg-muted'
-                                    }`}>
-                                    <AlertTriangle className={`h-5 w-5 ${localPrefs.lowStockAlerts && isSubscribed
-                                        ? 'text-orange-600 dark:text-orange-400'
-                                        : 'text-muted-foreground'
-                                        }`} />
-                                </div>
-                                <div>
-                                    <Label className="text-base font-medium cursor-pointer">
-                                        Low Stock Alerts
-                                    </Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        Get notified when products are running low
-                                    </p>
-                                </div>
-                            </div>
-                            <Switch
-                                checked={localPrefs.lowStockAlerts}
-                                onCheckedChange={(checked) => handlePreferenceChange('lowStockAlerts', checked)}
+                                checked={localPrefs.deliveryUpdates as boolean}
+                                onCheckedChange={(checked) => handlePreferenceChange('deliveryUpdates', checked)}
                                 disabled={!isSubscribed || loading}
                             />
                         </div>
@@ -272,32 +316,69 @@ export function NotificationSettings() {
 
                 {/* Reminder Time */}
                 {isSubscribed && localPrefs.dailyReminders && (
-                    <div className="space-y-3 pt-2">
-                        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                            Reminder Schedule
-                        </h4>
-                        <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30">
-                            <Clock className="h-5 w-5 text-muted-foreground" />
-                            <div className="flex-1">
-                                <Label htmlFor="reminderTime" className="text-sm">
-                                    Daily reminder time
-                                </Label>
+                    <>
+                        <Separator />
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                Reminder Schedule
+                            </h4>
+                            <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border border-purple-200 dark:border-purple-800">
+                                <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                                <div className="flex-1">
+                                    <Label htmlFor="reminderTime" className="text-sm font-medium">
+                                        Daily reminder time
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">When should we remind you?</p>
+                                </div>
                                 <Input
                                     id="reminderTime"
                                     type="time"
-                                    value={localPrefs.reminderTime}
+                                    value={localPrefs.reminderTime as string}
                                     onChange={(e) => handlePreferenceChange('reminderTime', e.target.value)}
-                                    className="w-32 mt-1"
+                                    className="w-28"
                                     disabled={loading}
                                 />
                             </div>
                         </div>
-                    </div>
+                    </>
+                )}
+
+                {/* Sound & Vibration (if subscribed) */}
+                {isSubscribed && (
+                    <>
+                        <Separator />
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                Notification Style
+                            </h4>
+                            <div className="flex gap-3">
+                                <Button
+                                    variant={localPrefs.soundEnabled ? 'default' : 'outline'}
+                                    size="sm"
+                                    className="flex-1 gap-2"
+                                    onClick={() => handlePreferenceChange('soundEnabled', !localPrefs.soundEnabled)}
+                                >
+                                    <Volume2 className="h-4 w-4" />
+                                    Sound {localPrefs.soundEnabled ? 'On' : 'Off'}
+                                </Button>
+                                <Button
+                                    variant={localPrefs.vibrationEnabled ? 'default' : 'outline'}
+                                    size="sm"
+                                    className="flex-1 gap-2"
+                                    onClick={() => handlePreferenceChange('vibrationEnabled', !localPrefs.vibrationEnabled)}
+                                >
+                                    <Vibrate className="h-4 w-4" />
+                                    Vibration {localPrefs.vibrationEnabled ? 'On' : 'Off'}
+                                </Button>
+                            </div>
+                        </div>
+                    </>
                 )}
 
                 {/* Test Notification */}
                 {isSubscribed && (
-                    <div className="pt-4 border-t">
+                    <>
+                        <Separator />
                         <Button
                             onClick={sendTestNotification}
                             variant="outline"
@@ -307,11 +388,11 @@ export function NotificationSettings() {
                             <Send className="h-4 w-4 mr-2" />
                             Send Test Notification
                         </Button>
-                    </div>
+                    </>
                 )}
 
                 {/* Status Info */}
-                <div className="pt-4 border-t">
+                <div className="pt-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Smartphone className="h-4 w-4" />
                         <span>

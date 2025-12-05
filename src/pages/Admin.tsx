@@ -24,7 +24,8 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
-  Boxes
+  Boxes,
+  Megaphone
 } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 
@@ -415,6 +416,11 @@ export default function Admin() {
               <Button onClick={() => navigate('/admin/stock')} variant="outline" size="sm" className="gap-2 flex-1 md:flex-none">
                 <Boxes className="h-4 w-4" />
                 Manage Stock
+              </Button>
+
+              <Button onClick={() => navigate('/admin/notifications')} variant="outline" size="sm" className="gap-2 flex-1 md:flex-none bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-200 dark:border-purple-800 hover:from-purple-500/20 hover:to-pink-500/20">
+                <Megaphone className="h-4 w-4 text-purple-600" />
+                <span className="hidden sm:inline">Broadcast</span>
               </Button>
 
               <div className="flex items-center gap-2 flex-1 md:flex-none min-w-[140px]">

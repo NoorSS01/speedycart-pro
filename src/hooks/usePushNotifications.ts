@@ -2,15 +2,19 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// VAPID Public Key - Generate your own at https://vapidkeys.com/
-// Store the private key securely on your server
+// VAPID Public Key - This should match the one in your Supabase secrets
 const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
 
-interface NotificationPreferences {
+export interface NotificationPreferences {
     dailyReminders: boolean;
     profitAlerts: boolean;
     orderUpdates: boolean;
     lowStockAlerts: boolean;
+    newOrderAlerts: boolean;
+    deliveryUpdates: boolean;
+    promotionalAlerts: boolean;
+    soundEnabled: boolean;
+    vibrationEnabled: boolean;
     reminderTime: string;
 }
 
@@ -47,6 +51,11 @@ export function usePushNotifications() {
         profitAlerts: true,
         orderUpdates: true,
         lowStockAlerts: true,
+        newOrderAlerts: true,
+        deliveryUpdates: true,
+        promotionalAlerts: true,
+        soundEnabled: true,
+        vibrationEnabled: true,
         reminderTime: '09:00',
     });
 
@@ -118,6 +127,11 @@ export function usePushNotifications() {
                     profit_alerts: preferences.profitAlerts,
                     order_updates: preferences.orderUpdates,
                     low_stock_alerts: preferences.lowStockAlerts,
+                    new_order_alerts: preferences.newOrderAlerts,
+                    delivery_updates: preferences.deliveryUpdates,
+                    promotional_alerts: preferences.promotionalAlerts,
+                    sound_enabled: preferences.soundEnabled,
+                    vibration_enabled: preferences.vibrationEnabled,
                     reminder_time: preferences.reminderTime + ':00',
                 }, {
                     onConflict: 'user_id,endpoint',
@@ -178,32 +192,35 @@ export function usePushNotifications() {
         userId: string,
         newPreferences: Partial<NotificationPreferences>
     ) => {
-        setLoading(true);
         const updatedPrefs = { ...preferences, ...newPreferences };
         setPreferences(updatedPrefs);
 
         try {
+            const updateData: any = {};
+
+            if ('dailyReminders' in newPreferences) updateData.daily_reminders = newPreferences.dailyReminders;
+            if ('profitAlerts' in newPreferences) updateData.profit_alerts = newPreferences.profitAlerts;
+            if ('orderUpdates' in newPreferences) updateData.order_updates = newPreferences.orderUpdates;
+            if ('lowStockAlerts' in newPreferences) updateData.low_stock_alerts = newPreferences.lowStockAlerts;
+            if ('newOrderAlerts' in newPreferences) updateData.new_order_alerts = newPreferences.newOrderAlerts;
+            if ('deliveryUpdates' in newPreferences) updateData.delivery_updates = newPreferences.deliveryUpdates;
+            if ('promotionalAlerts' in newPreferences) updateData.promotional_alerts = newPreferences.promotionalAlerts;
+            if ('soundEnabled' in newPreferences) updateData.sound_enabled = newPreferences.soundEnabled;
+            if ('vibrationEnabled' in newPreferences) updateData.vibration_enabled = newPreferences.vibrationEnabled;
+            if ('reminderTime' in newPreferences) updateData.reminder_time = newPreferences.reminderTime + ':00';
+
             const { error } = await (supabase as any)
                 .from('push_subscriptions')
-                .update({
-                    daily_reminders: updatedPrefs.dailyReminders,
-                    profit_alerts: updatedPrefs.profitAlerts,
-                    order_updates: updatedPrefs.orderUpdates,
-                    low_stock_alerts: updatedPrefs.lowStockAlerts,
-                    reminder_time: updatedPrefs.reminderTime + ':00',
-                })
+                .update(updateData)
                 .eq('user_id', userId);
 
             if (error) throw error;
 
-            toast.success('Preferences updated');
-            setLoading(false);
             return true;
 
         } catch (error) {
             console.error('Error updating preferences:', error);
             toast.error('Failed to update preferences');
-            setLoading(false);
             return false;
         }
     }, [preferences]);
@@ -219,10 +236,15 @@ export function usePushNotifications() {
 
             if (data && !error) {
                 setPreferences({
-                    dailyReminders: data.daily_reminders,
-                    profitAlerts: data.profit_alerts,
-                    orderUpdates: data.order_updates,
-                    lowStockAlerts: data.low_stock_alerts,
+                    dailyReminders: data.daily_reminders ?? true,
+                    profitAlerts: data.profit_alerts ?? true,
+                    orderUpdates: data.order_updates ?? true,
+                    lowStockAlerts: data.low_stock_alerts ?? true,
+                    newOrderAlerts: data.new_order_alerts ?? true,
+                    deliveryUpdates: data.delivery_updates ?? true,
+                    promotionalAlerts: data.promotional_alerts ?? true,
+                    soundEnabled: data.sound_enabled ?? true,
+                    vibrationEnabled: data.vibration_enabled ?? true,
                     reminderTime: data.reminder_time?.slice(0, 5) || '09:00',
                 });
                 setIsSubscribed(true);
@@ -242,18 +264,41 @@ export function usePushNotifications() {
         }
 
         const registration = await navigator.serviceWorker.ready;
-        await registration.showNotification('PremasShop Test', {
-            body: '🎉 Push notifications are working!',
+
+        const vibrate = preferences.vibrationEnabled ? [200, 100, 200] : undefined;
+
+        await registration.showNotification('PremasShop Test 🛒', {
+            body: '🎉 Push notifications are working! You\'ll receive order updates, alerts, and reminders.',
             icon: '/dist/icons/icon.svg',
             badge: '/dist/icons/icon.svg',
             tag: 'test-notification',
-            vibrate: [200, 100, 200],
+            vibrate,
+            requireInteraction: false,
             data: {
                 url: '/dist/',
+                type: 'test',
             },
+            actions: [
+                { action: 'view', title: '🛒 Open Shop' },
+                { action: 'dismiss', title: '✕ Dismiss' },
+            ],
         });
 
         toast.success('Test notification sent!');
+    }, [isSupported, preferences.vibrationEnabled]);
+
+    // Request permission only (for notification bell prompt)
+    const requestPermission = useCallback(async () => {
+        if (!isSupported) return false;
+
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+    }, [isSupported]);
+
+    // Get permission status
+    const getPermissionStatus = useCallback(() => {
+        if (!isSupported) return 'unsupported';
+        return Notification.permission; // 'granted', 'denied', 'default'
     }, [isSupported]);
 
     return {
@@ -267,6 +312,8 @@ export function usePushNotifications() {
         updatePreferences,
         loadPreferences,
         sendTestNotification,
+        requestPermission,
+        getPermissionStatus,
     };
 }
 

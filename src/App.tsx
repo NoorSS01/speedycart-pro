@@ -14,6 +14,7 @@ import Delivery from "./pages/Delivery";
 import Admin from "./pages/Admin";
 import AdminStock from "./pages/AdminStock";
 import AdminToPay from "./pages/AdminToPay";
+import AdminNotifications from "./pages/AdminNotifications";
 import SuperAdmin from "./pages/SuperAdmin";
 import DeliveryApplication from "./pages/DeliveryApplication";
 import PhoneSetup from "./pages/PhoneSetup";
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/stock" element={<AdminStock />} />
             <Route path="/admin/to-pay" element={<AdminToPay />} />
+            <Route path="/admin/notifications" element={<AdminNotifications />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/delivery-application" element={<DeliveryApplication />} />
             <Route path="/phone-setup" element={<PhoneSetup />} />

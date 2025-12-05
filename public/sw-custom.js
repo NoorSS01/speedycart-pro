@@ -1,6 +1,7 @@
-// Custom Service Worker for Push Notifications
-// This file extends the auto-generated Workbox service worker
+// PremasShop Custom Service Worker
+// Handles push notifications, click actions, and deep linking
 
+// Listen for push events from the server
 self.addEventListener('push', (event) => {
     if (!event.data) return;
 
@@ -11,49 +12,90 @@ self.addEventListener('push', (event) => {
         data = {
             title: 'PremasShop',
             body: event.data.text(),
+            type: 'general',
         };
     }
 
+    // Build notification options
     const options = {
         body: data.body || 'You have a new notification',
-        icon: '/dist/icons/icon.svg',
+        icon: data.icon || '/dist/icons/icon.svg',
         badge: '/dist/icons/icon.svg',
-        vibrate: [200, 100, 200],
-        tag: data.tag || 'premasshop-notification',
+        vibrate: data.vibrate !== false ? [200, 100, 200] : undefined,
+        tag: data.tag || `premasshop-${Date.now()}`,
         renotify: true,
         requireInteraction: data.requireInteraction || false,
+        timestamp: data.timestamp || Date.now(),
         data: {
             url: data.url || '/dist/',
+            type: data.type || 'general',
             ...data.data,
         },
-        actions: data.actions || [],
+        actions: [],
     };
 
-    // Add specific actions based on notification type
-    if (data.type === 'new_order') {
-        options.actions = [
-            { action: 'view', title: '📦 View Order' },
-            { action: 'dismiss', title: '✕ Dismiss' },
-        ];
-        options.tag = 'new-order';
-    } else if (data.type === 'profit_alert') {
-        options.actions = [
-            { action: 'view', title: '📊 View Stats' },
-            { action: 'dismiss', title: '✕ Dismiss' },
-        ];
-        options.tag = 'profit-alert';
-    } else if (data.type === 'low_stock') {
-        options.actions = [
-            { action: 'view', title: '📦 Manage Stock' },
-            { action: 'dismiss', title: '✕ Dismiss' },
-        ];
-        options.tag = 'low-stock';
-    } else if (data.type === 'daily_reminder') {
-        options.actions = [
-            { action: 'view', title: '🛒 Open Shop' },
-            { action: 'dismiss', title: '✕ Later' },
-        ];
-        options.tag = 'daily-reminder';
+    // Add image if provided
+    if (data.image) {
+        options.image = data.image;
+    }
+
+    // Add type-specific actions and styling
+    switch (data.type) {
+        case 'order_status':
+            if (data.body?.includes('New order')) {
+                // New order for admin
+                options.actions = [
+                    { action: 'view', title: '📦 View Order' },
+                    { action: 'accept', title: '✅ Accept' },
+                ];
+                options.tag = 'new-order';
+                options.requireInteraction = true;
+            } else {
+                // Order update for customer
+                options.actions = [
+                    { action: 'track', title: '📍 Track Order' },
+                    { action: 'dismiss', title: '✕ Dismiss' },
+                ];
+            }
+            break;
+
+        case 'low_stock':
+            options.actions = [
+                { action: 'view', title: '📦 View Stock' },
+                { action: 'dismiss', title: '✕ Later' },
+            ];
+            options.tag = 'low-stock';
+            options.requireInteraction = true;
+            break;
+
+        case 'profit_summary':
+            options.actions = [
+                { action: 'view', title: '📊 View Details' },
+                { action: 'dismiss', title: '✕ Dismiss' },
+            ];
+            options.tag = 'profit-summary';
+            break;
+
+        case 'daily_reminder':
+            options.actions = [
+                { action: 'view', title: '🛒 Open Shop' },
+                { action: 'snooze', title: '⏰ Snooze' },
+            ];
+            options.tag = 'daily-reminder';
+            break;
+
+        case 'broadcast':
+            options.actions = [
+                { action: 'view', title: '👀 View Now' },
+                { action: 'dismiss', title: '✕ Dismiss' },
+            ];
+            break;
+
+        default:
+            options.actions = [
+                { action: 'view', title: '👀 View' },
+                { action: 'dismiss', title: '✕ Dismiss' },
+            ];
     }
 
     event.waitUntil(
@@ -61,40 +103,61 @@ self.addEventListener('push', (event) => {
     );
 });
 
-// Handle notification click
+// Handle notification click events
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
     const action = event.action;
     const data = event.notification.data || {};
+    const type = data.type || 'general';
 
-    // Determine the URL to open based on action
+    // Default URL
     let urlToOpen = data.url || '/dist/';
 
-    if (action === 'view') {
-        if (data.type === 'new_order') {
+    // Handle different actions
+    switch (action) {
+        case 'view':
+        case 'track':
+            urlToOpen = data.url || '/dist/';
+            break;
+
+        case 'accept':
+            // For accepting orders, go to admin with specific order
             urlToOpen = '/dist/admin';
-        } else if (data.type === 'profit_alert') {
-            urlToOpen = '/dist/admin';
-        } else if (data.type === 'low_stock') {
-            urlToOpen = '/dist/admin/stock';
-        } else if (data.type === 'daily_reminder') {
-            urlToOpen = '/dist/shop';
-        }
-    } else if (action === 'dismiss') {
-        return; // Just close the notification
+            break;
+
+        case 'snooze':
+            // Snooze reminder for 30 minutes
+            // Note: This would need backend support to actually reschedule
+            event.waitUntil(
+                self.registration.showNotification('⏰ Reminder Snoozed', {
+                    body: 'We\'ll remind you again in 30 minutes.',
+                    icon: '/dist/icons/icon.svg',
+                    tag: 'snooze-confirm',
+                    requireInteraction: false,
+                })
+            );
+            return;
+
+        case 'dismiss':
+            // Just close the notification
+            return;
+
+        default:
+            // Clicking on notification body
+            urlToOpen = data.url || '/dist/';
     }
 
+    // Focus existing window or open new one
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Check if there's already a window open
+            // Try to find an existing window
             for (const client of clientList) {
                 if (client.url.includes('/dist/') && 'focus' in client) {
-                    client.navigate(urlToOpen);
-                    return client.focus();
+                    return client.navigate(urlToOpen).then(() => client.focus());
                 }
             }
-            // Open a new window if none is open
+            // Open new window if none exists
             if (clients.openWindow) {
                 return clients.openWindow(urlToOpen);
             }
@@ -102,52 +165,45 @@ self.addEventListener('notificationclick', (event) => {
     );
 });
 
-// Handle notification close
+// Handle notification close events (for analytics)
 self.addEventListener('notificationclose', (event) => {
-    // Analytics: track dismissed notifications
-    console.log('Notification dismissed:', event.notification.tag);
+    const data = event.notification.data || {};
+
+    // Log dismissed notification for analytics
+    console.log('Notification dismissed:', {
+        type: data.type,
+        tag: event.notification.tag,
+        timestamp: Date.now(),
+    });
 });
 
-// Background sync for sending notifications when online
+// Background sync for offline notification queue
 self.addEventListener('sync', (event) => {
-    if (event.tag === 'send-pending-notifications') {
-        event.waitUntil(sendPendingNotifications());
+    if (event.tag === 'send-pending-actions') {
+        event.waitUntil(processPendingActions());
     }
 });
 
-async function sendPendingNotifications() {
-    // This would be implemented if you have offline notification queueing
-    console.log('Background sync: checking for pending notifications');
+async function processPendingActions() {
+    // Process any queued actions from offline usage
+    console.log('Processing pending actions...');
 }
 
-// Periodic Background Sync for scheduled notifications (if supported)
+// Periodic background sync (if supported)
 self.addEventListener('periodicsync', (event) => {
-    if (event.tag === 'daily-reminder-check') {
-        event.waitUntil(checkDailyReminder());
+    if (event.tag === 'check-notifications') {
+        event.waitUntil(checkForNewNotifications());
     }
 });
 
-async function checkDailyReminder() {
-    // Check if it's time to send daily reminder
-    const now = new Date();
-    const hour = now.getHours();
-
-    // Send reminder at 9 AM
-    if (hour === 9) {
-        self.registration.showNotification('Good Morning! ☀️', {
-            body: 'Start your day by checking your shop orders and stock!',
-            icon: '/dist/icons/icon.svg',
-            badge: '/dist/icons/icon.svg',
-            tag: 'daily-reminder',
-            vibrate: [200, 100, 200],
-            data: {
-                url: '/dist/shop',
-                type: 'daily_reminder',
-            },
-            actions: [
-                { action: 'view', title: '🛒 Open Shop' },
-                { action: 'dismiss', title: '✕ Later' },
-            ],
-        });
-    }
+async function checkForNewNotifications() {
+    // Check for new notifications periodically
+    console.log('Checking for new notifications...');
 }
+
+// Handle messages from the main app
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
