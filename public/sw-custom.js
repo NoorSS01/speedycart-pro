@@ -27,7 +27,7 @@ self.addEventListener('push', (event) => {
         requireInteraction: data.requireInteraction || false,
         timestamp: data.timestamp || Date.now(),
         data: {
-            url: data.url || '/dist/',
+            url: data.url || '/',
             type: data.type || 'general',
             ...data.data,
         },
@@ -110,17 +110,17 @@ self.addEventListener('notificationclick', (event) => {
     const type = data.type || 'general';
 
     // Default URL
-    let urlToOpen = data.url || '/dist/';
+    let urlToOpen = data.url || '/';
 
     // Handle different actions
     switch (action) {
         case 'view':
         case 'track':
-            urlToOpen = data.url || '/dist/';
+            urlToOpen = data.url || '/';
             break;
 
         case 'accept':
-            urlToOpen = '/dist/admin';
+            urlToOpen = '/admin';
             break;
 
         case 'snooze':
@@ -138,14 +138,14 @@ self.addEventListener('notificationclick', (event) => {
             return;
 
         default:
-            urlToOpen = data.url || '/dist/';
+            urlToOpen = data.url || '/';
     }
 
     // Focus existing window or open new one
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {
-                if (client.url.includes('/dist/') && 'focus' in client) {
+                if ('focus' in client) {
                     return client.navigate(urlToOpen).then(() => client.focus());
                 }
             }

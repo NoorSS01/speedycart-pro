@@ -276,7 +276,7 @@ export function usePushNotifications() {
             vibrate,
             requireInteraction: false,
             data: {
-                url: '/dist/',
+                url: '/',
                 type: 'test',
             },
             actions: [

@@ -22,8 +22,9 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Get basename from Vite's base config for proper routing in production
-const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+// Hostinger serves app from root via proper rewrites, so router basename should be "/"
+// even though assets are in /dist/ (configured in vite.config.ts)
+const basename = '/';
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
