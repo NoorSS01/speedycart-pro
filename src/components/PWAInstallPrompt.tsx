@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Download, X } from 'lucide-react';
+import { Download, X, Share, Plus, Smartphone } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
     readonly platforms: string[];
@@ -18,33 +18,53 @@ declare global {
     }
 }
 
+// Detect iOS
+const isIOS = () => {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+};
+
+// Detect if running as standalone PWA
+const isStandalone = () => {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true;
+};
+
 export function PWAInstallPrompt() {
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [showPrompt, setShowPrompt] = useState(false);
+    const [showIOSPrompt, setShowIOSPrompt] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
 
     useEffect(() => {
         // Check if already installed
-        if (window.matchMedia('(display-mode: standalone)').matches) {
+        if (isStandalone()) {
             setIsInstalled(true);
             return;
         }
 
-        // Check if dismissed recently (within 7 days)
+        // Check if dismissed recently (within 3 days - reduced from 7)
         const dismissedAt = localStorage.getItem('pwa-prompt-dismissed');
         if (dismissedAt) {
             const dismissedDate = new Date(dismissedAt);
             const daysSinceDismiss = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
-            if (daysSinceDismiss < 7) {
+            if (daysSinceDismiss < 3) {
                 return;
             }
         }
 
+        // For iOS devices, show custom instructions
+        if (isIOS()) {
+            // Show iOS prompt after 3 seconds
+            setTimeout(() => setShowIOSPrompt(true), 3000);
+            return;
+        }
+
+        // For Android/Chrome, use beforeinstallprompt
         const handler = (e: BeforeInstallPromptEvent) => {
             e.preventDefault();
             setDeferredPrompt(e);
-            // Show prompt after 5 seconds
-            setTimeout(() => setShowPrompt(true), 5000);
+            // Show prompt after 2 seconds (faster)
+            setTimeout(() => setShowPrompt(true), 2000);
         };
 
         window.addEventListener('beforeinstallprompt', handler);
@@ -75,32 +95,108 @@ export function PWAInstallPrompt() {
 
     const handleDismiss = () => {
         setShowPrompt(false);
+        setShowIOSPrompt(false);
         localStorage.setItem('pwa-prompt-dismissed', new Date().toISOString());
     };
 
-    if (isInstalled || !showPrompt || !deferredPrompt) {
+    if (isInstalled) {
+        return null;
+    }
+
+    // iOS Install Instructions
+    if (showIOSPrompt) {
+        return (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-end animate-in fade-in duration-300">
+                <div className="w-full bg-white dark:bg-gray-900 rounded-t-3xl p-6 pb-10 animate-in slide-in-from-bottom duration-300">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                                <Smartphone className="h-7 w-7 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-xl text-foreground">Install PremasShop</h3>
+                                <p className="text-sm text-muted-foreground">Get the full app experience</p>
+                            </div>
+                        </div>
+                        <button onClick={handleDismiss} className="text-muted-foreground p-2 -m-2">
+                            <X className="h-6 w-6" />
+                        </button>
+                    </div>
+
+                    <div className="space-y-4 mb-6">
+                        <p className="text-muted-foreground">
+                            Install this app on your iPhone for quick access and offline shopping!
+                        </p>
+
+                        <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm">1</div>
+                                <div className="flex items-center gap-2 text-foreground">
+                                    <span>Tap the</span>
+                                    <Share className="h-5 w-5 text-blue-500" />
+                                    <span className="font-medium">Share</span>
+                                    <span>button below</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm">2</div>
+                                <div className="flex items-center gap-2 text-foreground">
+                                    <span>Scroll and tap</span>
+                                    <Plus className="h-5 w-5" />
+                                    <span className="font-medium">"Add to Home Screen"</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 font-bold text-sm">3</div>
+                                <span className="text-foreground">Tap <span className="font-medium">"Add"</span> to install!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Button onClick={handleDismiss} variant="outline" className="flex-1">
+                            Maybe Later
+                        </Button>
+                        <Button onClick={handleDismiss} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700">
+                            Got It!
+                        </Button>
+                    </div>
+
+                    {/* iOS home indicator safe area */}
+                    <div className="h-2" />
+                </div>
+            </div>
+        );
+    }
+
+    // Android/Chrome Install Prompt  
+    if (!showPrompt || !deferredPrompt) {
         return null;
     }
 
     return (
-        <div className="fixed bottom-20 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm animate-in slide-in-from-bottom-4">
-            <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-2xl">
-                <CardContent className="p-4">
+        <div className="fixed bottom-20 left-0 right-0 z-50 px-4 animate-in slide-in-from-bottom-4 duration-300 md:left-auto md:right-4 md:max-w-sm">
+            <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-2xl overflow-hidden">
+                {/* Animated shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shimmer" />
+
+                <CardContent className="p-4 relative">
                     <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Download className="h-6 w-6" />
+                        <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                            <Download className="h-7 w-7" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-lg">Install PremasShop</h3>
                             <p className="text-white/90 text-sm mt-1">
-                                Add to home screen for faster access & offline browsing!
+                                📱 Add to home screen for faster orders & offline access!
                             </p>
                             <div className="flex gap-2 mt-3">
                                 <Button
                                     onClick={handleInstall}
                                     size="sm"
-                                    className="bg-white text-green-600 hover:bg-white/90 font-semibold"
+                                    className="bg-white text-green-600 hover:bg-white/90 font-semibold shadow-md"
                                 >
+                                    <Download className="h-4 w-4 mr-1" />
                                     Install Now
                                 </Button>
                                 <Button
@@ -115,7 +211,7 @@ export function PWAInstallPrompt() {
                         </div>
                         <button
                             onClick={handleDismiss}
-                            className="text-white/70 hover:text-white p-1"
+                            className="text-white/70 hover:text-white p-1 -mt-1 -mr-1"
                         >
                             <X className="h-5 w-5" />
                         </button>
