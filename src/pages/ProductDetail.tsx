@@ -26,7 +26,8 @@ import {
     Star,
     ChevronDown,
     ChevronUp,
-    MapPin
+    MapPin,
+    User
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
@@ -41,12 +42,24 @@ interface Product {
     category_id: string | null;
 }
 
+interface ProductReview {
+    id: string;
+    rating: number;
+    review_text: string | null;
+    created_at: string;
+    user_id: string;
+    profiles: {
+        full_name: string | null;
+    } | null;
+}
+
 export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
     const [product, setProduct] = useState<Product | null>(null);
     const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+    const [reviews, setReviews] = useState<ProductReview[]>([]);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
     const [addingToCart, setAddingToCart] = useState(false);
@@ -59,6 +72,7 @@ export default function ProductDetail() {
     useEffect(() => {
         if (id) {
             fetchProduct();
+            fetchReviews();
         }
     }, [id]);
 
@@ -84,6 +98,32 @@ export default function ProductDetail() {
             }
         }
         setLoading(false);
+    };
+
+    const fetchReviews = async () => {
+        if (!id) return;
+
+        // Attempt to fetch reviews - wrapped in try/catch in case table doesn't exist
+        try {
+            const { data, error } = await supabase
+                .from('product_reviews' as any)
+                .select(`
+          id,
+          rating,
+          review_text,
+          created_at,
+          user_id,
+          profiles:user_id(full_name)
+        `)
+                .eq('product_id', id)
+                .order('created_at', { ascending: false });
+
+            if (data && !error) {
+                setReviews(data as any);
+            }
+        } catch (e) {
+            console.log('Product reviews table may not exist yet');
+        }
     };
 
     const fetchRelatedProducts = async (categoryId: string, currentProductId: string) => {
@@ -263,6 +303,9 @@ export default function ProductDetail() {
 
     const isOutOfStock = product.stock_quantity <= 0;
     const isLowStock = product.stock_quantity > 0 && product.stock_quantity <= 5;
+    const averageRating = reviews.length > 0
+        ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+        : null;
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pb-24">
@@ -301,9 +344,18 @@ export default function ProductDetail() {
             <div className="container mx-auto px-4 py-4 space-y-4">
                 <div>
                     <h1 className="text-2xl font-bold">{product.name}</h1>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <span className="text-3xl font-bold text-primary">₹{product.price}</span>
-                        <span className="text-muted-foreground">/ {product.unit}</span>
+                    <div className="flex items-center justify-between mt-1">
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold text-primary">₹{product.price}</span>
+                            <span className="text-muted-foreground">/ {product.unit}</span>
+                        </div>
+                        {averageRating && (
+                            <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded-full">
+                                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                <span className="font-bold text-sm">{averageRating}</span>
+                                <span className="text-xs text-muted-foreground">({reviews.length})</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -409,15 +461,39 @@ export default function ProductDetail() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-4 pt-0">
-                        <div className="flex flex-col items-center py-6 text-center">
-                            <div className="flex gap-1 mb-2">
-                                {[1, 2, 3, 4, 5].map(i => (
-                                    <Star key={i} className="h-5 w-5 text-muted-foreground/30" />
+                        {reviews.length > 0 ? (
+                            <div className="space-y-4">
+                                {reviews.map(review => (
+                                    <div key={review.id} className="border-b last:border-0 pb-3 last:pb-0">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                                                    <User className="h-3 w-3 text-muted-foreground" />
+                                                </div>
+                                                <span className="text-sm font-medium">{review.profiles?.full_name || 'Anonymous'}</span>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 mb-1">
+                                            {[1, 2, 3, 4, 5].map(star => (
+                                                <Star key={star} className={`h-3 w-3 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                                            ))}
+                                        </div>
+                                        {review.review_text && <p className="text-sm text-muted-foreground">{review.review_text}</p>}
+                                    </div>
                                 ))}
                             </div>
-                            <p className="text-muted-foreground text-sm">No reviews yet</p>
-                            <p className="text-xs text-muted-foreground mt-1">Be the first to review!</p>
-                        </div>
+                        ) : (
+                            <div className="flex flex-col items-center py-6 text-center">
+                                <div className="flex gap-1 mb-2">
+                                    {[1, 2, 3, 4, 5].map(i => (
+                                        <Star key={i} className="h-5 w-5 text-muted-foreground/30" />
+                                    ))}
+                                </div>
+                                <p className="text-muted-foreground text-sm">No reviews yet</p>
+                                <p className="text-xs text-muted-foreground mt-1">Be the first to review!</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
