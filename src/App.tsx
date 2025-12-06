@@ -20,6 +20,7 @@ import DeliveryApplication from "./pages/DeliveryApplication";
 import PhoneSetup from "./pages/PhoneSetup";
 import AddProduct from "./pages/AddProduct";
 import ProductDetail from "./pages/ProductDetail";
+import Cart from "./pages/Cart";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/shop" element={<Shop />} />
+            <Route path="/cart" element={<Cart />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/delivery" element={<Delivery />} />

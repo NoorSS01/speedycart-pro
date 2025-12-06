@@ -11,14 +11,9 @@ export default function BottomNav({ cartItemCount = 0 }: BottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleCartClick = () => {
-    // Dispatch custom event to open cart sheet
-    window.dispatchEvent(new Event('openCart'));
-  };
-
   const navItems = [
     { icon: Home, label: 'Home', path: '/shop', action: () => navigate('/shop') },
-    { icon: ShoppingCart, label: 'Cart', path: '/shop', showBadge: true, action: handleCartClick },
+    { icon: ShoppingCart, label: 'Cart', path: '/cart', showBadge: true, action: () => navigate('/cart') },
     { icon: ClipboardList, label: 'Orders', path: '/orders', action: () => navigate('/orders') },
     { icon: User, label: 'Profile', path: '/profile', action: () => navigate('/profile') },
   ];
@@ -30,14 +25,14 @@ export default function BottomNav({ cartItemCount = 0 }: BottomNavProps) {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path && item.label !== 'Cart';
-            
+
             return (
               <button
                 key={item.label}
                 onClick={item.action}
                 className={cn(
                   "relative flex flex-col items-center justify-center gap-1 py-2 px-4 rounded-2xl transition-all bg-background/20 hover:bg-background/40 border border-transparent hover:border-border/40 shadow-sm backdrop-blur-sm",
-                  isActive 
+                  isActive
                     ? "text-primary bg-background/60 border-primary/40 shadow-md"
                     : "text-muted-foreground hover:text-foreground"
                 )}

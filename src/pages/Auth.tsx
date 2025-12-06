@@ -34,15 +34,28 @@ export default function Auth() {
     }
 
     setIsLoading(true);
-    const { error } = await signIn(formData.email, formData.password);
-    
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Welcome back!');
-      navigate('/');
+    try {
+      const { error } = await signIn(formData.email, formData.password);
+
+      if (error) {
+        // User-friendly error messages
+        if (error.message.includes('Invalid login credentials')) {
+          toast.error('Invalid email or password. Please try again.');
+        } else if (error.message.includes('Email not confirmed')) {
+          toast.error('Please verify your email before signing in.');
+        } else {
+          toast.error('Something went wrong. Please try again.');
+        }
+      } else {
+        toast.success('Welcome back!');
+        navigate('/');
+      }
+    } catch (e) {
+      console.error('Sign in error:', e);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -58,30 +71,52 @@ export default function Auth() {
     }
 
     setIsLoading(true);
-    const { error } = await signUp(formData.email, formData.password, formData.phone, formData.fullName);
-    
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('Conformation sent to email');
-      navigate('/');
+    try {
+      const { error } = await signUp(formData.email, formData.password, formData.phone, formData.fullName);
+
+      if (error) {
+        // User-friendly error messages
+        if (error.message.includes('already registered')) {
+          toast.error('This email is already registered. Try signing in.');
+        } else if (error.message.includes('Password')) {
+          toast.error('Password must be at least 6 characters.');
+        } else if (error.message.includes('valid email')) {
+          toast.error('Please enter a valid email address.');
+        } else {
+          toast.error('Something went wrong. Please try again.');
+        }
+      } else {
+        toast.success('Confirmation sent to email');
+        navigate('/');
+      }
+    } catch (e) {
+      console.error('Sign up error:', e);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleSocialAuth = async (provider: 'google' | 'facebook') => {
     setIsLoading(true);
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: redirectUrl
-      }
-    });
+    try {
+      const redirectUrl = `${window.location.origin}/`;
 
-    if (error) {
-      toast.error(error.message);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectUrl
+        }
+      });
+
+      if (error) {
+        toast.error('Something went wrong. Please try again.');
+        setIsLoading(false);
+      }
+      // Note: OAuth redirects away, so we don't reset loading on success
+    } catch (e) {
+      console.error('Social auth error:', e);
+      toast.error('Something went wrong. Please try again.');
       setIsLoading(false);
     }
   };
@@ -120,11 +155,11 @@ export default function Auth() {
           <CardDescription>Your favorite groceries in minutes</CardDescription>
         </CardHeader>
         <CardContent>
-        <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
 
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
@@ -165,7 +200,7 @@ export default function Auth() {
                   Sign In
                 </Button>
               </form>
-              
+
               <div className="mt-4 space-y-2">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">

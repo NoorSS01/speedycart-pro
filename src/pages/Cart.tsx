@@ -1,0 +1,572 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
+import {
+    ArrowLeft,
+    ShoppingCart,
+    Plus,
+    Minus,
+    Trash2,
+    Package,
+    Clock,
+    Tag,
+    ShieldCheck,
+    Bookmark,
+    BookmarkCheck,
+    AlertTriangle,
+    Percent,
+    MapPin,
+    ChevronRight,
+} from 'lucide-react';
+import BottomNav from '@/components/BottomNav';
+
+interface Product {
+    id: string;
+    name: string;
+    price: number;
+    image_url: string | null;
+    stock_quantity: number;
+    unit: string;
+}
+
+interface CartItem {
+    id: string;
+    product_id: string;
+    quantity: number;
+    products: Product;
+}
+
+export default function Cart() {
+    const { user, loading: authLoading } = useAuth();
+    const navigate = useNavigate();
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [promoCode, setPromoCode] = useState('');
+    const [promoApplied, setPromoApplied] = useState(false);
+    const [promoDiscount, setPromoDiscount] = useState(0);
+
+    // Address dialog
+    const [showAddressDialog, setShowAddressDialog] = useState(false);
+    const [savedAddress, setSavedAddress] = useState('');
+    const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
+    const [newAddress, setNewAddress] = useState('');
+    const [placingOrder, setPlacingOrder] = useState(false);
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (!user) {
+            navigate('/auth');
+            return;
+        }
+        fetchCart();
+        fetchSavedAddress();
+    }, [user, authLoading, navigate]);
+
+    const fetchCart = async () => {
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from('cart_items')
+            .select(`
+        *,
+        products (*)
+      `)
+            .eq('user_id', user.id);
+
+        if (!error && data) {
+            setCartItems(data as CartItem[]);
+        }
+        setLoading(false);
+    };
+
+    const fetchSavedAddress = async () => {
+        if (!user) return;
+        const { data } = await supabase
+            .from('profiles')
+            .select('address')
+            .eq('id', user.id)
+            .single();
+        if (data?.address) {
+            setSavedAddress(data.address);
+        }
+    };
+
+    const updateQuantity = async (itemId: string, newQuantity: number) => {
+        if (newQuantity < 1) {
+            await removeItem(itemId);
+            return;
+        }
+
+        const item = cartItems.find(i => i.id === itemId);
+        if (item && newQuantity > item.products.stock_quantity) {
+            toast.error(`Only ${item.products.stock_quantity} available`);
+            return;
+        }
+
+        const { error } = await supabase
+            .from('cart_items')
+            .update({ quantity: newQuantity })
+            .eq('id', itemId);
+
+        if (!error) {
+            setCartItems(prev =>
+                prev.map(item =>
+                    item.id === itemId ? { ...item, quantity: newQuantity } : item
+                )
+            );
+        }
+    };
+
+    const removeItem = async (itemId: string) => {
+        const { error } = await supabase
+            .from('cart_items')
+            .delete()
+            .eq('id', itemId);
+
+        if (!error) {
+            setCartItems(prev => prev.filter(item => item.id !== itemId));
+            toast.success('Item removed');
+        }
+    };
+
+    const applyPromoCode = () => {
+        // Demo promo codes
+        const promoCodes: Record<string, number> = {
+            'FIRST10': 10,
+            'SAVE20': 20,
+            'PREMASHIP': 15,
+        };
+
+        const code = promoCode.toUpperCase().trim();
+        if (promoCodes[code]) {
+            setPromoDiscount(promoCodes[code]);
+            setPromoApplied(true);
+            toast.success(`${promoCodes[code]}% discount applied!`);
+        } else {
+            toast.error('Invalid promo code');
+        }
+    };
+
+    const handleCheckout = () => {
+        if (cartItems.length === 0) {
+            toast.error('Your cart is empty');
+            return;
+        }
+
+        // Check stock
+        const outOfStock = cartItems.filter(item => item.products.stock_quantity < item.quantity);
+        if (outOfStock.length > 0) {
+            toast.error(`Some items are out of stock`);
+            return;
+        }
+
+        setShowAddressDialog(true);
+    };
+
+    const confirmOrder = async () => {
+        if (!user) return;
+
+        const deliveryAddress = addressOption === 'saved' ? savedAddress : newAddress;
+        if (!deliveryAddress.trim()) {
+            toast.error('Please enter a delivery address');
+            return;
+        }
+
+        setPlacingOrder(true);
+
+        try {
+            // Validate stock again
+            for (const item of cartItems) {
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('stock_quantity')
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (!product || product.stock_quantity < item.quantity) {
+                    toast.error(`${item.products.name} is out of stock`);
+                    setPlacingOrder(false);
+                    return;
+                }
+            }
+
+            // Create order
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                    user_id: user.id,
+                    total_amount: finalTotal,
+                    delivery_address: deliveryAddress,
+                    status: 'pending'
+                })
+                .select()
+                .single();
+
+            if (orderError) throw orderError;
+
+            // Create order items and update stock
+            for (const item of cartItems) {
+                await supabase.from('order_items').insert({
+                    order_id: orderData.id,
+                    product_id: item.product_id,
+                    quantity: item.quantity,
+                    price: item.products.price,
+                });
+
+                await supabase
+                    .from('products')
+                    .update({
+                        stock_quantity: item.products.stock_quantity - item.quantity
+                    })
+                    .eq('id', item.product_id);
+            }
+
+            // Clear cart
+            await supabase
+                .from('cart_items')
+                .delete()
+                .eq('user_id', user.id);
+
+            // Save address if new
+            if (addressOption === 'new' && newAddress) {
+                await supabase
+                    .from('profiles')
+                    .update({ address: newAddress })
+                    .eq('id', user.id);
+            }
+
+            toast.success('Order placed successfully!');
+            setShowAddressDialog(false);
+            setCartItems([]);
+            navigate('/orders');
+
+        } catch (error: any) {
+            console.error('Order error:', error);
+            toast.error('Failed to place order. Please try again.');
+        } finally {
+            setPlacingOrder(false);
+        }
+    };
+
+    // Calculations
+    const subtotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
+    const discount = promoApplied ? (subtotal * promoDiscount / 100) : 0;
+    const deliveryFee = subtotal > 200 ? 0 : 25;
+    const finalTotal = subtotal - discount + deliveryFee;
+
+    // Loading state
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+                <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20">
+                    <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+                        <Skeleton className="h-9 w-9" />
+                        <Skeleton className="h-6 w-32" />
+                    </div>
+                </header>
+                <main className="container mx-auto px-4 py-6 space-y-4">
+                    {[1, 2, 3].map(i => (
+                        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                    ))}
+                    <Skeleton className="h-48 w-full rounded-xl" />
+                </main>
+                <BottomNav />
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+            {/* Header */}
+            <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-sm">
+                <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+                            <ShoppingCart className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-bold">Your Cart</h1>
+                            <p className="text-xs text-muted-foreground">{cartItems.length} items</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main className="container mx-auto px-4 py-4 space-y-4 max-w-2xl">
+                {/* Delivery estimate */}
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                    <Clock className="h-5 w-5 text-green-600" />
+                    <div>
+                        <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                            Estimated delivery: 15-30 mins
+                        </p>
+                        <p className="text-xs text-green-600/70">Free delivery on orders above ₹200</p>
+                    </div>
+                </div>
+
+                {/* Empty cart */}
+                {cartItems.length === 0 && (
+                    <Card className="flex flex-col items-center justify-center py-12">
+                        <ShoppingCart className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                        <h2 className="text-lg font-semibold text-muted-foreground">Your cart is empty</h2>
+                        <p className="text-sm text-muted-foreground/70 mb-4">Browse our products and add items</p>
+                        <Button onClick={() => navigate('/shop')}>
+                            <Package className="h-4 w-4 mr-2" />
+                            Shop Now
+                        </Button>
+                    </Card>
+                )}
+
+                {/* Cart Items */}
+                {cartItems.length > 0 && (
+                    <div className="space-y-3">
+                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            Cart ({cartItems.length})
+                        </h2>
+                        {cartItems.map(item => {
+                            const isLowStock = item.products.stock_quantity <= 5 && item.products.stock_quantity > 0;
+                            const isOutOfStock = item.products.stock_quantity <= 0;
+
+                            return (
+                                <Card key={item.id} className={`overflow-hidden ${isOutOfStock ? 'opacity-60 border-destructive/50' : ''}`}>
+                                    <CardContent className="p-3">
+                                        <div className="flex gap-3">
+                                            {/* Product image */}
+                                            <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                                                {item.products.image_url ? (
+                                                    <img
+                                                        src={item.products.image_url}
+                                                        alt={item.products.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <Package className="h-8 w-8 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Product info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p
+                                                            className="font-medium text-sm truncate cursor-pointer hover:text-primary"
+                                                            onClick={() => navigate(`/product/${item.product_id}`)}
+                                                        >
+                                                            {item.products.name}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            ₹{item.products.price} / {item.products.unit}
+                                                        </p>
+                                                    </div>
+                                                    <p className="font-bold text-primary whitespace-nowrap">
+                                                        ₹{(item.products.price * item.quantity).toFixed(0)}
+                                                    </p>
+                                                </div>
+
+                                                {/* Stock indicator */}
+                                                {isLowStock && (
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                                        <span className="text-xs text-amber-600">Only {item.products.stock_quantity} left</span>
+                                                    </div>
+                                                )}
+                                                {isOutOfStock && (
+                                                    <Badge variant="destructive" className="text-xs mt-1">Out of Stock</Badge>
+                                                )}
+
+                                                {/* Quantity controls */}
+                                                <div className="flex items-center justify-between mt-2">
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="outline"
+                                                            className="h-7 w-7"
+                                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        >
+                                                            <Minus className="h-3 w-3" />
+                                                        </Button>
+                                                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="outline"
+                                                            className="h-7 w-7"
+                                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                            disabled={item.quantity >= item.products.stock_quantity}
+                                                        >
+                                                            <Plus className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 text-destructive hover:text-destructive"
+                                                            onClick={() => removeItem(item.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Promo code */}
+                {cartItems.length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-2">
+                                <Tag className="h-5 w-5 text-primary" />
+                                <span className="text-sm font-medium">Promo Code</span>
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                                <Input
+                                    placeholder="Enter code"
+                                    value={promoCode}
+                                    onChange={(e) => setPromoCode(e.target.value)}
+                                    className="flex-1"
+                                    disabled={promoApplied}
+                                />
+                                <Button
+                                    onClick={applyPromoCode}
+                                    disabled={promoApplied || !promoCode.trim()}
+                                    variant={promoApplied ? 'secondary' : 'default'}
+                                >
+                                    {promoApplied ? 'Applied' : 'Apply'}
+                                </Button>
+                            </div>
+                            {promoApplied && (
+                                <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                                    <Percent className="h-3 w-3" />
+                                    {promoDiscount}% discount applied
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Order summary */}
+                {cartItems.length > 0 && (
+                    <Card className="border-primary/20">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Order Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Subtotal</span>
+                                <span>₹{subtotal.toFixed(0)}</span>
+                            </div>
+                            {promoApplied && (
+                                <div className="flex justify-between text-sm text-green-600">
+                                    <span>Discount ({promoDiscount}%)</span>
+                                    <span>-₹{discount.toFixed(0)}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Delivery</span>
+                                <span className={deliveryFee === 0 ? 'text-green-600' : ''}>
+                                    {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
+                                </span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-lg">
+                                <span>Total</span>
+                                <span className="text-primary">₹{finalTotal.toFixed(0)}</span>
+                            </div>
+
+                            {/* Checkout button */}
+                            <Button
+                                className="w-full h-12 text-base font-semibold mt-2"
+                                onClick={handleCheckout}
+                            >
+                                <ShieldCheck className="h-5 w-5 mr-2" />
+                                Proceed to Checkout
+                            </Button>
+
+                            <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+                                <ShieldCheck className="h-3 w-3" />
+                                100% secure checkout
+                            </p>
+                        </CardContent>
+                    </Card>
+                )}
+            </main>
+
+            {/* Address Dialog */}
+            <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <MapPin className="h-5 w-5 text-primary" />
+                            Delivery Address
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <RadioGroup value={addressOption} onValueChange={(v) => setAddressOption(v as 'saved' | 'new')}>
+                        {savedAddress && (
+                            <div className="flex items-start space-x-3 p-3 rounded-lg border">
+                                <RadioGroupItem value="saved" id="saved" className="mt-1" />
+                                <div className="flex-1">
+                                    <Label htmlFor="saved" className="font-medium cursor-pointer">
+                                        Saved Address
+                                    </Label>
+                                    <p className="text-sm text-muted-foreground mt-1">{savedAddress}</p>
+                                </div>
+                            </div>
+                        )}
+                        <div className="flex items-start space-x-3 p-3 rounded-lg border">
+                            <RadioGroupItem value="new" id="new" className="mt-1" />
+                            <div className="flex-1">
+                                <Label htmlFor="new" className="font-medium cursor-pointer">
+                                    New Address
+                                </Label>
+                                {addressOption === 'new' && (
+                                    <Textarea
+                                        className="mt-2"
+                                        placeholder="Enter your delivery address"
+                                        value={newAddress}
+                                        onChange={(e) => setNewAddress(e.target.value)}
+                                        rows={3}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    </RadioGroup>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddressDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={confirmOrder} disabled={placingOrder}>
+                            {placingOrder ? 'Placing Order...' : 'Confirm Order'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <BottomNav />
+        </div>
+    );
+}
