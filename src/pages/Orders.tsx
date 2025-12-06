@@ -281,67 +281,49 @@ export default function Orders() {
               const needsConfirmation = assignment?.marked_delivered_at && !assignment.user_confirmed_at && !assignment.is_rejected;
 
               return (
-                <Card key={order.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    {/* Product preview row */}
-                    <div className="flex items-center gap-3 p-3 border-b border-border/40">
-                      {/* Product image */}
-                      <div className="w-14 h-14 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
-                        {order.order_items[0]?.products?.image_url ? (
-                          <img
-                            src={order.order_items[0].products.image_url}
-                            alt={order.order_items[0].products.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Product name and order ID */}
+                <Card key={order.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <button
+                        <CardTitle
+                          className="text-base cursor-pointer hover:text-primary transition-colors truncate"
                           onClick={() => order.order_items[0]?.products?.id && navigate(`/shop?product=${order.order_items[0].products.id}`)}
-                          className="text-left hover:text-primary transition-colors"
                         >
-                          <h3 className="font-semibold text-sm truncate">
-                            {order.order_items[0]?.products?.name || 'Order'}
-                            {order.order_items.length > 1 && (
-                              <span className="text-muted-foreground font-normal"> +{order.order_items.length - 1} more</span>
-                            )}
-                          </h3>
-                        </button>
-                        <p className="text-xs text-muted-foreground">
+                          {order.order_items[0]?.products?.name || 'Order'}
+                          {order.order_items.length > 1 && ` +${order.order_items.length - 1}`}
+                          <span className="text-muted-foreground text-sm font-normal ml-2">
+                            x{order.order_items.reduce((sum, item) => sum + item.quantity, 0)}
+                          </span>
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
                           #{order.id.slice(0, 8)} • {new Date(order.created_at).toLocaleDateString()}
                         </p>
                       </div>
-
-                      {/* Status badge */}
-                      <Badge className={`${getStatusColor(order.status)} flex-shrink-0 text-xs`}>
-                        <span className="flex items-center gap-1">
+                      <Badge className={getStatusColor(order.status)}>
+                        <div className="flex items-center gap-1">
                           {getStatusIcon(order.status)}
-                          <span className="capitalize hidden sm:inline">{order.status.replace('_', ' ')}</span>
-                        </span>
+                          <span className="capitalize">{order.status.replace('_', ' ')}</span>
+                        </div>
                       </Badge>
                     </div>
-
-                    {/* Order details row */}
-                    <div className="px-3 py-2 flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground truncate max-w-[150px]">{order.delivery_address}</span>
-                      <span className="font-bold text-primary">₹{order.total_amount.toFixed(0)}</span>
-                    </div>
-
-                    {/* Confirmation needed */}
-                    {needsConfirmation && (
-                      <div className="px-3 pb-3">
-                        <div className="p-2 bg-warning/10 rounded-lg">
-                          <p className="text-xs font-medium mb-2">Delivery marked. Did you receive it?</p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total:</span>
+                        <span className="font-bold text-primary">₹{order.total_amount.toFixed(0)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Address:</span>
+                        <span className="font-medium text-right max-w-[180px] truncate">{order.delivery_address}</span>
+                      </div>
+                      {needsConfirmation && (
+                        <div className="mt-3 p-3 bg-warning/10 rounded-lg">
+                          <p className="text-sm font-medium mb-2">Did you receive your order?</p>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
-                              className="flex-1 h-7 text-xs"
+                              className="flex-1"
                               onClick={() => setConfirmDialog({
                                 open: true,
                                 orderId: order.id,
@@ -353,7 +335,7 @@ export default function Orders() {
                             <Button
                               size="sm"
                               variant="destructive"
-                              className="flex-1 h-7 text-xs"
+                              className="flex-1"
                               onClick={() => {
                                 setConfirmDialog({
                                   open: true,
@@ -366,8 +348,8 @@ export default function Orders() {
                             </Button>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               );
