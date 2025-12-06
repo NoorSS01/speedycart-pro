@@ -1,6 +1,20 @@
 RewriteEngine On
 RewriteBase /
 
+# CRITICAL: Prevent caching of service worker and manifest for PWA updates
+<FilesMatch "(sw-custom\.js|manifest\.json|manifest-.*\.json)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</FilesMatch>
+
+# Also prevent caching of HTML files
+<FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</FilesMatch>
+
 # IMPORTANT: Redirect /dist and /dist/ to root for old PWA installations
 # This fixes the 404 error when PWA was installed with old manifest
 RewriteRule ^dist/?$ / [R=301,L]

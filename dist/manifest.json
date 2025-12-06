@@ -1,6 +1,7 @@
 {
     "name": "PremasShop",
     "short_name": "PremasShop",
+    "version": "2.0.0",
     "description": "PremasShop - fast and simple grocery delivery",
     "theme_color": "#22c55e",
     "background_color": "#ffffff",
