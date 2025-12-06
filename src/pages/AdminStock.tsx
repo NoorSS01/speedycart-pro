@@ -20,6 +20,7 @@ import {
     RefreshCw,
     Save
 } from 'lucide-react';
+import AdminBottomNav from '@/components/AdminBottomNav';
 
 interface Product {
     id: string;
@@ -162,24 +163,21 @@ export default function AdminStock() {
     });
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
             {/* Header */}
-            <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-50 supports-[backdrop-filter]:bg-background/60">
+            <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
                 <div className="container mx-auto px-4 py-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
-                                <ArrowLeft className="h-5 w-5" />
-                            </Button>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                                <Boxes className="h-5 w-5 text-white" />
+                            </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                                    <Boxes className="h-6 w-6 text-primary" />
-                                    Stock Management
-                                </h1>
-                                <p className="text-sm text-muted-foreground">Manage your inventory levels</p>
+                                <h1 className="text-xl font-bold tracking-tight">Stock Management</h1>
+                                <p className="text-xs text-muted-foreground">Manage your inventory levels</p>
                             </div>
                         </div>
-                        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="w-full md:w-auto">
+                        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-background/60">
                             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
@@ -396,6 +394,9 @@ export default function AdminStock() {
                     </CardContent>
                 </Card>
             </main>
+
+            {/* Admin Bottom Navigation */}
+            <AdminBottomNav />
         </div>
     );
 }

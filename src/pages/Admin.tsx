@@ -28,6 +28,7 @@ import {
   Megaphone
 } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
+import AdminBottomNav from '@/components/AdminBottomNav';
 
 type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
 
@@ -401,32 +402,27 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-50 supports-[backdrop-filter]:bg-background/60">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-              <p className="text-xs text-muted-foreground md:hidden mt-1">
-                {dateRangeLabels[dateRange]}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg">
+                <Package className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">Admin Dashboard</h1>
+                <p className="text-xs text-muted-foreground">
+                  {dateRangeLabels[dateRange]}
+                </p>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={() => navigate('/admin/stock')} variant="outline" size="sm" className="gap-2 flex-1 md:flex-none">
-                <Boxes className="h-4 w-4" />
-                Manage Stock
-              </Button>
-
-              <Button onClick={() => navigate('/admin/notifications')} variant="outline" size="sm" className="gap-2 flex-1 md:flex-none bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-200 dark:border-purple-800 hover:from-purple-500/20 hover:to-pink-500/20">
-                <Megaphone className="h-4 w-4 text-purple-600" />
-                <span className="hidden sm:inline">Broadcast</span>
-              </Button>
-
-              <div className="flex items-center gap-2 flex-1 md:flex-none min-w-[140px]">
-                <Calendar className="h-4 w-4 text-muted-foreground hidden md:block" />
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground hidden sm:block" />
                 <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
-                  <SelectTrigger className="w-full md:w-[160px]">
+                  <SelectTrigger className="w-[130px] md:w-[160px] bg-background/60">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
@@ -449,12 +445,7 @@ export default function Admin() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 pb-24">
-        <div className="hidden md:flex items-center justify-between mb-4">
-          <p className="text-sm text-muted-foreground">
-            📊 Showing data for: <span className="font-medium text-foreground">{dateRangeLabels[dateRange]}</span>
-          </p>
-        </div>
+      <main className="container mx-auto px-4 py-6">
 
         {/* Stats Carousel on Mobile, Grid on Desktop */}
         <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
@@ -849,6 +840,9 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Admin Bottom Navigation */}
+      <AdminBottomNav />
     </div>
   );
 }

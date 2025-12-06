@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { ArrowLeft, Smartphone, TrendingUp, ShoppingBag } from 'lucide-react';
+import { Smartphone, TrendingUp, ShoppingBag, Wallet } from 'lucide-react';
+import AdminBottomNav from '@/components/AdminBottomNav';
 
 interface PayoutStats {
   deliveredOrders: number;
@@ -154,14 +155,17 @@ const AdminToPay = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="icon" onClick={() => navigate('/admin')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-2xl font-bold text-foreground">To Pay</h1>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Pending Payments</h1>
+              <p className="text-xs text-muted-foreground">Manage commission payouts</p>
+            </div>
           </div>
         </div>
       </header>
@@ -299,6 +303,9 @@ const AdminToPay = () => {
           </div>
         </div>
       )}
+
+      {/* Admin Bottom Navigation */}
+      <AdminBottomNav />
     </div>
   );
 };
