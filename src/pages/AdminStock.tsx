@@ -20,6 +20,7 @@ import {
     Save
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import PullToRefresh from '@/components/PullToRefresh';
 
 interface Product {
     id: string;
@@ -219,215 +220,217 @@ export default function AdminStock() {
                 </div>
             </header>
 
-            <main className="container mx-auto px-4 py-6 pb-24">
-                {/* Stats Carousel on Mobile, Grid on Desktop */}
-                <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-2 lg:grid-cols-5 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'all' ? 'ring-2 ring-primary' : 'hover:bg-accent/50'}`}
-                        onClick={() => setFilterStatus('all')}
-                    >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">All Products</p>
-                                    <p className="text-2xl font-bold">{stats.total}</p>
+            <PullToRefresh onRefresh={async () => { await fetchProducts(); await fetchCategories(); toast.success('Stock data refreshed!'); }} className="min-h-[calc(100vh-80px)]">
+                <main className="container mx-auto px-4 py-6 pb-24">
+                    {/* Stats Carousel on Mobile, Grid on Desktop */}
+                    <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-2 lg:grid-cols-5 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
+                        <Card
+                            className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'all' ? 'ring-2 ring-primary' : 'hover:bg-accent/50'}`}
+                            onClick={() => setFilterStatus('all')}
+                        >
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">All Products</p>
+                                        <p className="text-2xl font-bold">{stats.total}</p>
+                                    </div>
+                                    <Package className="h-8 w-8 text-primary/40" />
                                 </div>
-                                <Package className="h-8 w-8 text-primary/40" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'out' ? 'ring-2 ring-red-500' : 'hover:bg-red-50 dark:hover:bg-red-950/20'}`}
-                        onClick={() => setFilterStatus('out')}
-                    >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-red-600 dark:text-red-400">Out of Stock</p>
-                                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.outOfStock}</p>
+                        <Card
+                            className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'out' ? 'ring-2 ring-red-500' : 'hover:bg-red-50 dark:hover:bg-red-950/20'}`}
+                            onClick={() => setFilterStatus('out')}
+                        >
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-red-600 dark:text-red-400">Out of Stock</p>
+                                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.outOfStock}</p>
+                                    </div>
+                                    <AlertTriangle className="h-8 w-8 text-red-400/60" />
                                 </div>
-                                <AlertTriangle className="h-8 w-8 text-red-400/60" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'low' ? 'ring-2 ring-orange-500' : 'hover:bg-orange-50 dark:hover:bg-orange-950/20'}`}
-                        onClick={() => setFilterStatus('low')}
-                    >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-orange-600 dark:text-orange-400">Low Stock</p>
-                                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.lowStock}</p>
+                        <Card
+                            className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'low' ? 'ring-2 ring-orange-500' : 'hover:bg-orange-50 dark:hover:bg-orange-950/20'}`}
+                            onClick={() => setFilterStatus('low')}
+                        >
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-orange-600 dark:text-orange-400">Low Stock</p>
+                                        <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.lowStock}</p>
+                                    </div>
+                                    <TrendingDown className="h-8 w-8 text-orange-400/60" />
                                 </div>
-                                <TrendingDown className="h-8 w-8 text-orange-400/60" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'good' ? 'ring-2 ring-green-500' : 'hover:bg-green-50 dark:hover:bg-green-950/20'}`}
-                        onClick={() => setFilterStatus('good')}
-                    >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-green-600 dark:text-green-400">Good Stock</p>
-                                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.goodStock}</p>
+                        <Card
+                            className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'good' ? 'ring-2 ring-green-500' : 'hover:bg-green-50 dark:hover:bg-green-950/20'}`}
+                            onClick={() => setFilterStatus('good')}
+                        >
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-green-600 dark:text-green-400">Good Stock</p>
+                                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.goodStock}</p>
+                                    </div>
+                                    <CheckCircle className="h-8 w-8 text-green-400/60" />
                                 </div>
-                                <CheckCircle className="h-8 w-8 text-green-400/60" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
 
-                    <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/5">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-primary">Total Units</p>
-                                    <p className="text-2xl font-bold text-primary">{stats.totalUnits.toLocaleString()}</p>
+                        <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/5">
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-primary">Total Units</p>
+                                        <p className="text-2xl font-bold text-primary">{stats.totalUnits.toLocaleString()}</p>
+                                    </div>
+                                    <TrendingUp className="h-8 w-8 text-primary/40" />
                                 </div>
-                                <TrendingUp className="h-8 w-8 text-primary/40" />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Search Bar */}
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search products..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
+                            </CardContent>
+                        </Card>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        Showing {filteredProducts.length} of {products.length} products
-                    </p>
-                </div>
 
-                {/* Products Table */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Inventory List</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-border">
-                                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
-                                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Category</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Status</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Current Stock</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Update Stock</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredProducts.map((product) => {
-                                        const status = getStockStatus(product.stock_quantity);
-                                        const isEditing = editingStock[product.id] !== undefined;
-                                        const isSaving = savingIds.has(product.id);
-
-                                        return (
-                                            <tr
-                                                key={product.id}
-                                                className={`border-b border-border/50 hover:bg-accent/30 transition-colors ${product.stock_quantity === 0 ? 'bg-red-50/50 dark:bg-red-950/10' :
-                                                    product.stock_quantity <= 10 ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''
-                                                    }`}
-                                            >
-                                                <td className="py-3 px-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                                                            {product.image_url ? (
-                                                                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <Package className="h-5 w-5 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium text-foreground">{product.name}</p>
-                                                            <p className="text-xs text-muted-foreground">₹{product.price} / {product.unit}</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <span className="text-sm text-muted-foreground">{getCategoryName(product.category_id)}</span>
-                                                </td>
-                                                <td className="py-3 px-4 text-center">
-                                                    <Badge variant="outline" className={`${status.textColor} border-current`}>
-                                                        {status.label}
-                                                    </Badge>
-                                                </td>
-                                                <td className="py-3 px-4 text-center">
-                                                    <span className={`text-lg font-bold ${status.textColor}`}>
-                                                        {product.stock_quantity}
-                                                    </span>
-                                                    <span className="text-xs text-muted-foreground ml-1">{product.unit}s</span>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            value={isEditing ? editingStock[product.id] : product.stock_quantity}
-                                                            onChange={(e) => handleStockChange(product.id, e.target.value)}
-                                                            className="w-24 text-center"
-                                                        />
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 px-4 text-center">
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => saveStock(product.id)}
-                                                        disabled={!isEditing || isSaving}
-                                                        className={isEditing ? 'bg-primary' : 'bg-gray-300'}
-                                                    >
-                                                        {isSaving ? (
-                                                            <RefreshCw className="h-4 w-4 animate-spin" />
-                                                        ) : (
-                                                            <>
-                                                                <Save className="h-4 w-4 mr-1" />
-                                                                Save
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-
-                            {filteredProducts.length === 0 && (
-                                <div className="text-center py-12">
-                                    <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                                    <p className="text-muted-foreground">No products found</p>
-                                </div>
-                            )}
+                    {/* Search Bar */}
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="relative flex-1 max-w-md">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search products..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
                         </div>
-                    </CardContent>
-                </Card>
+                        <p className="text-sm text-muted-foreground">
+                            Showing {filteredProducts.length} of {products.length} products
+                        </p>
+                    </div>
 
-                {/* Quick Tips */}
-                <Card className="mt-6 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                    <CardContent className="p-4">
-                        <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">💡 Quick Tips</h3>
-                        <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
-                            <li>• <span className="text-red-600 dark:text-red-400 font-medium">Red badges</span> = Critical or Out of Stock - Restock immediately!</li>
-                            <li>• <span className="text-orange-600 dark:text-orange-400 font-medium">Orange badges</span> = Low Stock (1-10 units) - Consider restocking soon</li>
-                            <li>• <span className="text-green-600 dark:text-green-400 font-medium">Green badges</span> = Good Stock (10+ units) - You're all set!</li>
-                            <li>• Click on the stat cards above to filter the list by stock status</li>
-                        </ul>
-                    </CardContent>
-                </Card>
-            </main>
+                    {/* Products Table */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-lg">Inventory List</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-border">
+                                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Category</th>
+                                            <th className="text-center py-3 px-4 font-medium text-muted-foreground">Status</th>
+                                            <th className="text-center py-3 px-4 font-medium text-muted-foreground">Current Stock</th>
+                                            <th className="text-center py-3 px-4 font-medium text-muted-foreground">Update Stock</th>
+                                            <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredProducts.map((product) => {
+                                            const status = getStockStatus(product.stock_quantity);
+                                            const isEditing = editingStock[product.id] !== undefined;
+                                            const isSaving = savingIds.has(product.id);
+
+                                            return (
+                                                <tr
+                                                    key={product.id}
+                                                    className={`border-b border-border/50 hover:bg-accent/30 transition-colors ${product.stock_quantity === 0 ? 'bg-red-50/50 dark:bg-red-950/10' :
+                                                        product.stock_quantity <= 10 ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''
+                                                        }`}
+                                                >
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                                                                {product.image_url ? (
+                                                                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <Package className="h-5 w-5 text-muted-foreground" />
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-foreground">{product.name}</p>
+                                                                <p className="text-xs text-muted-foreground">₹{product.price} / {product.unit}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className="text-sm text-muted-foreground">{getCategoryName(product.category_id)}</span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <Badge variant="outline" className={`${status.textColor} border-current`}>
+                                                            {status.label}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <span className={`text-lg font-bold ${status.textColor}`}>
+                                                            {product.stock_quantity}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground ml-1">{product.unit}s</span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <Input
+                                                                type="number"
+                                                                min="0"
+                                                                value={isEditing ? editingStock[product.id] : product.stock_quantity}
+                                                                onChange={(e) => handleStockChange(product.id, e.target.value)}
+                                                                className="w-24 text-center"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => saveStock(product.id)}
+                                                            disabled={!isEditing || isSaving}
+                                                            className={isEditing ? 'bg-primary' : 'bg-gray-300'}
+                                                        >
+                                                            {isSaving ? (
+                                                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <>
+                                                                    <Save className="h-4 w-4 mr-1" />
+                                                                    Save
+                                                                </>
+                                                            )}
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+
+                                {filteredProducts.length === 0 && (
+                                    <div className="text-center py-12">
+                                        <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                                        <p className="text-muted-foreground">No products found</p>
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Quick Tips */}
+                    <Card className="mt-6 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                        <CardContent className="p-4">
+                            <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">💡 Quick Tips</h3>
+                            <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                                <li>• <span className="text-red-600 dark:text-red-400 font-medium">Red badges</span> = Critical or Out of Stock - Restock immediately!</li>
+                                <li>• <span className="text-orange-600 dark:text-orange-400 font-medium">Orange badges</span> = Low Stock (1-10 units) - Consider restocking soon</li>
+                                <li>• <span className="text-green-600 dark:text-green-400 font-medium">Green badges</span> = Good Stock (10+ units) - You're all set!</li>
+                                <li>• Click on the stat cards above to filter the list by stock status</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </main>
+            </PullToRefresh>
 
             {/* Admin Bottom Navigation */}
             <AdminBottomNav />

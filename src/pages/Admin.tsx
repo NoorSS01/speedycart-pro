@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import PullToRefresh from '@/components/PullToRefresh';
 
 type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
 
@@ -481,401 +482,403 @@ export default function Admin() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <PullToRefresh onRefresh={async () => { await fetchData(); toast.success('Data refreshed!'); }} className="min-h-[calc(100vh-80px)]">
+        <main className="container mx-auto px-4 py-6">
 
-        {/* Stats Carousel on Mobile, Grid on Desktop */}
-        <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
-          {/* Revenue */}
-          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-2">
-                💰 Total Sales
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-800 dark:text-green-300">₹{stats.revenue.toFixed(0)}</p>
-              <p className="text-xs text-green-600 dark:text-green-500 mt-1">Money from delivered orders</p>
-            </CardContent>
-          </Card>
+          {/* Stats Carousel on Mobile, Grid on Desktop */}
+          <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
+            {/* Revenue */}
+            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-2">
+                  💰 Total Sales
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-green-800 dark:text-green-300">₹{stats.revenue.toFixed(0)}</p>
+                <p className="text-xs text-green-600 dark:text-green-500 mt-1">Money from delivered orders</p>
+              </CardContent>
+            </Card>
 
-          {/* Profit */}
-          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-                📈 Your Profit
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">₹{stats.profit.toFixed(0)}</p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">After paying ₹9/order commission</p>
-            </CardContent>
-          </Card>
+            {/* Profit */}
+            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                  📈 Your Profit
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">₹{stats.profit.toFixed(0)}</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">After paying ₹9/order commission</p>
+              </CardContent>
+            </Card>
 
-          {/* To Pay */}
-          <Card
-            className="min-w-[260px] snap-center bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition"
-            onClick={() => navigate('/admin/to-pay')}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                💳 Pending Payments
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
-              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Tap to see details →</p>
-            </CardContent>
-          </Card>
+            {/* To Pay */}
+            <Card
+              className="min-w-[260px] snap-center bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition"
+              onClick={() => navigate('/admin/to-pay')}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                  💳 Pending Payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Tap to see details →</p>
+              </CardContent>
+            </Card>
 
-          {/* Total Orders */}
-          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                📦 All Orders
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{stats.totalOrders}</p>
-              <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">Total orders received</p>
-            </CardContent>
-          </Card>
+            {/* Total Orders */}
+            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                  📦 All Orders
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{stats.totalOrders}</p>
+                <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">Total orders received</p>
+              </CardContent>
+            </Card>
 
-          {/* Pending Orders */}
-          <Card className={`min-w-[260px] snap-center bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'}`}>
-            <CardHeader className="pb-2">
-              <CardTitle className={`text-sm font-medium flex items-center gap-2 ${stats.pendingOrders > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                ⏳ In Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className={`text-2xl font-bold ${stats.pendingOrders > 0 ? 'text-orange-800 dark:text-orange-300' : 'text-gray-700 dark:text-gray-300'}`}>{stats.pendingOrders}</p>
-              <p className={`text-xs mt-1 ${stats.pendingOrders > 0 ? 'text-orange-600 dark:text-orange-500' : 'text-gray-500 dark:text-gray-500'}`}>Being processed/delivered</p>
-            </CardContent>
-          </Card>
+            {/* Pending Orders */}
+            <Card className={`min-w-[260px] snap-center bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className={`text-sm font-medium flex items-center gap-2 ${stats.pendingOrders > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                  ⏳ In Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className={`text-2xl font-bold ${stats.pendingOrders > 0 ? 'text-orange-800 dark:text-orange-300' : 'text-gray-700 dark:text-gray-300'}`}>{stats.pendingOrders}</p>
+                <p className={`text-xs mt-1 ${stats.pendingOrders > 0 ? 'text-orange-600 dark:text-orange-500' : 'text-gray-500 dark:text-gray-500'}`}>Being processed/delivered</p>
+              </CardContent>
+            </Card>
 
-          {/* Delivered */}
-          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
-                ✅ Delivered
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-primary">{stats.deliveredOrders}</p>
-              <p className="text-xs text-primary/70 mt-1">Successfully completed</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="products" className="space-y-4">
-          <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 scrollbar-hide">
-            <TabsList className="w-auto inline-flex md:grid md:w-full md:grid-cols-4 h-auto p-1">
-              <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
-              <TabsTrigger value="orders" className="px-4 py-2">Orders</TabsTrigger>
-              <TabsTrigger value="delivery" className="px-4 py-2">Delivery Partners</TabsTrigger>
-              <TabsTrigger value="malicious" className="px-4 py-2">Malicious Activity</TabsTrigger>
-            </TabsList>
+            {/* Delivered */}
+            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
+                  ✅ Delivered
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-primary">{stats.deliveredOrders}</p>
+                <p className="text-xs text-primary/70 mt-1">Successfully completed</p>
+              </CardContent>
+            </Card>
           </div>
 
-          <TabsContent value="products" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Tabs defaultValue="products" className="space-y-4">
+            <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 scrollbar-hide">
+              <TabsList className="w-auto inline-flex md:grid md:w-full md:grid-cols-4 h-auto p-1">
+                <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
+                <TabsTrigger value="orders" className="px-4 py-2">Orders</TabsTrigger>
+                <TabsTrigger value="delivery" className="px-4 py-2">Delivery Partners</TabsTrigger>
+                <TabsTrigger value="malicious" className="px-4 py-2">Malicious Activity</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="products" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name">Product Name *</Label>
+                      <Input
+                        id="name"
+                        value={productForm.name}
+                        onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                        placeholder="Enter product name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="category">Category *</Label>
+                      <Select value={productForm.category_id} onValueChange={(value) => setProductForm({ ...productForm, category_id: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="price">Price (₹) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        value={productForm.price}
+                        onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="stock">Stock Quantity</Label>
+                      <Input
+                        id="stock"
+                        type="number"
+                        value={productForm.stock_quantity}
+                        onChange={(e) => setProductForm({ ...productForm, stock_quantity: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="unit">Unit</Label>
+                      <Input
+                        id="unit"
+                        value={productForm.unit}
+                        onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
+                        placeholder="piece, kg, ltr"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="image">Image URL</Label>
+                      <Input
+                        id="image"
+                        value={productForm.image_url}
+                        onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
                   <div>
-                    <Label htmlFor="name">Product Name *</Label>
-                    <Input
-                      id="name"
-                      value={productForm.name}
-                      onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                      placeholder="Enter product name"
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={productForm.description}
+                      onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                      placeholder="Product description"
+                      rows={3}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="category">Category *</Label>
-                    <Select value={productForm.category_id} onValueChange={(value) => setProductForm({ ...productForm, category_id: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="price">Price (₹) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      value={productForm.price}
-                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="stock">Stock Quantity</Label>
-                    <Input
-                      id="stock"
-                      type="number"
-                      value={productForm.stock_quantity}
-                      onChange={(e) => setProductForm({ ...productForm, stock_quantity: e.target.value })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Input
-                      id="unit"
-                      value={productForm.unit}
-                      onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
-                      placeholder="piece, kg, ltr"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="image">Image URL</Label>
-                    <Input
-                      id="image"
-                      value={productForm.image_url}
-                      onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
-                      placeholder="https://..."
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={productForm.description}
-                    onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                    placeholder="Product description"
-                    rows={3}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleSaveProduct}>
-                    {editingProduct ? 'Update Product' : 'Add Product'}
-                  </Button>
-                  {editingProduct && (
-                    <Button onClick={resetForm} variant="outline">
-                      Cancel
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveProduct}>
+                      {editingProduct ? 'Update Product' : 'Add Product'}
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {editingProduct && (
+                      <Button onClick={resetForm} variant="outline">
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>All Products</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {products.map((product) => (
-                    <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground">{product.name}</h3>
-                        <p className="text-sm text-muted-foreground">₹{product.price} • Stock: {product.stock_quantity}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="orders" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {orders.map((order) => (
-                    <div key={order.id} className="p-4 border border-border rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-semibold text-foreground">Order #{order.id.slice(0, 8)}</h3>
-                          <p className="text-sm text-muted-foreground">User: {order.user_id.slice(0, 8)}</p>
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Products</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {products.map((product) => (
+                      <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground">{product.name}</h3>
+                          <p className="text-sm text-muted-foreground">₹{product.price} • Stock: {product.stock_quantity}</p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-primary/10 text-primary' :
-                          order.status === 'cancelled' || order.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                            'bg-accent/10 text-accent'
-                          }`}>
-                          {order.status}
-                        </span>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-1">{order.delivery_address}</p>
-                      <p className="text-lg font-bold text-foreground">₹{Number(order.total_amount).toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(order.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="delivery" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-primary" />
-                  Delivery Partner Applications
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {deliveryApplications.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No applications submitted yet</p>
-                  ) : (
-                    deliveryApplications.map((application) => (
-                      <div key={application.id} className="p-4 border border-border rounded-lg">
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-foreground">{application.full_name}</h3>
-                            <p className="text-sm text-muted-foreground">Phone: {application.phone}</p>
-                            <p className="text-sm text-muted-foreground">Vehicle: {application.vehicle_type}</p>
-                            {application.license_number && (
-                              <p className="text-sm text-muted-foreground">License: {application.license_number}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Applied: {new Date(application.created_at).toLocaleString()}
-                            </p>
+            <TabsContent value="orders" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Orders</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {orders.map((order) => (
+                      <div key={order.id} className="p-4 border border-border rounded-lg">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="font-semibold text-foreground">Order #{order.id.slice(0, 8)}</h3>
+                            <p className="text-sm text-muted-foreground">User: {order.user_id.slice(0, 8)}</p>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${application.status === 'approved' ? 'bg-primary/10 text-primary' :
-                            application.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-primary/10 text-primary' :
+                            order.status === 'cancelled' || order.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
                               'bg-accent/10 text-accent'
                             }`}>
-                            {application.status}
+                            {order.status}
                           </span>
                         </div>
-                        {application.status === 'pending' && (
-                          <div className="flex gap-2 mt-3">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApplicationAction(application.id, 'approved')}
-                              className="flex-1"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleApplicationAction(application.id, 'rejected')}
-                              className="flex-1"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
+                        <p className="text-sm text-muted-foreground mb-1">{order.delivery_address}</p>
+                        <p className="text-lg font-bold text-foreground">₹{Number(order.total_amount).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(order.created_at).toLocaleString()}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="malicious" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Malicious Activities
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {maliciousActivities.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No malicious activities detected</p>
-                  ) : (
-                    maliciousActivities.map((activity) => (
-                      <div key={activity.id} className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-foreground">{activity.activity_type}</h3>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(activity.detected_at || '').toLocaleString()}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-3">{activity.description}</p>
-                        {(() => {
-                          const relatedOrder = orders.find((order) => order.id === activity.order_id);
-                          const deliveryProfile = activity.delivery_person_id
-                            ? profiles[activity.delivery_person_id]
-                            : undefined;
-                          const customerProfile = activity.user_id
-                            ? profiles[activity.user_id]
-                            : undefined;
-
-                          return (
-                            <div className="space-y-1 text-xs text-muted-foreground">
-                              {relatedOrder && (
-                                <p>
-                                  <span className="font-medium">Order:</span>{' '}
-                                  Order #{relatedOrder.id.slice(0, 8)} • ₹
-                                  {Number(relatedOrder.total_amount).toFixed(2)} •{' '}
-                                  <span className="capitalize">{relatedOrder.status.replace('_', ' ')}</span>
-                                </p>
+            <TabsContent value="delivery" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-5 w-5 text-primary" />
+                    Delivery Partner Applications
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {deliveryApplications.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No applications submitted yet</p>
+                    ) : (
+                      deliveryApplications.map((application) => (
+                        <div key={application.id} className="p-4 border border-border rounded-lg">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-foreground">{application.full_name}</h3>
+                              <p className="text-sm text-muted-foreground">Phone: {application.phone}</p>
+                              <p className="text-sm text-muted-foreground">Vehicle: {application.vehicle_type}</p>
+                              {application.license_number && (
+                                <p className="text-sm text-muted-foreground">License: {application.license_number}</p>
                               )}
-                              {!relatedOrder && activity.order_id && (
-                                <p>
-                                  <span className="font-medium">Order:</span>{' '}
-                                  Order #{activity.order_id.slice(0, 8)}
-                                </p>
-                              )}
-                              {customerProfile && (
-                                <p>
-                                  <span className="font-medium">Customer:</span>{' '}
-                                  {customerProfile.full_name || 'Unknown customer'}
-                                  {customerProfile.phone && ` (${customerProfile.phone})`}
-                                </p>
-                              )}
-                              {!customerProfile && activity.user_id && (
-                                <p>
-                                  <span className="font-medium">Customer:</span>{' '}
-                                  Unknown customer
-                                </p>
-                              )}
-                              {deliveryProfile && activity.delivery_person_id && (
-                                <p>
-                                  <span className="font-medium">Delivery Person:</span>{' '}
-                                  {deliveryProfile.full_name || 'Unknown delivery partner'}
-                                  {deliveryProfile.phone && ` (${deliveryProfile.phone})`}
-                                </p>
-                              )}
-                              {!deliveryProfile && activity.delivery_person_id && (
-                                <p>
-                                  <span className="font-medium">Delivery Person:</span>{' '}
-                                  Unknown delivery partner
-                                </p>
-                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Applied: {new Date(application.created_at).toLocaleString()}
+                              </p>
                             </div>
-                          );
-                        })()}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${application.status === 'approved' ? 'bg-primary/10 text-primary' :
+                              application.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                                'bg-accent/10 text-accent'
+                              }`}>
+                              {application.status}
+                            </span>
+                          </div>
+                          {application.status === 'pending' && (
+                            <div className="flex gap-2 mt-3">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApplicationAction(application.id, 'approved')}
+                                className="flex-1"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleApplicationAction(application.id, 'rejected')}
+                                className="flex-1"
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="malicious" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    Malicious Activities
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {maliciousActivities.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">No malicious activities detected</p>
+                    ) : (
+                      maliciousActivities.map((activity) => (
+                        <div key={activity.id} className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-semibold text-foreground">{activity.activity_type}</h3>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(activity.detected_at || '').toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">{activity.description}</p>
+                          {(() => {
+                            const relatedOrder = orders.find((order) => order.id === activity.order_id);
+                            const deliveryProfile = activity.delivery_person_id
+                              ? profiles[activity.delivery_person_id]
+                              : undefined;
+                            const customerProfile = activity.user_id
+                              ? profiles[activity.user_id]
+                              : undefined;
+
+                            return (
+                              <div className="space-y-1 text-xs text-muted-foreground">
+                                {relatedOrder && (
+                                  <p>
+                                    <span className="font-medium">Order:</span>{' '}
+                                    Order #{relatedOrder.id.slice(0, 8)} • ₹
+                                    {Number(relatedOrder.total_amount).toFixed(2)} •{' '}
+                                    <span className="capitalize">{relatedOrder.status.replace('_', ' ')}</span>
+                                  </p>
+                                )}
+                                {!relatedOrder && activity.order_id && (
+                                  <p>
+                                    <span className="font-medium">Order:</span>{' '}
+                                    Order #{activity.order_id.slice(0, 8)}
+                                  </p>
+                                )}
+                                {customerProfile && (
+                                  <p>
+                                    <span className="font-medium">Customer:</span>{' '}
+                                    {customerProfile.full_name || 'Unknown customer'}
+                                    {customerProfile.phone && ` (${customerProfile.phone})`}
+                                  </p>
+                                )}
+                                {!customerProfile && activity.user_id && (
+                                  <p>
+                                    <span className="font-medium">Customer:</span>{' '}
+                                    Unknown customer
+                                  </p>
+                                )}
+                                {deliveryProfile && activity.delivery_person_id && (
+                                  <p>
+                                    <span className="font-medium">Delivery Person:</span>{' '}
+                                    {deliveryProfile.full_name || 'Unknown delivery partner'}
+                                    {deliveryProfile.phone && ` (${deliveryProfile.phone})`}
+                                  </p>
+                                )}
+                                {!deliveryProfile && activity.delivery_person_id && (
+                                  <p>
+                                    <span className="font-medium">Delivery Person:</span>{' '}
+                                    Unknown delivery partner
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </PullToRefresh>
 
       {/* Admin Bottom Navigation */}
       <AdminBottomNav />
