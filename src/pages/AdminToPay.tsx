@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Smartphone, TrendingUp, ShoppingBag, Wallet } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
-import PullToRefresh from '@/components/PullToRefresh';
 
 interface PayoutStats {
   deliveredOrders: number;
@@ -197,65 +196,63 @@ const AdminToPay = () => {
         </div>
       </header>
 
-      <PullToRefresh onRefresh={async () => { await fetchPayoutStats(); await fetchFirstDeliveryProfile(); }} className="min-h-[calc(100vh-80px)]">
-        <main className="container mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Developer (Website Builder)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                    <p className="text-2xl font-bold text-foreground">₹{stats.commissionDeveloper.toFixed(2)}</p>
-                  </div>
-                  <TrendingUp className="h-8 w-8 text-primary" />
+      <main className="container mx-auto px-4 py-6 pb-24">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Developer (Website Builder)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Amount to Pay</p>
+                  <p className="text-2xl font-bold text-foreground">₹{stats.commissionDeveloper.toFixed(2)}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">Orders: {stats.deliveredOrders}</p>
-                <p className="text-xs text-muted-foreground">Pay to: {DEVELOPER_PHONE}</p>
-                <div className="mt-3">
-                  <Button className="w-full" onClick={() => setShowDeveloperPayOptions(true)}>
-                    <Smartphone className="h-4 w-4 mr-2" />
-                    Pay
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                <TrendingUp className="h-8 w-8 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">Orders: {stats.deliveredOrders}</p>
+              <p className="text-xs text-muted-foreground">Pay to: {DEVELOPER_PHONE}</p>
+              <div className="mt-3">
+                <Button className="w-full" onClick={() => setShowDeveloperPayOptions(true)}>
+                  <Smartphone className="h-4 w-4 mr-2" />
+                  Pay
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Delivery Partner</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                    <p className="text-2xl font-bold text-foreground">₹{stats.commissionDelivery.toFixed(2)}</p>
-                  </div>
-                  <ShoppingBag className="h-8 w-8 text-primary" />
+          <Card>
+            <CardHeader>
+              <CardTitle>Delivery Partner</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Amount to Pay</p>
+                  <p className="text-2xl font-bold text-foreground">₹{stats.commissionDelivery.toFixed(2)}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">Orders: {stats.deliveredOrders}</p>
-                <p className="text-xs text-muted-foreground">
-                  {deliveryProfile?.phone
-                    ? `Pay to: ${deliveryProfile.full_name || 'Delivery Partner'} (${deliveryProfile.phone})`
-                    : 'No delivery partner phone found'}
-                </p>
-                <div className="mt-3">
-                  <Button
-                    className="w-full"
-                    onClick={() => setShowDeliveryPayOptions(true)}
-                    disabled={!deliveryProfile?.phone}
-                  >
-                    <Smartphone className="h-4 w-4 mr-2" />
-                    Pay
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </PullToRefresh>
+                <ShoppingBag className="h-8 w-8 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">Orders: {stats.deliveredOrders}</p>
+              <p className="text-xs text-muted-foreground">
+                {deliveryProfile?.phone
+                  ? `Pay to: ${deliveryProfile.full_name || 'Delivery Partner'} (${deliveryProfile.phone})`
+                  : 'No delivery partner phone found'}
+              </p>
+              <div className="mt-3">
+                <Button
+                  className="w-full"
+                  onClick={() => setShowDeliveryPayOptions(true)}
+                  disabled={!deliveryProfile?.phone}
+                >
+                  <Smartphone className="h-4 w-4 mr-2" />
+                  Pay
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
 
       {/* Developer pay options popup */}
       {showDeveloperPayOptions && (

@@ -29,7 +29,6 @@ import {
 } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 import AdminBottomNav from '@/components/AdminBottomNav';
-import PullToRefresh from '@/components/PullToRefresh';
 
 type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
 
@@ -482,351 +481,349 @@ export default function Admin() {
         </div>
       </header>
 
-      <PullToRefresh onRefresh={async () => { await fetchData(); }} className="min-h-[calc(100vh-80px)]">
-        <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 pb-24">
 
-          {/* Stats Carousel on Mobile, Grid on Desktop */}
-          <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
-            {/* Revenue */}
-            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-2">
-                  💰 Total Sales
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-green-800 dark:text-green-300">₹{stats.revenue.toFixed(0)}</p>
-                <p className="text-xs text-green-600 dark:text-green-500 mt-1">Money from delivered orders</p>
-              </CardContent>
-            </Card>
+        {/* Stats Carousel on Mobile, Grid on Desktop */}
+        <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
+          {/* Revenue */}
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-2">
+                💰 Total Sales
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-800 dark:text-green-300">₹{stats.revenue.toFixed(0)}</p>
+              <p className="text-xs text-green-600 dark:text-green-500 mt-1">Money from delivered orders</p>
+            </CardContent>
+          </Card>
 
-            {/* Profit */}
-            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-                  📈 Your Profit
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">₹{stats.profit.toFixed(0)}</p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">After paying ₹9/order commission</p>
-              </CardContent>
-            </Card>
+          {/* Profit */}
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                📈 Your Profit
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">₹{stats.profit.toFixed(0)}</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">After paying ₹9/order commission</p>
+            </CardContent>
+          </Card>
 
-            {/* To Pay */}
-            <Card
-              className="min-w-[260px] snap-center bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition"
-              onClick={() => navigate('/admin/to-pay')}
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                  💳 Pending Payments
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
-                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Tap to see details →</p>
-              </CardContent>
-            </Card>
+          {/* To Pay */}
+          <Card
+            className="min-w-[260px] snap-center bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition"
+            onClick={() => navigate('/admin/to-pay')}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                💳 Pending Payments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
+              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Tap to see details →</p>
+            </CardContent>
+          </Card>
 
-            {/* Total Orders */}
-            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                  📦 All Orders
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{stats.totalOrders}</p>
-                <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">Total orders received</p>
-              </CardContent>
-            </Card>
+          {/* Total Orders */}
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                📦 All Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{stats.totalOrders}</p>
+              <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">Total orders received</p>
+            </CardContent>
+          </Card>
 
-            {/* Pending Orders */}
-            <Card className={`min-w-[260px] snap-center bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className={`text-sm font-medium flex items-center gap-2 ${stats.pendingOrders > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                  ⏳ In Progress
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className={`text-2xl font-bold ${stats.pendingOrders > 0 ? 'text-orange-800 dark:text-orange-300' : 'text-gray-700 dark:text-gray-300'}`}>{stats.pendingOrders}</p>
-                <p className={`text-xs mt-1 ${stats.pendingOrders > 0 ? 'text-orange-600 dark:text-orange-500' : 'text-gray-500 dark:text-gray-500'}`}>Being processed/delivered</p>
-              </CardContent>
-            </Card>
+          {/* Pending Orders */}
+          <Card className={`min-w-[260px] snap-center bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className={`text-sm font-medium flex items-center gap-2 ${stats.pendingOrders > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                ⏳ In Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={`text-2xl font-bold ${stats.pendingOrders > 0 ? 'text-orange-800 dark:text-orange-300' : 'text-gray-700 dark:text-gray-300'}`}>{stats.pendingOrders}</p>
+              <p className={`text-xs mt-1 ${stats.pendingOrders > 0 ? 'text-orange-600 dark:text-orange-500' : 'text-gray-500 dark:text-gray-500'}`}>Being processed/delivered</p>
+            </CardContent>
+          </Card>
 
-            {/* Delivered */}
-            <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
-                  ✅ Delivered
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold text-primary">{stats.deliveredOrders}</p>
-                <p className="text-xs text-primary/70 mt-1">Successfully completed</p>
-              </CardContent>
-            </Card>
+          {/* Delivered */}
+          <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
+                ✅ Delivered
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-primary">{stats.deliveredOrders}</p>
+              <p className="text-xs text-primary/70 mt-1">Successfully completed</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Tabs defaultValue="products" className="space-y-4">
+          <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 scrollbar-hide">
+            <TabsList className="w-auto inline-flex md:grid md:w-full md:grid-cols-4 h-auto p-1">
+              <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
+              <TabsTrigger value="orders" className="px-4 py-2">Orders</TabsTrigger>
+              <TabsTrigger value="delivery" className="px-4 py-2">Delivery Partners</TabsTrigger>
+              <TabsTrigger value="malicious" className="px-4 py-2">Malicious Activity</TabsTrigger>
+            </TabsList>
           </div>
 
-          <Tabs defaultValue="products" className="space-y-4">
-            <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 scrollbar-hide">
-              <TabsList className="w-auto inline-flex md:grid md:w-full md:grid-cols-4 h-auto p-1">
-                <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
-                <TabsTrigger value="orders" className="px-4 py-2">Orders</TabsTrigger>
-                <TabsTrigger value="delivery" className="px-4 py-2">Delivery Partners</TabsTrigger>
-                <TabsTrigger value="malicious" className="px-4 py-2">Malicious Activity</TabsTrigger>
-              </TabsList>
-            </div>
+          <TabsContent value="products" className="space-y-4">
+            {/* Add Product Button */}
+            <Button
+              onClick={() => navigate('/admin/add-product')}
+              className="w-full h-14 text-base font-semibold shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              size="lg"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Add New Product
+            </Button>
 
-            <TabsContent value="products" className="space-y-4">
-              {/* Add Product Button */}
-              <Button
-                onClick={() => navigate('/admin/add-product')}
-                className="w-full h-14 text-base font-semibold shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-                size="lg"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Add New Product
-              </Button>
-
-              {/* Products List */}
-              <Card className="border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <span>All Products</span>
-                    <span className="text-sm font-normal text-muted-foreground">{products.length} items</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border/50">
-                    {products.map((product) => (
-                      <div key={product.id} className="flex items-center justify-between p-4 hover:bg-accent/30 transition-colors">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-border/40">
-                            {product.image_url ? (
-                              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover rounded-xl" />
-                            ) : (
-                              <Package className="h-5 w-5 text-primary/60" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-medium text-foreground truncate">{product.name}</h3>
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="font-semibold text-primary">₹{product.price}</span>
-                              <span className="text-muted-foreground">•</span>
-                              <span className={`${product.stock_quantity <= 5 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                {product.stock_quantity} in stock
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-1.5 ml-2">
-                          <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10" onClick={() => handleEditProduct(product)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteProduct(product.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {products.length === 0 && (
-                      <div className="p-8 text-center">
-                        <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                        <p className="text-muted-foreground">No products yet</p>
-                        <Button onClick={() => navigate('/admin/add-product')} variant="link" className="mt-2">
-                          Add your first product
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="orders" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Orders</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {orders.map((order) => (
-                      <div key={order.id} className="p-4 border border-border rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-semibold text-foreground">Order #{order.id.slice(0, 8)}</h3>
-                            <p className="text-sm text-muted-foreground">User: {order.user_id.slice(0, 8)}</p>
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-primary/10 text-primary' :
-                            order.status === 'cancelled' || order.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                              'bg-accent/10 text-accent'
-                            }`}>
-                            {order.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">{order.delivery_address}</p>
-                        <p className="text-lg font-bold text-foreground">₹{Number(order.total_amount).toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(order.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="delivery" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Truck className="h-5 w-5 text-primary" />
-                    Delivery Partner Applications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {deliveryApplications.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">No applications submitted yet</p>
-                    ) : (
-                      deliveryApplications.map((application) => (
-                        <div key={application.id} className="p-4 border border-border rounded-lg">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-foreground">{application.full_name}</h3>
-                              <p className="text-sm text-muted-foreground">Phone: {application.phone}</p>
-                              <p className="text-sm text-muted-foreground">Vehicle: {application.vehicle_type}</p>
-                              {application.license_number && (
-                                <p className="text-sm text-muted-foreground">License: {application.license_number}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Applied: {new Date(application.created_at).toLocaleString()}
-                              </p>
-                            </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${application.status === 'approved' ? 'bg-primary/10 text-primary' :
-                              application.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                                'bg-accent/10 text-accent'
-                              }`}>
-                              {application.status}
-                            </span>
-                          </div>
-                          {application.status === 'pending' && (
-                            <div className="flex gap-2 mt-3">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApplicationAction(application.id, 'approved')}
-                                className="flex-1"
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleApplicationAction(application.id, 'rejected')}
-                                className="flex-1"
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
+            {/* Products List */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>All Products</span>
+                  <span className="text-sm font-normal text-muted-foreground">{products.length} items</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-border/50">
+                  {products.map((product) => (
+                    <div key={product.id} className="flex items-center justify-between p-4 hover:bg-accent/30 transition-colors">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-border/40">
+                          {product.image_url ? (
+                            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover rounded-xl" />
+                          ) : (
+                            <Package className="h-5 w-5 text-primary/60" />
                           )}
                         </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="malicious" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    Malicious Activities
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {maliciousActivities.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">No malicious activities detected</p>
-                    ) : (
-                      maliciousActivities.map((activity) => (
-                        <div key={activity.id} className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
-                          <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-foreground">{activity.activity_type}</h3>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(activity.detected_at || '').toLocaleString()}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-medium text-foreground truncate">{product.name}</h3>
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold text-primary">₹{product.price}</span>
+                            <span className="text-muted-foreground">•</span>
+                            <span className={`${product.stock_quantity <= 5 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                              {product.stock_quantity} in stock
                             </span>
                           </div>
-                          <p className="text-sm text-muted-foreground mb-3">{activity.description}</p>
-                          {(() => {
-                            const relatedOrder = orders.find((order) => order.id === activity.order_id);
-                            const deliveryProfile = activity.delivery_person_id
-                              ? profiles[activity.delivery_person_id]
-                              : undefined;
-                            const customerProfile = activity.user_id
-                              ? profiles[activity.user_id]
-                              : undefined;
-
-                            return (
-                              <div className="space-y-1 text-xs text-muted-foreground">
-                                {relatedOrder && (
-                                  <p>
-                                    <span className="font-medium">Order:</span>{' '}
-                                    Order #{relatedOrder.id.slice(0, 8)} • ₹
-                                    {Number(relatedOrder.total_amount).toFixed(2)} •{' '}
-                                    <span className="capitalize">{relatedOrder.status.replace('_', ' ')}</span>
-                                  </p>
-                                )}
-                                {!relatedOrder && activity.order_id && (
-                                  <p>
-                                    <span className="font-medium">Order:</span>{' '}
-                                    Order #{activity.order_id.slice(0, 8)}
-                                  </p>
-                                )}
-                                {customerProfile && (
-                                  <p>
-                                    <span className="font-medium">Customer:</span>{' '}
-                                    {customerProfile.full_name || 'Unknown customer'}
-                                    {customerProfile.phone && ` (${customerProfile.phone})`}
-                                  </p>
-                                )}
-                                {!customerProfile && activity.user_id && (
-                                  <p>
-                                    <span className="font-medium">Customer:</span>{' '}
-                                    Unknown customer
-                                  </p>
-                                )}
-                                {deliveryProfile && activity.delivery_person_id && (
-                                  <p>
-                                    <span className="font-medium">Delivery Person:</span>{' '}
-                                    {deliveryProfile.full_name || 'Unknown delivery partner'}
-                                    {deliveryProfile.phone && ` (${deliveryProfile.phone})`}
-                                  </p>
-                                )}
-                                {!deliveryProfile && activity.delivery_person_id && (
-                                  <p>
-                                    <span className="font-medium">Delivery Person:</span>{' '}
-                                    Unknown delivery partner
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          })()}
                         </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
-      </PullToRefresh>
+                      </div>
+                      <div className="flex gap-1.5 ml-2">
+                        <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10" onClick={() => handleEditProduct(product)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteProduct(product.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {products.length === 0 && (
+                    <div className="p-8 text-center">
+                      <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground">No products yet</p>
+                      <Button onClick={() => navigate('/admin/add-product')} variant="link" className="mt-2">
+                        Add your first product
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Orders</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {orders.map((order) => (
+                    <div key={order.id} className="p-4 border border-border rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-semibold text-foreground">Order #{order.id.slice(0, 8)}</h3>
+                          <p className="text-sm text-muted-foreground">User: {order.user_id.slice(0, 8)}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-primary/10 text-primary' :
+                          order.status === 'cancelled' || order.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                            'bg-accent/10 text-accent'
+                          }`}>
+                          {order.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-1">{order.delivery_address}</p>
+                      <p className="text-lg font-bold text-foreground">₹{Number(order.total_amount).toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(order.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="delivery" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" />
+                  Delivery Partner Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {deliveryApplications.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No applications submitted yet</p>
+                  ) : (
+                    deliveryApplications.map((application) => (
+                      <div key={application.id} className="p-4 border border-border rounded-lg">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-foreground">{application.full_name}</h3>
+                            <p className="text-sm text-muted-foreground">Phone: {application.phone}</p>
+                            <p className="text-sm text-muted-foreground">Vehicle: {application.vehicle_type}</p>
+                            {application.license_number && (
+                              <p className="text-sm text-muted-foreground">License: {application.license_number}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Applied: {new Date(application.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${application.status === 'approved' ? 'bg-primary/10 text-primary' :
+                            application.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                              'bg-accent/10 text-accent'
+                            }`}>
+                            {application.status}
+                          </span>
+                        </div>
+                        {application.status === 'pending' && (
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApplicationAction(application.id, 'approved')}
+                              className="flex-1"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleApplicationAction(application.id, 'rejected')}
+                              className="flex-1"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="malicious" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  Malicious Activities
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {maliciousActivities.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No malicious activities detected</p>
+                  ) : (
+                    maliciousActivities.map((activity) => (
+                      <div key={activity.id} className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold text-foreground">{activity.activity_type}</h3>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(activity.detected_at || '').toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-3">{activity.description}</p>
+                        {(() => {
+                          const relatedOrder = orders.find((order) => order.id === activity.order_id);
+                          const deliveryProfile = activity.delivery_person_id
+                            ? profiles[activity.delivery_person_id]
+                            : undefined;
+                          const customerProfile = activity.user_id
+                            ? profiles[activity.user_id]
+                            : undefined;
+
+                          return (
+                            <div className="space-y-1 text-xs text-muted-foreground">
+                              {relatedOrder && (
+                                <p>
+                                  <span className="font-medium">Order:</span>{' '}
+                                  Order #{relatedOrder.id.slice(0, 8)} • ₹
+                                  {Number(relatedOrder.total_amount).toFixed(2)} •{' '}
+                                  <span className="capitalize">{relatedOrder.status.replace('_', ' ')}</span>
+                                </p>
+                              )}
+                              {!relatedOrder && activity.order_id && (
+                                <p>
+                                  <span className="font-medium">Order:</span>{' '}
+                                  Order #{activity.order_id.slice(0, 8)}
+                                </p>
+                              )}
+                              {customerProfile && (
+                                <p>
+                                  <span className="font-medium">Customer:</span>{' '}
+                                  {customerProfile.full_name || 'Unknown customer'}
+                                  {customerProfile.phone && ` (${customerProfile.phone})`}
+                                </p>
+                              )}
+                              {!customerProfile && activity.user_id && (
+                                <p>
+                                  <span className="font-medium">Customer:</span>{' '}
+                                  Unknown customer
+                                </p>
+                              )}
+                              {deliveryProfile && activity.delivery_person_id && (
+                                <p>
+                                  <span className="font-medium">Delivery Person:</span>{' '}
+                                  {deliveryProfile.full_name || 'Unknown delivery partner'}
+                                  {deliveryProfile.phone && ` (${deliveryProfile.phone})`}
+                                </p>
+                              )}
+                              {!deliveryProfile && activity.delivery_person_id && (
+                                <p>
+                                  <span className="font-medium">Delivery Person:</span>{' '}
+                                  Unknown delivery partner
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
 
       {/* Admin Bottom Navigation */}
       <AdminBottomNav />
