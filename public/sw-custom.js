@@ -1,5 +1,91 @@
 // PremasShop Custom Service Worker
-// Handles push notifications, click actions, and deep linking
+// Handles push notifications, caching, and deep linking
+
+// CACHE VERSION - Increment this on each deploy to force update
+const CACHE_VERSION = 'v1-' + Date.now();
+const CACHE_NAME = 'premasshop-cache-' + CACHE_VERSION;
+
+// Files to cache on install (minimal - just for offline fallback)
+const STATIC_ASSETS = [
+    '/dist/index.html'
+];
+
+// Install event - cache essential assets and skip waiting
+self.addEventListener('install', (event) => {
+    console.log('[SW] Installing new service worker:', CACHE_VERSION);
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then((cache) => cache.addAll(STATIC_ASSETS))
+            .then(() => self.skipWaiting()) // Take over immediately
+    );
+});
+
+// Activate event - clean up old caches and claim clients
+self.addEventListener('activate', (event) => {
+    console.log('[SW] Activating new service worker:', CACHE_VERSION);
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames
+                    .filter((cacheName) => cacheName.startsWith('premasshop-cache-') && cacheName !== CACHE_NAME)
+                    .map((cacheName) => {
+                        console.log('[SW] Deleting old cache:', cacheName);
+                        return caches.delete(cacheName);
+                    })
+            );
+        }).then(() => {
+            console.log('[SW] Claiming all clients');
+            return self.clients.claim(); // Take control of all pages immediately
+        })
+    );
+});
+
+// Fetch event - Network First strategy for all requests
+self.addEventListener('fetch', (event) => {
+    // Only handle same-origin requests
+    if (!event.request.url.startsWith(self.location.origin)) {
+        return;
+    }
+
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') {
+        return;
+    }
+
+    // For navigation requests (HTML), always go network-first
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    // Cache the latest version
+                    const responseToCache = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, responseToCache);
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    // Fallback to cache if offline
+                    return caches.match('/dist/index.html');
+                })
+        );
+        return;
+    }
+
+    // For assets (JS, CSS), also network-first to always get latest
+    if (event.request.url.includes('/dist/assets/')) {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
+});
 
 // Listen for push events from the server
 self.addEventListener('push', (event) => {
