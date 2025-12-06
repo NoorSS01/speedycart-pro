@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Smartphone, TrendingUp, ShoppingBag, Wallet } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PayoutStats {
   deliveredOrders: number;
@@ -166,11 +167,26 @@ const AdminToPay = () => {
   // Show loading while checking auth
   if (loading || userRole === null || loadingPage) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
-        <div className="flex flex-col items-center gap-3">
-          <Wallet className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading payments...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+        <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-3 w-36" />
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-6 pb-24">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {[1, 2].map(i => (
+              <Skeleton key={i} className="h-48 w-full rounded-xl" />
+            ))}
+          </div>
+        </main>
+        <AdminBottomNav />
       </div>
     );
   }

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRecommendations } from '@/hooks/useRecommendations';
 
 interface Product {
     id: string;
@@ -69,6 +70,7 @@ export default function ProductDetail() {
     const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
     const [newAddress, setNewAddress] = useState('');
     const [showInfo, setShowInfo] = useState(false);
+    const { trackView } = useRecommendations();
 
     useEffect(() => {
         if (id) {
@@ -94,6 +96,8 @@ export default function ProductDetail() {
 
         if (!error && data) {
             setProduct(data);
+            // Track view for AI recommendations
+            trackView(data.id);
             if (data.category_id) {
                 fetchRelatedProducts(data.category_id, data.id);
             }

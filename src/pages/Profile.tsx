@@ -11,6 +11,7 @@ import { ArrowLeft, Save, User, LogOut, Truck, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import NotificationSettings from '@/components/NotificationSettings';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Profile {
   phone: string;
@@ -80,8 +81,41 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <User className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-20">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+            <Skeleton className="h-9 w-9 rounded-md" />
+            <Skeleton className="h-6 w-32" />
+          </div>
+        </header>
+        <div className="container mx-auto px-4 py-6 max-w-2xl space-y-4">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ))}
+              <Skeleton className="h-10 w-full mt-4" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
+            <CardContent><Skeleton className="h-20 w-full" /></CardContent>
+          </Card>
+          <Card>
+            <CardHeader><Skeleton className="h-6 w-56" /></CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+        <BottomNav />
       </div>
     );
   }

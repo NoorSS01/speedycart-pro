@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Megaphone } from 'lucide-react';
 import AdminBroadcastNotifications from '@/components/AdminBroadcastNotifications';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminNotifications() {
     const { user, loading: authLoading, userRole } = useAuth();
@@ -40,11 +41,23 @@ export default function AdminNotifications() {
 
     if (authLoading || userRole === null || !isAdmin) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
-                <div className="flex flex-col items-center gap-3">
-                    <Megaphone className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Loading broadcast center...</p>
-                </div>
+            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+                <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
+                    <div className="container mx-auto px-4 py-4">
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-10 w-10 rounded-xl" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-6 w-40" />
+                                <Skeleton className="h-3 w-32" />
+                            </div>
+                        </div>
+                    </div>
+                </header>
+                <main className="container mx-auto px-4 py-6 max-w-5xl space-y-4">
+                    <Skeleton className="h-64 w-full rounded-xl" />
+                    <Skeleton className="h-40 w-full rounded-xl" />
+                </main>
+                <AdminBottomNav />
             </div>
         );
     }

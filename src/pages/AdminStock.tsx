@@ -20,6 +20,7 @@ import {
     Save
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Product {
     id: string;
@@ -182,11 +183,35 @@ export default function AdminStock() {
     // Show loading while checking auth
     if (authLoading || userRole === null) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
-                <div className="flex flex-col items-center gap-3">
-                    <Boxes className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Loading stock management...</p>
-                </div>
+            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+                <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
+                    <div className="container mx-auto px-4 py-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-xl" />
+                                <Skeleton className="h-7 w-48" />
+                            </div>
+                            <Skeleton className="h-10 w-10 rounded-md" />
+                        </div>
+                    </div>
+                </header>
+                <main className="container mx-auto px-4 py-6 pb-24 space-y-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {[1, 2, 3, 4].map(i => (
+                            <Skeleton key={i} className="h-24 rounded-xl" />
+                        ))}
+                    </div>
+                    <div className="flex gap-4">
+                        <Skeleton className="h-10 flex-1" />
+                        <Skeleton className="h-10 w-32" />
+                    </div>
+                    <div className="space-y-3">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                        ))}
+                    </div>
+                </main>
+                <AdminBottomNav />
             </div>
         );
     }

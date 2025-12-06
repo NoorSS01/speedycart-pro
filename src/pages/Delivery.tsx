@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogOut, Package, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DeliveryOrder {
   id: string;
@@ -138,7 +139,7 @@ export default function Delivery() {
   const markAsDelivered = async (assignmentId: string, orderId: string) => {
     const { error: assignmentError } = await supabase
       .from('delivery_assignments')
-      .update({ 
+      .update({
         marked_delivered_at: new Date().toISOString(),
         is_rejected: false // Reset rejection status
       })
@@ -214,12 +215,12 @@ export default function Delivery() {
               ))}
             </div>
           </div>
-          
+
           <div>
             <p className="text-sm font-medium mb-1">Delivery Address:</p>
             <p className="text-sm text-muted-foreground">{assignment.orders.delivery_address}</p>
           </div>
-          
+
           {showDeliveredButton && (
             <Button
               onClick={() => markAsDelivered(assignment.id, assignment.order_id)}
@@ -229,7 +230,7 @@ export default function Delivery() {
               Mark as Delivered
             </Button>
           )}
-          
+
           {assignment.marked_delivered_at && !assignment.user_confirmed_at && !assignment.is_rejected && (
             <div className="p-3 bg-warning/10 rounded-lg">
               <p className="text-sm text-warning flex items-center gap-2">
@@ -254,8 +255,42 @@ export default function Delivery() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Package className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-8">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-6 rounded-md" />
+              <Skeleton className="h-6 w-40" />
+            </div>
+            <Skeleton className="h-9 w-9 rounded-md" />
+          </div>
+        </header>
+        <div className="container mx-auto px-4 py-6">
+          <Skeleton className="h-10 w-full rounded-md" />
+          <div className="mt-6 space-y-4">
+            {[1, 2, 3].map(i => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-40" />
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-16 w-full rounded-lg" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-10 w-full rounded-md" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRecommendations } from '@/hooks/useRecommendations';
+import { Sparkles } from 'lucide-react';
 
 interface Category {
   id: string;
@@ -67,6 +69,9 @@ export default function Shop() {
   const [newAddress, setNewAddress] = useState('');
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [buyNowProduct, setBuyNowProduct] = useState<Product | null>(null);
+
+  // AI Recommendations
+  const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
 
   useEffect(() => {
     if (authLoading) return;
@@ -601,6 +606,53 @@ export default function Shop() {
           </div>
         </ScrollArea>
       </div>
+
+      {/* For You - AI Recommendations */}
+      {user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
+        <div className="container mx-auto px-4 pb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <h2 className="text-lg font-bold">For You</h2>
+          </div>
+          <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
+            {recommendedProducts.slice(0, 8).map(product => (
+              <div
+                key={product.id}
+                className="min-w-[160px] max-w-[160px] snap-start cursor-pointer"
+                onClick={() => {
+                  trackView(product.id);
+                  navigate(`/product/${product.id}`);
+                }}
+              >
+                <Card className="overflow-hidden rounded-xl border border-border/50 bg-card/90 hover:shadow-lg transition-all h-full">
+                  <div className="aspect-square bg-muted relative overflow-hidden">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    {product.stock_quantity <= 5 && product.stock_quantity > 0 && (
+                      <Badge className="absolute top-1 right-1 text-[10px] bg-red-500 text-white px-1.5 py-0.5">Low</Badge>
+                    )}
+                  </div>
+                  <CardContent className="p-2">
+                    <p className="text-sm font-medium truncate">{product.name}</p>
+                    <p className="text-sm font-bold text-primary">₹{product.price}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Products Grid */}
       <div className="container mx-auto px-4 pb-8">
