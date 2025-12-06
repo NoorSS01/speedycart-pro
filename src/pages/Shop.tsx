@@ -22,7 +22,8 @@ import {
   Trash2,
   Package,
   User,
-  ClipboardList
+  ClipboardList,
+  Zap
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
@@ -64,6 +65,7 @@ export default function Shop() {
   const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
   const [newAddress, setNewAddress] = useState('');
   const [showCartSheet, setShowCartSheet] = useState(false);
+  const [buyNowProduct, setBuyNowProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -267,11 +269,26 @@ export default function Shop() {
 
   const handlePlaceOrderClick = () => {
     if (!user || cartItems.length === 0) return;
+    setBuyNowProduct(null); // Ensure we're in cart mode
+    setShowAddressDialog(true);
+  };
+
+  const handleBuyNow = (product: Product) => {
+    if (!user || product.stock_quantity <= 0) return;
+    setBuyNowProduct(product);
     setShowAddressDialog(true);
   };
 
   const confirmOrder = async () => {
-    if (!user || cartItems.length === 0) return;
+    if (!user) return;
+
+    // Determine if this is a buy-now order or cart order
+    const isBuyNow = buyNowProduct !== null;
+
+    if (!isBuyNow && cartItems.length === 0) {
+      toast.error('Your cart is empty');
+      return;
+    }
 
     const deliveryAddress = addressOption === 'saved' ? savedAddress : newAddress.trim();
 
@@ -281,8 +298,13 @@ export default function Shop() {
     }
 
     try {
-      // Step 1: Re-validate stock availability for all items before placing order
-      const productIds = cartItems.map(item => item.product_id);
+      // Items to order - either single buy-now product or all cart items
+      const itemsToOrder = isBuyNow
+        ? [{ product_id: buyNowProduct.id, quantity: 1, price: buyNowProduct.price }]
+        : cartItems.map(item => ({ product_id: item.product_id, quantity: item.quantity, price: item.products.price }));
+
+      // Re-validate stock availability
+      const productIds = itemsToOrder.map(item => item.product_id);
       const { data: freshProducts, error: stockCheckError } = await supabase
         .from('products')
         .select('id, name, stock_quantity')
@@ -293,11 +315,10 @@ export default function Shop() {
         return;
       }
 
-      // Create a map of fresh stock data
       const stockMap = new Map(freshProducts.map(p => [p.id, { name: p.name, stock: p.stock_quantity }]));
 
       // Check if any item exceeds available stock
-      const insufficientStock = cartItems.filter(item => {
+      const insufficientStock = itemsToOrder.filter(item => {
         const productStock = stockMap.get(item.product_id);
         return productStock && item.quantity > productStock.stock;
       });
@@ -305,9 +326,9 @@ export default function Shop() {
       if (insufficientStock.length > 0) {
         const messages = insufficientStock.map(item => {
           const productStock = stockMap.get(item.product_id);
-          return `${productStock?.name}: Only ${productStock?.stock} available (you have ${item.quantity} in cart)`;
+          return `${productStock?.name}: Only ${productStock?.stock} available`;
         });
-        toast.error(`Cannot place order:\n${messages.join(', ')}`);
+        toast.error(`Cannot place order: ${messages.join(', ')}`);
         return;
       }
 
@@ -320,8 +341,8 @@ export default function Shop() {
         setSavedAddress(newAddress.trim());
       }
 
-      const totalAmount = cartItems.reduce(
-        (sum, item) => sum + item.products.price * item.quantity,
+      const totalAmount = itemsToOrder.reduce(
+        (sum, item) => sum + item.price * item.quantity,
         0
       );
 
@@ -347,11 +368,11 @@ export default function Shop() {
         return;
       }
 
-      const orderItems = cartItems.map(item => ({
+      const orderItems = itemsToOrder.map(item => ({
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.quantity,
-        price: item.products.price
+        price: item.price
       }));
 
       const { error: itemsError } = await supabase
@@ -364,37 +385,34 @@ export default function Shop() {
         return;
       }
 
-      // Step 2: Reduce stock for each product purchased
-      for (const item of cartItems) {
+      // Reduce stock for each product purchased
+      for (const item of itemsToOrder) {
         const productStock = stockMap.get(item.product_id);
         if (productStock) {
           const newStock = Math.max(0, productStock.stock - item.quantity);
-
-          const { error: stockError } = await supabase
+          await supabase
             .from('products')
             .update({ stock_quantity: newStock })
             .eq('id', item.product_id);
-
-          if (stockError) {
-            console.error(`Failed to update stock for product ${item.product_id}:`, stockError);
-            // Don't return - order is already placed, just log the error
-          }
         }
       }
 
-      // Clear cart
-      await supabase
-        .from('cart_items')
-        .delete()
-        .eq('user_id', user.id);
+      // Clear cart only if this was a cart order
+      if (!isBuyNow) {
+        await supabase
+          .from('cart_items')
+          .delete()
+          .eq('user_id', user.id);
+        fetchCart();
+      }
 
       // Refresh products to show updated stock
       fetchProducts();
-      fetchCart();
       setShowAddressDialog(false);
       setShowCartSheet(false);
+      setBuyNowProduct(null);
       setNewAddress('');
-      toast.success('🎉 Order placed successfully! Stock updated.');
+      toast.success('🎉 Order placed successfully!');
     } catch (error) {
       console.error('Unexpected error placing order:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -589,14 +607,26 @@ export default function Shop() {
                         <p className="text-lg font-bold text-primary">₹{product.price}</p>
                         <p className="text-xs text-muted-foreground">/ {product.unit}</p>
                       </div>
-                      <Button
-                        size="icon"
-                        className={`h-8 w-8 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
-                        onClick={() => addToCart(product.id)}
-                        disabled={isOutOfStock}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`h-8 rounded-full px-2.5 text-xs font-medium border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground ${isOutOfStock ? 'opacity-50' : ''}`}
+                          onClick={() => handleBuyNow(product)}
+                          disabled={isOutOfStock}
+                        >
+                          <Zap className="h-3 w-3 mr-1" />
+                          Buy
+                        </Button>
+                        <Button
+                          size="icon"
+                          className={`h-8 w-8 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
+                          onClick={() => addToCart(product.id)}
+                          disabled={isOutOfStock}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     {isOutOfStock && (
                       <Badge variant="destructive" className="w-full mt-2 justify-center">
