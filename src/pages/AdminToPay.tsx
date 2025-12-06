@@ -197,7 +197,7 @@ const AdminToPay = () => {
         </div>
       </header>
 
-      <PullToRefresh onRefresh={async () => { await fetchPayoutStats(); await fetchFirstDeliveryProfile(); toast.success('Payment data refreshed!'); }} className="min-h-[calc(100vh-80px)]">
+      <PullToRefresh onRefresh={async () => { await fetchPayoutStats(); await fetchFirstDeliveryProfile(); }} className="min-h-[calc(100vh-80px)]">
         <main className="container mx-auto px-4 py-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <Card>

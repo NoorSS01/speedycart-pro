@@ -482,7 +482,7 @@ export default function Admin() {
         </div>
       </header>
 
-      <PullToRefresh onRefresh={async () => { await fetchData(); toast.success('Data refreshed!'); }} className="min-h-[calc(100vh-80px)]">
+      <PullToRefresh onRefresh={async () => { await fetchData(); }} className="min-h-[calc(100vh-80px)]">
         <main className="container mx-auto px-4 py-6">
 
           {/* Stats Carousel on Mobile, Grid on Desktop */}
@@ -580,118 +580,66 @@ export default function Admin() {
             </div>
 
             <TabsContent value="products" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Product Name *</Label>
-                      <Input
-                        id="name"
-                        value={productForm.name}
-                        onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                        placeholder="Enter product name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="category">Category *</Label>
-                      <Select value={productForm.category_id} onValueChange={(value) => setProductForm({ ...productForm, category_id: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="price">Price (₹) *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        value={productForm.price}
-                        onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="stock">Stock Quantity</Label>
-                      <Input
-                        id="stock"
-                        type="number"
-                        value={productForm.stock_quantity}
-                        onChange={(e) => setProductForm({ ...productForm, stock_quantity: e.target.value })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="unit">Unit</Label>
-                      <Input
-                        id="unit"
-                        value={productForm.unit}
-                        onChange={(e) => setProductForm({ ...productForm, unit: e.target.value })}
-                        placeholder="piece, kg, ltr"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="image">Image URL</Label>
-                      <Input
-                        id="image"
-                        value={productForm.image_url}
-                        onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={productForm.description}
-                      onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                      placeholder="Product description"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleSaveProduct}>
-                      {editingProduct ? 'Update Product' : 'Add Product'}
-                    </Button>
-                    {editingProduct && (
-                      <Button onClick={resetForm} variant="outline">
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Add Product Button */}
+              <Button
+                onClick={() => navigate('/admin/add-product')}
+                className="w-full h-14 text-base font-semibold shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                size="lg"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Add New Product
+              </Button>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>All Products</CardTitle>
+              {/* Products List */}
+              <Card className="border-border/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <span>All Products</span>
+                    <span className="text-sm font-normal text-muted-foreground">{products.length} items</span>
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
+                <CardContent className="p-0">
+                  <div className="divide-y divide-border/50">
                     {products.map((product) => (
-                      <div key={product.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground">{product.name}</h3>
-                          <p className="text-sm text-muted-foreground">₹{product.price} • Stock: {product.stock_quantity}</p>
+                      <div key={product.id} className="flex items-center justify-between p-4 hover:bg-accent/30 transition-colors">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-border/40">
+                            {product.image_url ? (
+                              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover rounded-xl" />
+                            ) : (
+                              <Package className="h-5 w-5 text-primary/60" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-medium text-foreground truncate">{product.name}</h3>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="font-semibold text-primary">₹{product.price}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <span className={`${product.stock_quantity <= 5 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                {product.stock_quantity} in stock
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleEditProduct(product)}>
+                        <div className="flex gap-1.5 ml-2">
+                          <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10" onClick={() => handleEditProduct(product)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
+                          <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteProduct(product.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
                     ))}
+                    {products.length === 0 && (
+                      <div className="p-8 text-center">
+                        <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                        <p className="text-muted-foreground">No products yet</p>
+                        <Button onClick={() => navigate('/admin/add-product')} variant="link" className="mt-2">
+                          Add your first product
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

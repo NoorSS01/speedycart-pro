@@ -18,6 +18,7 @@ import AdminNotifications from "./pages/AdminNotifications";
 import SuperAdmin from "./pages/SuperAdmin";
 import DeliveryApplication from "./pages/DeliveryApplication";
 import PhoneSetup from "./pages/PhoneSetup";
+import AddProduct from "./pages/AddProduct";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/admin/notifications" element={<AdminNotifications />} />
             <Route path="/super-admin" element={<SuperAdmin />} />
             <Route path="/delivery-application" element={<DeliveryApplication />} />
+            <Route path="/admin/add-product" element={<AddProduct />} />
             <Route path="/phone-setup" element={<PhoneSetup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

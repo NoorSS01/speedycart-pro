@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, ReactNode } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PullToRefreshProps {
@@ -14,49 +14,57 @@ export default function PullToRefresh({ onRefresh, children, className }: PullTo
     const [isRefreshing, setIsRefreshing] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const startY = useRef(0);
-    const currentY = useRef(0);
 
-    const PULL_THRESHOLD = 80;
-    const MAX_PULL = 120;
+    const PULL_THRESHOLD = 60;
+    const MAX_PULL = 100;
 
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
+        let pulling = false;
+        let startYPos = 0;
+
         const handleTouchStart = (e: TouchEvent) => {
-            // Only start pull if at top of scroll
-            if (container.scrollTop === 0) {
-                startY.current = e.touches[0].clientY;
+            if (container.scrollTop <= 0 && !isRefreshing) {
+                startYPos = e.touches[0].clientY;
+                pulling = true;
+                startY.current = startYPos;
                 setIsPulling(true);
             }
         };
 
         const handleTouchMove = (e: TouchEvent) => {
-            if (!isPulling || isRefreshing) return;
+            if (!pulling || isRefreshing) return;
 
-            currentY.current = e.touches[0].clientY;
-            const diff = currentY.current - startY.current;
+            const currentY = e.touches[0].clientY;
+            const diff = currentY - startY.current;
 
-            if (diff > 0 && container.scrollTop === 0) {
+            if (diff > 0 && container.scrollTop <= 0) {
                 e.preventDefault();
-                // Apply resistance to pull
-                const distance = Math.min(diff * 0.5, MAX_PULL);
+                const distance = Math.min(diff * 0.4, MAX_PULL);
                 setPullDistance(distance);
             }
         };
 
         const handleTouchEnd = async () => {
-            if (!isPulling) return;
+            if (!pulling) return;
+            pulling = false;
 
-            if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+            const distance = pullDistance;
+
+            if (distance >= PULL_THRESHOLD && !isRefreshing) {
                 setIsRefreshing(true);
-                setPullDistance(PULL_THRESHOLD);
+                setPullDistance(50); // Keep at fixed position while refreshing
 
                 try {
                     await onRefresh();
                 } finally {
-                    setIsRefreshing(false);
+                    // Smooth exit animation
                     setPullDistance(0);
+                    setTimeout(() => {
+                        setIsRefreshing(false);
+                    }, 300);
                 }
             } else {
                 setPullDistance(0);
@@ -74,49 +82,54 @@ export default function PullToRefresh({ onRefresh, children, className }: PullTo
             container.removeEventListener('touchmove', handleTouchMove);
             container.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [isPulling, isRefreshing, pullDistance, onRefresh]);
+    }, [isRefreshing, pullDistance, onRefresh]);
 
-    const showIndicator = pullDistance > 10;
-    const isReady = pullDistance >= PULL_THRESHOLD;
+    const showSpinner = pullDistance > 20 || isRefreshing;
+    const spinnerProgress = Math.min(pullDistance / PULL_THRESHOLD, 1);
 
     return (
         <div
             ref={containerRef}
-            className={cn("relative overflow-auto", className)}
+            className={cn("relative", className)}
             style={{
-                transform: `translateY(${pullDistance}px)`,
-                transition: isPulling ? 'none' : 'transform 0.3s ease-out'
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch'
             }}
         >
-            {/* Pull indicator */}
+            {/* Native-style spinner indicator */}
             <div
-                className={cn(
-                    "absolute left-1/2 -translate-x-1/2 flex items-center justify-center transition-all duration-200",
-                    showIndicator ? "opacity-100" : "opacity-0"
-                )}
+                className="absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none"
                 style={{
-                    top: -50,
-                    height: 40
+                    top: 8,
+                    opacity: showSpinner ? 1 : 0,
+                    transform: `translateX(-50%) translateY(${Math.min(pullDistance * 0.5, 30)}px)`,
+                    transition: isPulling ? 'opacity 0.15s' : 'all 0.3s ease-out'
                 }}
             >
-                <div className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 backdrop-blur-sm border border-primary/20",
-                    isReady && "bg-primary/20"
-                )}>
-                    <RefreshCw
+                <div className="w-10 h-10 rounded-full bg-background/95 shadow-lg border border-border/50 flex items-center justify-center backdrop-blur-sm">
+                    <Loader2
                         className={cn(
-                            "h-4 w-4 text-primary transition-transform",
-                            isRefreshing && "animate-spin",
-                            isReady && !isRefreshing && "rotate-180"
+                            "h-5 w-5 text-primary transition-all",
+                            isRefreshing && "animate-spin"
                         )}
+                        style={{
+                            opacity: spinnerProgress,
+                            transform: `rotate(${spinnerProgress * 180}deg)`
+                        }}
                     />
-                    <span className="text-xs font-medium text-primary">
-                        {isRefreshing ? 'Refreshing...' : isReady ? 'Release to refresh' : 'Pull to refresh'}
-                    </span>
                 </div>
             </div>
 
-            {children}
+            {/* Content with pull effect */}
+            <div
+                style={{
+                    transform: `translateY(${pullDistance * 0.3}px)`,
+                    transition: isPulling ? 'none' : 'transform 0.3s ease-out'
+                }}
+            >
+                {children}
+            </div>
         </div>
     );
 }

@@ -220,7 +220,7 @@ export default function AdminStock() {
                 </div>
             </header>
 
-            <PullToRefresh onRefresh={async () => { await fetchProducts(); await fetchCategories(); toast.success('Stock data refreshed!'); }} className="min-h-[calc(100vh-80px)]">
+            <PullToRefresh onRefresh={async () => { await fetchProducts(); await fetchCategories(); }} className="min-h-[calc(100vh-80px)]">
                 <main className="container mx-auto px-4 py-6 pb-24">
                     {/* Stats Carousel on Mobile, Grid on Desktop */}
                     <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-2 lg:grid-cols-5 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
