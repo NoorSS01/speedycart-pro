@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Megaphone, Shield } from 'lucide-react';
+import { Megaphone } from 'lucide-react';
 import AdminBroadcastNotifications from '@/components/AdminBroadcastNotifications';
 import AdminBottomNav from '@/components/AdminBottomNav';
 
@@ -19,21 +18,32 @@ export default function AdminNotifications() {
             return;
         }
 
+        // Wait for userRole to be loaded
+        if (userRole === null) return;
+
         // Check if user is admin
         const hasAdminRole = userRole === 'admin' || userRole === 'super_admin';
         setIsAdmin(hasAdminRole);
 
+        // Redirect non-admins to their appropriate page
         if (!hasAdminRole) {
-            navigate('/shop');
+            switch (userRole) {
+                case 'delivery':
+                    navigate('/delivery');
+                    break;
+                default:
+                    navigate('/shop');
+                    break;
+            }
         }
     }, [user, userRole, authLoading, navigate]);
 
-    if (authLoading || !isAdmin) {
+    if (authLoading || userRole === null || !isAdmin) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-pulse flex items-center gap-2">
-                    <Shield className="h-6 w-6 text-primary" />
-                    <span>Verifying access...</span>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+                <div className="flex flex-col items-center gap-3">
+                    <Megaphone className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Loading broadcast center...</p>
                 </div>
             </div>
         );

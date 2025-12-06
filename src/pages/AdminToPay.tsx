@@ -23,7 +23,7 @@ const DEVELOPER_PHONE = '8310807978';
 const DEVELOPER_UPI_ID = `${DEVELOPER_PHONE}@ybl`;
 
 const AdminToPay = () => {
-  const { user, loading } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState<PayoutStats>({
@@ -38,8 +38,25 @@ const AdminToPay = () => {
 
   useEffect(() => {
     if (loading) return;
+
     if (!user) {
       navigate('/auth');
+      return;
+    }
+
+    // Wait for userRole to be loaded
+    if (userRole === null) return;
+
+    // Redirect non-admins
+    if (userRole !== 'admin' && userRole !== 'super_admin') {
+      switch (userRole) {
+        case 'delivery':
+          navigate('/delivery');
+          break;
+        default:
+          navigate('/shop');
+          break;
+      }
       return;
     }
 
@@ -52,7 +69,7 @@ const AdminToPay = () => {
     };
 
     init();
-  }, [user, loading, navigate]);
+  }, [user, userRole, loading, navigate]);
 
   const fetchPayoutStats = async () => {
     const { data: ordersData, error } = await supabase
@@ -146,12 +163,21 @@ const AdminToPay = () => {
     openUpiLink(url);
   };
 
-  if (loadingPage) {
+  // Show loading while checking auth
+  if (loading || userRole === null || loadingPage) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading payout details...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+        <div className="flex flex-col items-center gap-3">
+          <Wallet className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading payments...</p>
+        </div>
       </div>
     );
+  }
+
+  // Don't render if not admin
+  if (userRole !== 'admin' && userRole !== 'super_admin') {
+    return null;
   }
 
   return (

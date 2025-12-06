@@ -115,7 +115,7 @@ interface DeliveryApplication {
 }
 
 export default function Admin() {
-  const { user, loading, signOut } = useAuth();
+  const { user, userRole, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -145,15 +145,34 @@ export default function Admin() {
   });
   const [dateRange, setDateRange] = useState<DateRange>('today');
 
+  // Check admin access
   useEffect(() => {
     if (loading) return;
+
     if (!user) {
       navigate('/auth');
       return;
     }
+
+    // Wait for userRole to be loaded
+    if (userRole === null) return;
+
+    // Redirect non-admins to their appropriate page
+    if (userRole !== 'admin' && userRole !== 'super_admin') {
+      switch (userRole) {
+        case 'delivery':
+          navigate('/delivery');
+          break;
+        default:
+          navigate('/shop');
+          break;
+      }
+      return;
+    }
+
     fetchData();
     subscribeToChanges();
-  }, [user, loading, navigate]);
+  }, [user, userRole, loading, navigate]);
 
   // Refetch data when date range changes
   useEffect(() => {
@@ -400,6 +419,23 @@ export default function Admin() {
 
     fetchDeliveryApplications();
   };
+
+  // Show loading while checking auth
+  if (loading || userRole === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+        <div className="flex flex-col items-center gap-3">
+          <Package className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not admin (redirect will happen)
+  if (userRole !== 'admin' && userRole !== 'super_admin') {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">

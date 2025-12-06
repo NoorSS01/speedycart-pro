@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
-    ArrowLeft,
     Package,
     AlertTriangle,
     CheckCircle,
@@ -38,7 +37,7 @@ interface Category {
 }
 
 export default function AdminStock() {
-    const { user, loading: authLoading, signOut } = useAuth();
+    const { user, userRole, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -50,13 +49,31 @@ export default function AdminStock() {
 
     useEffect(() => {
         if (authLoading) return;
+
         if (!user) {
             navigate('/auth');
             return;
         }
+
+        // Wait for userRole to be loaded
+        if (userRole === null) return;
+
+        // Redirect non-admins
+        if (userRole !== 'admin' && userRole !== 'super_admin') {
+            switch (userRole) {
+                case 'delivery':
+                    navigate('/delivery');
+                    break;
+                default:
+                    navigate('/shop');
+                    break;
+            }
+            return;
+        }
+
         fetchProducts();
         fetchCategories();
-    }, [user, authLoading, navigate]);
+    }, [user, userRole, authLoading, navigate]);
 
     const fetchProducts = async () => {
         const { data, error } = await supabase
@@ -161,6 +178,23 @@ export default function AdminStock() {
                 return true;
         }
     });
+
+    // Show loading while checking auth
+    if (authLoading || userRole === null) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+                <div className="flex flex-col items-center gap-3">
+                    <Boxes className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Loading stock management...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Don't render if not admin
+    if (userRole !== 'admin' && userRole !== 'super_admin') {
+        return null;
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
