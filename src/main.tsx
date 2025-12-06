@@ -3,7 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 
 // PWA Version - Change this on each deploy to force SW update
-const SW_VERSION = '2.0.1';
+const SW_VERSION = '2.0.2';
 
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator) {
