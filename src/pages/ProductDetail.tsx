@@ -30,6 +30,7 @@ import {
     User
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Product {
     id: string;
@@ -285,8 +286,47 @@ export default function ProductDetail() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <Package className="h-8 w-8 animate-spin text-primary" />
+            <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pb-24">
+                <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+                    <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+                        <Skeleton className="h-9 w-9 rounded-md" />
+                        <Skeleton className="h-9 w-9 rounded-md" />
+                    </div>
+                </header>
+
+                <div className="w-full aspect-square bg-muted relative">
+                    <Skeleton className="w-full h-full" />
+                </div>
+
+                <div className="container mx-auto px-4 py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-3/4" />
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-baseline gap-2">
+                                <Skeleton className="h-8 w-24" />
+                                <Skeleton className="h-4 w-12" />
+                            </div>
+                            <Skeleton className="h-6 w-16 rounded-full" />
+                        </div>
+                    </div>
+
+                    <Skeleton className="h-20 w-full" />
+
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="h-4 w-8" />
+                        <Skeleton className="h-10 w-32 rounded-full" />
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Skeleton className="h-12 flex-1 rounded-md" />
+                        <Skeleton className="h-12 flex-1 rounded-md" />
+                    </div>
+
+                    <Skeleton className="h-40 w-full rounded-xl" />
+                    <Skeleton className="h-14 w-full rounded-xl" />
+                    <Skeleton className="h-40 w-full rounded-xl" />
+                </div>
+                <BottomNav cartItemCount={0} />
             </div>
         );
     }

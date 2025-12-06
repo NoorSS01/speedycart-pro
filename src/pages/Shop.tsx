@@ -26,6 +26,7 @@ import {
   Zap
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Category {
   id: string;
@@ -430,8 +431,51 @@ export default function Shop() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Package className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+        <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-6 rounded-md" />
+              <Skeleton className="h-6 w-32 rounded-md" />
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-4 py-6">
+          <Skeleton className="h-10 w-full max-w-md mx-auto rounded-md" />
+        </div>
+
+        <div className="container mx-auto px-4 pb-4">
+          <div className="flex gap-2 overflow-hidden">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-9 w-24 rounded-full shrink-0" />
+            ))}
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 pb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+              <div key={i} className="rounded-2xl border-2 border-border/40 bg-card overflow-hidden">
+                <Skeleton className="aspect-square w-full" />
+                <div className="p-3 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="space-y-1">
+                      <Skeleton className="h-5 w-16" />
+                      <Skeleton className="h-3 w-10" />
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Skeleton className="h-8 w-16 rounded-full" />
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <BottomNav cartItemCount={0} />
       </div>
     );
   }

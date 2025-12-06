@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface OrderItem {
   id: string;
@@ -273,7 +274,28 @@ export default function Orders() {
 
       <div className="container mx-auto px-4 py-6">
         {loading ? (
-          <div className="flex justify-center py-12"><Package className="h-8 w-8 animate-spin text-primary" /></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-48" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-8 w-full mt-2 rounded-md" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : orders.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
