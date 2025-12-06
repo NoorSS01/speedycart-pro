@@ -589,7 +589,10 @@ export default function Shop() {
                 )}
 
                 <CardContent className="p-0">
-                  <div className={`aspect-square bg-muted flex items-center justify-center ${isOutOfStock ? 'opacity-50' : ''}`}>
+                  <div
+                    className={`aspect-square bg-muted flex items-center justify-center cursor-pointer ${isOutOfStock ? 'opacity-50' : ''}`}
+                    onClick={() => navigate(`/product/${product.id}`)}
+                  >
                     {product.image_url ? (
                       <img
                         src={product.image_url}
@@ -601,7 +604,12 @@ export default function Shop() {
                     )}
                   </div>
                   <div className="p-3">
-                    <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.name}</h3>
+                    <h3
+                      className="font-medium text-sm line-clamp-2 mb-1 cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => navigate(`/product/${product.id}`)}
+                    >
+                      {product.name}
+                    </h3>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-lg font-bold text-primary">₹{product.price}</p>
