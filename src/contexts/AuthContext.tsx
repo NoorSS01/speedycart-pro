@@ -22,9 +22,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Phone check for OAuth users - runs after initial auth load
+  const checkPhoneSetup = async (userId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', userId)
+        .single();
+
+      const hasValidPhone = profile?.phone && profile.phone.replace(/\D/g, '').length >= 10;
+      if (!hasValidPhone && window.location.pathname !== '/phone-setup' && window.location.pathname !== '/auth') {
+        navigate('/phone-setup');
+      }
+    } catch (e) {
+      // Silently fail - don't block app loading
+    }
+  };
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -33,18 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fetchUserRole(session.user.id);
           }, 0);
 
-          // Check if user needs phone setup (OAuth users)
+          // Check phone setup only on fresh sign-in (OAuth)
           if (event === 'SIGNED_IN') {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('phone')
-              .eq('id', session.user.id)
-              .single();
-
-            const hasValidPhone = profile?.phone && profile.phone.replace(/\D/g, '').length >= 10;
-            if (!hasValidPhone && window.location.pathname !== '/phone-setup') {
-              navigate('/phone-setup');
-            }
+            setTimeout(() => {
+              checkPhoneSetup(session.user.id);
+            }, 100);
           }
         } else {
           setUserRole(null);
