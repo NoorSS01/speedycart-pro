@@ -2,14 +2,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, ShoppingCart, ClipboardList, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useCart } from '@/contexts/CartContext';
 
-interface BottomNavProps {
-  cartItemCount?: number;
-}
-
-export default function BottomNav({ cartItemCount = 0 }: BottomNavProps) {
+export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { cartItemCount } = useCart();
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/shop', ariaLabel: 'Go to Shop' },
@@ -59,4 +57,5 @@ export default function BottomNav({ cartItemCount = 0 }: BottomNavProps) {
     </nav>
   );
 }
+
 

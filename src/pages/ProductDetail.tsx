@@ -330,7 +330,7 @@ export default function ProductDetail() {
                     <Skeleton className="h-14 w-full rounded-xl" />
                     <Skeleton className="h-40 w-full rounded-xl" />
                 </div>
-                <BottomNav cartItemCount={0} />
+                <BottomNav />
             </div>
         );
     }
@@ -424,13 +424,10 @@ export default function ProductDetail() {
                     </div>
                 )}
 
-                {/* Action Buttons */}
+                {/* Action Button */}
                 <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1 h-12" onClick={addToCart} disabled={isOutOfStock || addingToCart}>
+                    <Button className="flex-1 h-12" onClick={addToCart} disabled={isOutOfStock || addingToCart}>
                         <ShoppingCart className="h-4 w-4 mr-2" />Add to Cart
-                    </Button>
-                    <Button className="flex-1 h-12" onClick={handleBuyNow} disabled={isOutOfStock || addingToCart}>
-                        <Zap className="h-4 w-4 mr-2" />Buy Now
                     </Button>
                 </div>
 

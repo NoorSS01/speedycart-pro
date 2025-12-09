@@ -45,6 +45,7 @@ interface Product {
   stock_quantity: number;
   unit: string;
   category_id: string | null;
+  discount_percent?: number | null;
 }
 
 interface CartItem {
@@ -480,7 +481,7 @@ export default function Shop() {
             ))}
           </div>
         </div>
-        <BottomNav cartItemCount={0} />
+        <BottomNav />
       </div>
     );
   }
@@ -682,6 +683,13 @@ export default function Shop() {
                   </div>
                 )}
 
+                {/* Discount Badge */}
+                {product.discount_percent && product.discount_percent > 0 && (
+                  <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
+                    {product.discount_percent}% OFF
+                  </div>
+                )}
+
                 <CardContent className="p-0">
                   <div
                     className={`aspect-square bg-muted flex items-center justify-center cursor-pointer ${isOutOfStock ? 'opacity-50' : ''}`}
@@ -706,29 +714,31 @@ export default function Shop() {
                     </h3>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-lg font-bold text-primary">₹{product.price}</p>
-                        <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                        {product.discount_percent && product.discount_percent > 0 ? (
+                          <>
+                            <p className="text-lg font-bold text-primary">
+                              ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
+                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
+                              <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-lg font-bold text-primary">₹{product.price}</p>
+                            <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                          </>
+                        )}
                       </div>
-                      <div className="flex gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`h-8 rounded-full px-2.5 text-xs font-medium border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground ${isOutOfStock ? 'opacity-50' : ''}`}
-                          onClick={() => handleBuyNow(product)}
-                          disabled={isOutOfStock}
-                        >
-                          <Zap className="h-3 w-3 mr-1" />
-                          Buy
-                        </Button>
-                        <Button
-                          size="icon"
-                          className={`h-8 w-8 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
-                          onClick={() => addToCart(product.id)}
-                          disabled={isOutOfStock}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        size="icon"
+                        className={`h-9 w-9 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
+                        onClick={() => addToCart(product.id)}
+                        disabled={isOutOfStock}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
                     {isOutOfStock && (
                       <Badge variant="destructive" className="w-full mt-2 justify-center">
@@ -798,7 +808,7 @@ export default function Shop() {
       </Dialog>
 
       {/* Bottom Navigation */}
-      <BottomNav cartItemCount={cartItems.length} />
+      <BottomNav />
     </div>
   );
 }

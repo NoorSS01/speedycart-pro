@@ -74,7 +74,7 @@ export default function Orders() {
     orderId: null,
     deliveryPersonId: null
   });
-  const [deliveryRating, setDeliveryRating] = useState(5);
+  const [deliveryRating, setDeliveryRating] = useState(0);
 
   // Review dialog state
   const [reviewDialog, setReviewDialog] = useState<{
@@ -88,7 +88,7 @@ export default function Orders() {
     productName: '',
     orderId: null
   });
-  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
 
   useEffect(() => {
@@ -227,7 +227,7 @@ export default function Orders() {
     }
 
     setReviewDialog({ open: false, productId: null, productName: '', orderId: null });
-    setReviewRating(5);
+    setReviewRating(0);
     setReviewText('');
   };
 
@@ -253,15 +253,23 @@ export default function Orders() {
     }
   };
 
-  const StarRating = ({ rating, onRatingChange, size = 'md' }: { rating: number; onRatingChange: (r: number) => void; size?: 'sm' | 'md' }) => (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map(star => (
-        <button key={star} type="button" onClick={() => onRatingChange(star)} className="focus:outline-none">
-          <Star className={`${size === 'sm' ? 'h-5 w-5' : 'h-8 w-8'} ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-        </button>
-      ))}
-    </div>
-  );
+  const StarRating = ({ rating, onRatingChange, size = 'md' }: { rating: number; onRatingChange: (r: number) => void; size?: 'sm' | 'md' | 'lg' }) => {
+    const sizeClass = size === 'lg' ? 'h-10 w-10' : size === 'sm' ? 'h-6 w-6' : 'h-8 w-8';
+    return (
+      <div className="flex gap-2">
+        {[1, 2, 3, 4, 5].map(star => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => onRatingChange(star)}
+            className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+          >
+            <Star className={`${sizeClass} ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'} transition-colors`} />
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-20">
@@ -401,47 +409,67 @@ export default function Orders() {
       </Dialog>
 
       {/* Delivery Rating Dialog */}
-      <Dialog open={ratingDialog.open} onOpenChange={(open) => setRatingDialog({ ...ratingDialog, open })}>
+      <Dialog open={ratingDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setDeliveryRating(0);
+        }
+        setRatingDialog({ ...ratingDialog, open });
+      }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-center">Rate Your Delivery</DialogTitle>
-            <DialogDescription className="text-center">How was the delivery experience?</DialogDescription>
+            <DialogDescription className="text-center">How was the delivery experience? (Optional)</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
-            <StarRating rating={deliveryRating} onRatingChange={setDeliveryRating} />
+            <StarRating rating={deliveryRating} onRatingChange={setDeliveryRating} size="lg" />
             <p className="text-sm text-muted-foreground">
-              {deliveryRating === 5 ? 'Excellent!' : deliveryRating === 4 ? 'Great!' : deliveryRating === 3 ? 'Good' : deliveryRating === 2 ? 'Fair' : 'Poor'}
+              {deliveryRating === 0 ? 'Tap to rate' : deliveryRating === 5 ? 'Excellent!' : deliveryRating === 4 ? 'Great!' : deliveryRating === 3 ? 'Good' : deliveryRating === 2 ? 'Fair' : 'Poor'}
             </p>
           </div>
-          <DialogFooter>
-            <Button onClick={submitDeliveryRating} className="w-full">Submit Rating</Button>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button onClick={submitDeliveryRating} className="w-full" disabled={deliveryRating === 0}>Submit Rating</Button>
+            <Button variant="ghost" onClick={() => {
+              setRatingDialog({ open: false, orderId: null, deliveryPersonId: null });
+              setDeliveryRating(0);
+            }} className="w-full text-muted-foreground">Skip Rating</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Product Review Dialog */}
-      <Dialog open={reviewDialog.open} onOpenChange={(open) => setReviewDialog({ ...reviewDialog, open })}>
+      <Dialog open={reviewDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setReviewRating(0);
+          setReviewText('');
+        }
+        setReviewDialog({ ...reviewDialog, open });
+      }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Review: {reviewDialog.productName}</DialogTitle>
-            <DialogDescription>Share your experience with this product</DialogDescription>
+            <DialogDescription>Share your experience with this product (Optional)</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="flex flex-col items-center gap-2">
-              <p className="text-sm text-muted-foreground">Your rating</p>
-              <StarRating rating={reviewRating} onRatingChange={setReviewRating} size="sm" />
+              <p className="text-sm text-muted-foreground">Your rating {reviewRating === 0 && '(tap to rate)'}</p>
+              <StarRating rating={reviewRating} onRatingChange={setReviewRating} size="lg" />
             </div>
             <Textarea
-              placeholder="Write your review here..."
+              placeholder="Write your review here... (optional)"
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
               className="min-h-[100px]"
             />
           </div>
-          <DialogFooter>
-            <Button onClick={submitProductReview} className="w-full" disabled={!reviewText.trim()}>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button onClick={submitProductReview} className="w-full" disabled={reviewRating === 0}>
               Submit Review
             </Button>
+            <Button variant="ghost" onClick={() => {
+              setReviewDialog({ open: false, productId: null, productName: '', orderId: null });
+              setReviewRating(0);
+              setReviewText('');
+            }} className="w-full text-muted-foreground">Skip Review</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
