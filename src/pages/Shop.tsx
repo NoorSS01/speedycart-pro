@@ -584,27 +584,25 @@ export default function Shop() {
 
       {/* Categories */}
       <div className="container mx-auto px-4 pb-4">
-        <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-2 pb-2">
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+          <Button
+            variant={selectedCategory === null ? 'default' : 'outline'}
+            onClick={() => setSelectedCategory(null)}
+            className="rounded-full flex-shrink-0"
+          >
+            All
+          </Button>
+          {categories.map(category => (
             <Button
-              variant={selectedCategory === null ? 'default' : 'outline'}
-              onClick={() => setSelectedCategory(null)}
-              className="rounded-full"
+              key={category.id}
+              variant={selectedCategory === category.id ? 'default' : 'outline'}
+              onClick={() => setSelectedCategory(category.id)}
+              className="rounded-full flex-shrink-0 whitespace-nowrap"
             >
-              All
+              {category.name}
             </Button>
-            {categories.map(category => (
-              <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(category.id)}
-                className="rounded-full"
-              >
-                {category.name}
-              </Button>
-            ))}
-          </div>
-        </ScrollArea>
+          ))}
+        </div>
       </div>
 
       {/* For You - AI Recommendations */}

@@ -24,14 +24,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
           setTimeout(() => {
             fetchUserRole(session.user.id);
           }, 0);
+
+          // Check if user needs phone setup (OAuth users)
+          if (event === 'SIGNED_IN') {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('phone')
+              .eq('id', session.user.id)
+              .single();
+
+            const hasValidPhone = profile?.phone && profile.phone.replace(/\D/g, '').length >= 10;
+            if (!hasValidPhone && window.location.pathname !== '/phone-setup') {
+              navigate('/phone-setup');
+            }
+          }
         } else {
           setUserRole(null);
         }
@@ -41,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
         fetchUserRole(session.user.id);
       }
@@ -71,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, phone: string, fullName?: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,

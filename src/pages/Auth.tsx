@@ -21,9 +21,6 @@ export default function Auth() {
     fullName: ''
   });
   const [phoneError, setPhoneError] = useState('');
-  const [tapCount, setTapCount] = useState(0);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -149,33 +146,12 @@ export default function Auth() {
     }
   };
 
-  const handleLogoTap = () => {
-    setTapCount(prev => prev + 1);
-    if (tapCount + 1 === 5) {
-      setShowAdminLogin(true);
-      setTapCount(0);
-    }
-    setTimeout(() => setTapCount(0), 2000);
-  };
-
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminCredentials.username === 'superadmin111' && adminCredentials.password === 'superadmin@111') {
-      sessionStorage.setItem('superadmin_access', 'true');
-      toast.success('Admin access granted!');
-      setShowAdminLogin(false);
-      navigate('/super-admin');
-    } else {
-      toast.error('Invalid admin credentials');
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4" onClick={handleLogoTap}>
-            <div className="p-3 bg-primary rounded-2xl cursor-pointer transition-transform active:scale-95">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-primary rounded-2xl">
               <Package className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
@@ -401,45 +377,6 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
-
-      <Dialog open={showAdminLogin} onOpenChange={setShowAdminLogin}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-destructive" />
-              Super Admin Access
-            </DialogTitle>
-            <DialogDescription>
-              Enter super admin credentials to access the admin panel
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAdminLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="admin-username">Username</Label>
-              <Input
-                id="admin-username"
-                type="text"
-                value={adminCredentials.username}
-                onChange={(e) => setAdminCredentials({ ...adminCredentials, username: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="admin-password">Password</Label>
-              <Input
-                id="admin-password"
-                type="password"
-                value={adminCredentials.password}
-                onChange={(e) => setAdminCredentials({ ...adminCredentials, password: e.target.value })}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              Login as Super Admin
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
