@@ -22,6 +22,7 @@ import PhoneSetup from "./pages/PhoneSetup";
 import AddProduct from "./pages/AddProduct";
 import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
+import Categories from "./pages/Categories";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

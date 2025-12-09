@@ -488,12 +488,28 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold tracking-tight">PremaShop</h1>
+      {/* Header with Tagline and Profile */}
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <Package className="h-6 w-6 text-primary" />
+                <h1 className="text-xl font-bold tracking-tight">PremaShop</h1>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium ml-8">
+                ⚡ Rapid Delivery in 14 mins
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full bg-primary/10 hover:bg-primary/20"
+              onClick={() => navigate('/profile')}
+              aria-label="View Profile"
+            >
+              <User className="h-5 w-5 text-primary" />
+            </Button>
           </div>
         </div>
       </header>

@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, ShoppingCart, ClipboardList, User } from 'lucide-react';
+import { Home, ShoppingCart, ClipboardList, Grid3X3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
@@ -11,9 +11,9 @@ export default function BottomNav() {
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/shop', ariaLabel: 'Go to Shop' },
-    { icon: ShoppingCart, label: 'Cart', path: '/cart', showBadge: true, ariaLabel: 'View Cart' },
+    { icon: Grid3X3, label: 'Categories', path: '/categories', ariaLabel: 'Browse Categories' },
     { icon: ClipboardList, label: 'Orders', path: '/orders', ariaLabel: 'View Orders' },
-    { icon: User, label: 'Profile', path: '/profile', ariaLabel: 'View Profile' },
+    { icon: ShoppingCart, label: 'Cart', path: '/cart', showBadge: true, ariaLabel: 'View Cart' },
   ];
 
   return (
