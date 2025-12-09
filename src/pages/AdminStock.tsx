@@ -30,6 +30,7 @@ interface Product {
     unit: string;
     image_url: string | null;
     category_id: string | null;
+    discount_percent: number | null;
 }
 
 interface Category {
@@ -45,6 +46,7 @@ export default function AdminStock() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out' | 'good'>('all');
     const [editingStock, setEditingStock] = useState<Record<string, number>>({});
+    const [editingDiscount, setEditingDiscount] = useState<Record<string, number | null>>({});
     const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -79,11 +81,11 @@ export default function AdminStock() {
     const fetchProducts = async () => {
         const { data, error } = await supabase
             .from('products')
-            .select('id, name, price, stock_quantity, unit, image_url, category_id')
+            .select('id, name, price, stock_quantity, unit, image_url, category_id, discount_percent')
             .order('stock_quantity', { ascending: true });
 
         if (!error && data) {
-            setProducts(data);
+            setProducts(data as unknown as Product[]);
         }
     };
 
@@ -126,6 +128,50 @@ export default function AdminStock() {
                 prev.map(p => p.id === productId ? { ...p, stock_quantity: newStock } : p)
             );
             setEditingStock(prev => {
+                const updated = { ...prev };
+                delete updated[productId];
+                return updated;
+            });
+        }
+
+        setSavingIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(productId);
+            return updated;
+        });
+    };
+
+    const handleDiscountChange = (productId: string, value: string) => {
+        if (value === '' || value === '-') {
+            setEditingDiscount(prev => ({ ...prev, [productId]: null }));
+            return;
+        }
+        const numValue = parseInt(value) || 0;
+        setEditingDiscount(prev => ({
+            ...prev,
+            [productId]: Math.min(100, Math.max(0, numValue))
+        }));
+    };
+
+    const saveDiscount = async (productId: string) => {
+        const newDiscount = editingDiscount[productId];
+        if (newDiscount === undefined) return;
+
+        setSavingIds(prev => new Set(prev).add(productId));
+
+        const { error } = await supabase
+            .from('products')
+            .update({ discount_percent: newDiscount } as any)
+            .eq('id', productId);
+
+        if (error) {
+            toast.error('Failed to update discount');
+        } else {
+            toast.success(newDiscount ? `${newDiscount}% discount applied!` : 'Discount removed');
+            setProducts(prev =>
+                prev.map(p => p.id === productId ? { ...p, discount_percent: newDiscount } : p)
+            );
+            setEditingDiscount(prev => {
                 const updated = { ...prev };
                 delete updated[productId];
                 return updated;
@@ -351,6 +397,7 @@ export default function AdminStock() {
                                         <th className="text-center py-3 px-4 font-medium text-muted-foreground">Status</th>
                                         <th className="text-center py-3 px-4 font-medium text-muted-foreground">Current Stock</th>
                                         <th className="text-center py-3 px-4 font-medium text-muted-foreground">Update Stock</th>
+                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Discount</th>
                                         <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
                                     </tr>
                                 </thead>
@@ -358,6 +405,7 @@ export default function AdminStock() {
                                     {filteredProducts.map((product) => {
                                         const status = getStockStatus(product.stock_quantity);
                                         const isEditing = editingStock[product.id] !== undefined;
+                                        const isEditingDisc = editingDiscount[product.id] !== undefined;
                                         const isSaving = savingIds.has(product.id);
 
                                         return (
@@ -406,6 +454,40 @@ export default function AdminStock() {
                                                             className="w-24 text-center"
                                                         />
                                                     </div>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <div className="flex items-center gap-1">
+                                                            <Input
+                                                                type="number"
+                                                                min="0"
+                                                                max="100"
+                                                                placeholder={product.discount_percent ? String(product.discount_percent) : "0"}
+                                                                value={isEditingDisc ? (editingDiscount[product.id] ?? '') : (product.discount_percent ?? '')}
+                                                                onChange={(e) => handleDiscountChange(product.id, e.target.value)}
+                                                                className="w-16 text-center"
+                                                            />
+                                                            <span className="text-sm text-muted-foreground">%</span>
+                                                        </div>
+                                                        <Button
+                                                            size="sm"
+                                                            variant={product.discount_percent ? "default" : "outline"}
+                                                            onClick={() => saveDiscount(product.id)}
+                                                            disabled={editingDiscount[product.id] === undefined || isSaving}
+                                                            className={`h-8 px-2 ${product.discount_percent ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                                        >
+                                                            {isSaving ? (
+                                                                <RefreshCw className="h-3 w-3 animate-spin" />
+                                                            ) : (
+                                                                <Save className="h-3 w-3" />
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                    {product.discount_percent && product.discount_percent > 0 && (
+                                                        <p className="text-xs text-green-600 dark:text-green-400 text-center mt-1 font-medium">
+                                                            {product.discount_percent}% OFF active
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="py-3 px-4 text-center">
                                                     <Button
