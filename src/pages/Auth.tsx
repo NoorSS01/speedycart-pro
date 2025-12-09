@@ -20,11 +20,36 @@ export default function Auth() {
     phone: '',
     fullName: ''
   });
+  const [phoneError, setPhoneError] = useState('');
   const [tapCount, setTapCount] = useState(0);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminCredentials, setAdminCredentials] = useState({ username: '', password: '' });
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+
+  // Validate phone number (exactly 10 digits)
+  const validatePhone = (phone: string): boolean => {
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length !== 10) {
+      setPhoneError('Please enter exactly 10 digits');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  };
+
+  // Handle phone input - digits only
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow digits
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+    setFormData({ ...formData, phone: digitsOnly });
+    if (digitsOnly.length > 0 && digitsOnly.length !== 10) {
+      setPhoneError(digitsOnly.length < 10 ? `${10 - digitsOnly.length} more digits needed` : '');
+    } else {
+      setPhoneError('');
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,14 +90,17 @@ export default function Auth() {
       return;
     }
 
-    if (formData.phone.length < 10) {
-      toast.error('Please enter a valid phone number');
+    // Validate phone is exactly 10 digits
+    if (!validatePhone(formData.phone)) {
       return;
     }
 
+    // Normalize phone to +91XXXXXXXXXX format
+    const normalizedPhone = `+91${formData.phone}`;
+
     setIsLoading(true);
     try {
-      const { error } = await signUp(formData.email, formData.password, formData.phone, formData.fullName);
+      const { error } = await signUp(formData.email, formData.password, normalizedPhone, formData.fullName);
 
       if (error) {
         // User-friendly error messages
@@ -264,14 +292,25 @@ export default function Auth() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-phone">Phone Number *</Label>
-                  <Input
-                    id="signup-phone"
-                    type="tel"
-                    placeholder="+1234567890"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                  />
+                  <div className="flex">
+                    <div className="flex items-center justify-center px-3 bg-muted border border-r-0 rounded-l-md text-sm font-medium text-muted-foreground">
+                      +91
+                    </div>
+                    <Input
+                      id="signup-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      placeholder="9876543210"
+                      value={formData.phone}
+                      onChange={handlePhoneChange}
+                      className={`rounded-l-none ${phoneError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      maxLength={10}
+                      required
+                    />
+                  </div>
+                  {phoneError && (
+                    <p className="text-sm text-destructive">{phoneError}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email *</Label>

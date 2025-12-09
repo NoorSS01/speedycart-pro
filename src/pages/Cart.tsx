@@ -23,12 +23,11 @@ import {
     Clock,
     Tag,
     ShieldCheck,
-    Bookmark,
-    BookmarkCheck,
     AlertTriangle,
     Percent,
     MapPin,
-    ChevronRight,
+    Ticket,
+    X,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
@@ -48,6 +47,17 @@ interface CartItem {
     products: Product;
 }
 
+interface Coupon {
+    id: string;
+    code: string;
+    description: string;
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    minimum_order: number;
+    maximum_discount: number | null;
+    valid_until: string | null;
+}
+
 export default function Cart() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -64,6 +74,11 @@ export default function Cart() {
     const [newAddress, setNewAddress] = useState('');
     const [placingOrder, setPlacingOrder] = useState(false);
 
+    // Coupon state
+    const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
+    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+    const [discountAmount, setDiscountAmount] = useState(0);
+
     useEffect(() => {
         if (authLoading) return;
         if (!user) {
@@ -72,6 +87,7 @@ export default function Cart() {
         }
         fetchCart();
         fetchSavedAddress();
+        fetchCoupons();
     }, [user, authLoading, navigate]);
 
     const fetchCart = async () => {
@@ -101,6 +117,76 @@ export default function Cart() {
         if (data?.address) {
             setSavedAddress(data.address);
         }
+    };
+
+    // Fetch available coupons
+    const fetchCoupons = async () => {
+        if (!user) return;
+
+        try {
+            const { data: coupons } = await supabase
+                .from('coupons' as any)
+                .select('*')
+                .eq('is_active', true)
+                .or(`valid_until.is.null,valid_until.gte.${new Date().toISOString()}`);
+
+            if (coupons) {
+                // Filter to only show coupons user hasn't redeemed (if not stackable)
+                const { data: userCoupons } = await supabase
+                    .from('user_coupons' as any)
+                    .select('coupon_id')
+                    .eq('user_id', user.id);
+
+                const redeemedIds = new Set((userCoupons || []).map((uc: any) => uc.coupon_id));
+
+                const eligibleCoupons = coupons.filter((c: any) =>
+                    !redeemedIds.has(c.id) || c.is_stackable
+                );
+
+                setAvailableCoupons(eligibleCoupons as unknown as Coupon[]);
+            }
+        } catch (e) {
+            // Silently fail - coupons table may not exist yet
+            console.log('Coupons fetch:', e);
+        }
+    };
+
+    // Apply coupon
+    const applyCoupon = (coupon: Coupon) => {
+        const currentSubtotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
+
+        // Check minimum order
+        if (coupon.minimum_order > 0 && currentSubtotal < coupon.minimum_order) {
+            toast.error(`Minimum order of ₹${coupon.minimum_order} required`);
+            return;
+        }
+
+        // Calculate discount
+        let discount = 0;
+        if (coupon.discount_type === 'percentage') {
+            discount = (currentSubtotal * coupon.discount_value) / 100;
+            if (coupon.maximum_discount && discount > coupon.maximum_discount) {
+                discount = coupon.maximum_discount;
+            }
+        } else {
+            discount = coupon.discount_value;
+        }
+
+        setAppliedCoupon(coupon);
+        setDiscountAmount(discount);
+        setPromoCode(coupon.code);
+        setPromoApplied(true);
+        setPromoDiscount(coupon.discount_type === 'percentage' ? coupon.discount_value : 0);
+        toast.success(`${coupon.code} applied! You save ₹${discount.toFixed(0)}`);
+    };
+
+    // Remove coupon
+    const removeCoupon = () => {
+        setAppliedCoupon(null);
+        setDiscountAmount(0);
+        setPromoCode('');
+        setPromoApplied(false);
+        setPromoDiscount(0);
     };
 
     const updateQuantity = async (itemId: string, newQuantity: number) => {
@@ -449,19 +535,71 @@ export default function Cart() {
                                     className="flex-1"
                                     disabled={promoApplied}
                                 />
-                                <Button
-                                    onClick={applyPromoCode}
-                                    disabled={promoApplied || !promoCode.trim()}
-                                    variant={promoApplied ? 'secondary' : 'default'}
-                                >
-                                    {promoApplied ? 'Applied' : 'Apply'}
-                                </Button>
+                                {promoApplied ? (
+                                    <Button onClick={removeCoupon} variant="outline">
+                                        <X className="h-4 w-4 mr-1" />
+                                        Remove
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        onClick={applyPromoCode}
+                                        disabled={!promoCode.trim()}
+                                    >
+                                        Apply
+                                    </Button>
+                                )}
                             </div>
-                            {promoApplied && (
-                                <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                                    <Percent className="h-3 w-3" />
-                                    {promoDiscount}% discount applied
-                                </p>
+
+                            {/* Applied coupon indicator */}
+                            {appliedCoupon && (
+                                <div className="mt-2 p-2 rounded-lg bg-green-500/10 border border-green-500/30">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Ticket className="h-4 w-4 text-green-600" />
+                                            <span className="text-sm font-medium text-green-700">{appliedCoupon.code}</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-green-600">-₹{discountAmount.toFixed(0)}</span>
+                                    </div>
+                                    <p className="text-xs text-green-600/80 mt-1">{appliedCoupon.description}</p>
+                                </div>
+                            )}
+
+                            {/* Available coupon chips */}
+                            {availableCoupons.length > 0 && !appliedCoupon && (
+                                <div className="mt-3">
+                                    <p className="text-xs text-muted-foreground mb-2">Available for you:</p>
+                                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                                        {availableCoupons.map((coupon) => {
+                                            const subtotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
+                                            const isEligible = coupon.minimum_order <= subtotal;
+
+                                            return (
+                                                <button
+                                                    key={coupon.id}
+                                                    onClick={() => isEligible && applyCoupon(coupon)}
+                                                    disabled={!isEligible}
+                                                    className={`flex-shrink-0 px-3 py-2 rounded-lg border transition-all ${isEligible
+                                                        ? 'border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary cursor-pointer'
+                                                        : 'border-muted bg-muted/50 opacity-60 cursor-not-allowed'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Ticket className={`h-4 w-4 ${isEligible ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                        <span className={`text-sm font-semibold ${isEligible ? 'text-primary' : 'text-muted-foreground'}`}>
+                                                            {coupon.code}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mt-0.5 text-left whitespace-nowrap">
+                                                        {coupon.discount_type === 'percentage'
+                                                            ? `${coupon.discount_value}% off`
+                                                            : `₹${coupon.discount_value} off`}
+                                                        {coupon.minimum_order > 0 && ` • Min ₹${coupon.minimum_order}`}
+                                                    </p>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             )}
                         </CardContent>
                     </Card>

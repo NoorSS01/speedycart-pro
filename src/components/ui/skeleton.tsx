@@ -1,10 +1,17 @@
 import { cn } from "@/lib/utils";
 
+/**
+ * Professional Skeleton Component
+ * Inspired by YouTube, Netflix loading patterns
+ * - Subtle, slow shimmer animation
+ * - Soft gradient for premium feel
+ * - Reduced visual noise
+ */
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "animate-shimmer bg-gradient-to-r from-muted via-muted/50 to-muted bg-[length:200%_100%] rounded-md",
+        "animate-skeleton-pulse bg-muted/80 rounded-md",
         className
       )}
       {...props}
