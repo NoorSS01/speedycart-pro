@@ -340,9 +340,22 @@ export default function Cart() {
                     .eq('id', user.id);
             }
 
+            // Mark coupon as used if applied
+            if (appliedCoupon) {
+                await supabase
+                    .from('user_coupons')
+                    .update({ used_at: new Date().toISOString() })
+                    .eq('user_id', user.id)
+                    .eq('coupon_id', appliedCoupon.id);
+            }
+
             toast.success('Order placed successfully!');
             setShowAddressDialog(false);
             setCartItems([]);
+            setAppliedCoupon(null);
+            setDiscountAmount(0);
+            setPromoApplied(false);
+            setPromoCode('');
             navigate('/orders');
 
         } catch (error: any) {
@@ -354,12 +367,14 @@ export default function Cart() {
     };
 
     // Calculations - use discounted prices
+    const originalTotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
     const subtotal = cartItems.reduce((sum, item) => {
         const price = item.products.discount_percent && item.products.discount_percent > 0
             ? Math.round(item.products.price * (100 - item.products.discount_percent) / 100)
             : item.products.price;
         return sum + price * item.quantity;
     }, 0);
+    const productSavings = originalTotal - subtotal; // Savings from product discounts
     const discount = promoApplied ? (subtotal * promoDiscount / 100) : 0;
     const deliveryFee = subtotal > 200 ? 0 : 25;
     const finalTotal = subtotal - discount + deliveryFee;
@@ -612,18 +627,18 @@ export default function Cart() {
                                                     key={coupon.id}
                                                     onClick={() => isEligible && applyCoupon(coupon)}
                                                     disabled={!isEligible}
-                                                    className={`flex-shrink-0 px-3 py-2 rounded-lg border transition-all ${isEligible
-                                                        ? 'border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary cursor-pointer'
-                                                        : 'border-muted bg-muted/50 opacity-60 cursor-not-allowed'
+                                                    className={`flex-shrink-0 px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${isEligible
+                                                        ? 'border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-900/50 dark:hover:to-emerald-900/50 cursor-pointer shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]'
+                                                        : 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed'
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-2">
-                                                        <Ticket className={`h-4 w-4 ${isEligible ? 'text-primary' : 'text-muted-foreground'}`} />
-                                                        <span className={`text-sm font-semibold ${isEligible ? 'text-primary' : 'text-muted-foreground'}`}>
+                                                        <Ticket className={`h-4 w-4 ${isEligible ? 'text-green-600' : 'text-gray-400'}`} />
+                                                        <span className={`text-sm font-bold ${isEligible ? 'text-green-700 dark:text-green-400' : 'text-gray-500'}`}>
                                                             {coupon.code}
                                                         </span>
                                                     </div>
-                                                    <p className="text-xs text-muted-foreground mt-0.5 text-left whitespace-nowrap">
+                                                    <p className={`text-xs mt-0.5 text-left whitespace-nowrap ${isEligible ? 'text-green-600/80' : 'text-gray-400'}`}>
                                                         {coupon.discount_type === 'percentage'
                                                             ? `${coupon.discount_value}% off`
                                                             : `₹${coupon.discount_value} off`}
@@ -648,8 +663,14 @@ export default function Cart() {
                         <CardContent className="space-y-3">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span>₹{subtotal.toFixed(0)}</span>
+                                <span>₹{originalTotal.toFixed(0)}</span>
                             </div>
+                            {productSavings > 0 && (
+                                <div className="flex justify-between text-sm text-green-600">
+                                    <span>🎉 Product Discount</span>
+                                    <span>-₹{productSavings.toFixed(0)}</span>
+                                </div>
+                            )}
                             {promoApplied && (
                                 <div className="flex justify-between text-sm text-green-600">
                                     <span>Discount ({promoDiscount}%)</span>

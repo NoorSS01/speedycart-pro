@@ -98,7 +98,7 @@ export default function Shop() {
       return;
     }
     fetchCategories();
-    fetchProducts();
+    // fetchProducts() is called by the selectedCategory useEffect
     fetchCart();
     fetchSavedAddress();
 
