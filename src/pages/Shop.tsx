@@ -60,7 +60,9 @@ export default function Shop() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  // Initialize selectedCategory from URL immediately to prevent blink
+  const initialCategory = searchParams.get('category');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
   const [products, setProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,21 +77,20 @@ export default function Shop() {
   // AI Recommendations
   const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
 
-  // Read category from URL on mount and when URL changes
+  // Sync category from URL when it changes (for navigation within page)
   useEffect(() => {
     const categoryFromUrl = searchParams.get('category');
-    // Only update if different to avoid infinite loops
     if (categoryFromUrl !== selectedCategory) {
       setSelectedCategory(categoryFromUrl);
     }
   }, [searchParams]);
 
-  // Refetch products when selectedCategory changes
+  // Fetch products when selectedCategory changes or user loads
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       fetchProducts();
     }
-  }, [selectedCategory, user]);
+  }, [selectedCategory, user, authLoading]);
 
   useEffect(() => {
     if (authLoading) return;

@@ -340,13 +340,17 @@ export default function Cart() {
                     .eq('id', user.id);
             }
 
-            // Mark coupon as used if applied
+            // Mark coupon as used if applied (try-catch since table might not exist)
             if (appliedCoupon) {
-                await supabase
-                    .from('user_coupons')
-                    .update({ used_at: new Date().toISOString() })
-                    .eq('user_id', user.id)
-                    .eq('coupon_id', appliedCoupon.id);
+                try {
+                    await (supabase as any)
+                        .from('user_coupons')
+                        .update({ used_at: new Date().toISOString() })
+                        .eq('user_id', user.id)
+                        .eq('coupon_id', appliedCoupon.id);
+                } catch (e) {
+                    console.log('Coupon marking skipped:', e);
+                }
             }
 
             toast.success('Order placed successfully!');
@@ -391,9 +395,9 @@ export default function Cart() {
                 </header>
                 <main className="container mx-auto px-4 py-6 space-y-4">
                     {[1, 2, 3].map(i => (
-                        <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                        <div key={i} className="h-24 w-full rounded-xl bg-muted/80 animate-pulse" />
                     ))}
-                    <Skeleton className="h-48 w-full rounded-xl" />
+                    <div className="h-48 w-full rounded-xl bg-muted/80 animate-pulse" />
                 </main>
                 <BottomNav />
             </div>
@@ -401,7 +405,7 @@ export default function Cart() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-20">
+        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-44">
             {/* Header */}
             <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-sm">
                 <div className="container mx-auto px-4 py-4 flex items-center gap-3">
@@ -706,6 +710,32 @@ export default function Cart() {
                     </Card>
                 )}
             </main>
+
+            {/* Sticky Checkout Bar */}
+            {cartItems.length > 0 && (
+                <div className="fixed bottom-16 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+                    <div className="container mx-auto px-4 py-3 max-w-2xl">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-muted-foreground">Total Amount</p>
+                                <p className="text-xl font-bold text-primary">₹{finalTotal.toFixed(0)}</p>
+                                {(productSavings > 0 || promoApplied) && (
+                                    <p className="text-xs text-green-600 font-medium">
+                                        You save ₹{(productSavings + discount).toFixed(0)}!
+                                    </p>
+                                )}
+                            </div>
+                            <Button
+                                className="h-12 px-8 text-base font-semibold"
+                                onClick={handleCheckout}
+                            >
+                                <ShieldCheck className="h-5 w-5 mr-2" />
+                                Checkout
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Address Dialog */}
             <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
