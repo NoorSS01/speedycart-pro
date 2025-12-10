@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
     ArrowLeft,
@@ -28,11 +29,14 @@ import {
     ChevronDown,
     ChevronUp,
     MapPin,
-    User
+    User,
+    Search,
+    X
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
+import { useFrequentlyBoughtTogether } from '@/hooks/useFrequentlyBoughtTogether';
 
 interface Product {
     id: string;
@@ -73,7 +77,10 @@ export default function ProductDetail() {
     const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
     const [newAddress, setNewAddress] = useState('');
     const [showInfo, setShowInfo] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const { trackView } = useRecommendations();
+    const { products: frequentlyBought, isLoading: frequentlyBoughtLoading } = useFrequentlyBoughtTogether(id);
 
     useEffect(() => {
         if (id) {
@@ -357,15 +364,45 @@ export default function ProductDetail() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pb-24">
-            {/* Header */}
+            {/* Header - Address & Search */}
             <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
-                <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={handleShare}>
-                        <Share2 className="h-5 w-5" />
-                    </Button>
+                <div className="container mx-auto px-4 py-3">
+                    {showSearch ? (
+                        <div className="flex items-center gap-2">
+                            <Input
+                                placeholder="Search products..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="flex-1"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && searchQuery.trim()) {
+                                        navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+                                    }
+                                }}
+                            />
+                            <Button variant="ghost" size="icon" onClick={() => { setShowSearch(false); setSearchQuery(''); }}>
+                                <X className="h-5 w-5" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => setShowAddressDialog(true)}>
+                                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(-1); }}>
+                                    <ArrowLeft className="h-5 w-5" />
+                                </Button>
+                                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 flex-1 min-w-0 cursor-pointer hover:bg-muted transition-colors">
+                                    <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                                    <span className="text-sm truncate">
+                                        {savedAddress ? savedAddress.slice(0, 30) + (savedAddress.length > 30 ? '...' : '') : 'Add delivery address'}
+                                    </span>
+                                </div>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setShowSearch(true)}>
+                                <Search className="h-5 w-5" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </header>
 
@@ -560,13 +597,16 @@ export default function ProductDetail() {
                     </CardContent>
                 </Card>
 
-                {/* Related Products */}
-                {relatedProducts.length > 0 && (
+                {/* Frequently Bought Together */}
+                {frequentlyBought.length > 0 && (
                     <div className="pt-2">
-                        <h2 className="text-lg font-semibold mb-4">You might also like</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            {relatedProducts.map(relProduct => (
-                                <Card key={relProduct.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/product/${relProduct.id}`)}>
+                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <ShoppingCart className="h-5 w-5 text-primary" />
+                            Frequently bought together
+                        </h2>
+                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                            {frequentlyBought.map(relProduct => (
+                                <Card key={relProduct.id} className="flex-shrink-0 w-36 overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/product/${relProduct.id}`)}>
                                     <CardContent className="p-0">
                                         <div className="aspect-square bg-muted relative">
                                             {relProduct.image_url ? (
@@ -576,7 +616,6 @@ export default function ProductDetail() {
                                                     <Package className="h-8 w-8 text-muted-foreground" />
                                                 </div>
                                             )}
-                                            {/* Discount badge for related products */}
                                             {relProduct.discount_percent && relProduct.discount_percent > 0 && (
                                                 <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-green-500 text-white text-xs font-bold">
                                                     {relProduct.discount_percent}% OFF
