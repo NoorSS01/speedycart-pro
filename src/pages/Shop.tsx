@@ -75,13 +75,21 @@ export default function Shop() {
   // AI Recommendations
   const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
 
-  // Read category from URL on mount
+  // Read category from URL on mount and when URL changes
   useEffect(() => {
     const categoryFromUrl = searchParams.get('category');
-    if (categoryFromUrl) {
+    // Only update if different to avoid infinite loops
+    if (categoryFromUrl !== selectedCategory) {
       setSelectedCategory(categoryFromUrl);
     }
   }, [searchParams]);
+
+  // Refetch products when selectedCategory changes
+  useEffect(() => {
+    if (user) {
+      fetchProducts();
+    }
+  }, [selectedCategory, user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -162,8 +170,10 @@ export default function Shop() {
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, [selectedCategory]);
+    if (user) {
+      fetchProducts();
+    }
+  }, [selectedCategory, user]);
 
   const addToCart = async (productId: string) => {
     if (!user) return;
@@ -663,13 +673,28 @@ export default function Shop() {
                         <Package className="h-8 w-8 text-muted-foreground" />
                       </div>
                     )}
+                    {/* Discount Badge */}
+                    {product.discount_percent && product.discount_percent > 0 && (
+                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] font-bold">
+                        {product.discount_percent}% OFF
+                      </div>
+                    )}
                     {product.stock_quantity <= 5 && product.stock_quantity > 0 && (
                       <Badge className="absolute top-1 right-1 text-[10px] bg-red-500 text-white px-1.5 py-0.5">Low</Badge>
                     )}
                   </div>
                   <CardContent className="p-2">
                     <p className="text-sm font-medium truncate">{product.name}</p>
-                    <p className="text-sm font-bold text-primary">₹{product.price}</p>
+                    {product.discount_percent && product.discount_percent > 0 ? (
+                      <div className="flex items-center gap-1">
+                        <p className="text-sm font-bold text-primary">
+                          ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
+                        </p>
+                        <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-bold text-primary">₹{product.price}</p>
+                    )}
                   </CardContent>
                 </Card>
               </div>

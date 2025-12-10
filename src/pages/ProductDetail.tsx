@@ -42,6 +42,7 @@ interface Product {
     stock_quantity: number;
     unit: string;
     category_id: string | null;
+    discount_percent?: number | null;
 }
 
 interface ProductReview {
@@ -374,6 +375,12 @@ export default function ProductDetail() {
                         <Package className="h-24 w-24 text-muted-foreground" />
                     </div>
                 )}
+                {/* Discount Badge - Top Left */}
+                {product.discount_percent && product.discount_percent > 0 && (
+                    <div className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg">
+                        {product.discount_percent}% OFF
+                    </div>
+                )}
                 {isLowStock && (
                     <Badge className="absolute top-4 right-4 bg-red-500 text-white">Only {product.stock_quantity} left!</Badge>
                 )}
@@ -390,8 +397,20 @@ export default function ProductDetail() {
                     <h1 className="text-2xl font-bold">{product.name}</h1>
                     <div className="flex items-center justify-between mt-1">
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-primary">₹{product.price}</span>
-                            <span className="text-muted-foreground">/ {product.unit}</span>
+                            {product.discount_percent && product.discount_percent > 0 ? (
+                                <>
+                                    <span className="text-3xl font-bold text-primary">
+                                        ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
+                                    </span>
+                                    <span className="text-lg text-muted-foreground line-through">₹{product.price}</span>
+                                    <span className="text-muted-foreground">/ {product.unit}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="text-3xl font-bold text-primary">₹{product.price}</span>
+                                    <span className="text-muted-foreground">/ {product.unit}</span>
+                                </>
+                            )}
                         </div>
                         {averageRating && (
                             <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded-full">
@@ -546,7 +565,7 @@ export default function ProductDetail() {
                             {relatedProducts.map(relProduct => (
                                 <Card key={relProduct.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/product/${relProduct.id}`)}>
                                     <CardContent className="p-0">
-                                        <div className="aspect-square bg-muted">
+                                        <div className="aspect-square bg-muted relative">
                                             {relProduct.image_url ? (
                                                 <img src={relProduct.image_url} alt={relProduct.name} className="w-full h-full object-cover" />
                                             ) : (
@@ -554,10 +573,25 @@ export default function ProductDetail() {
                                                     <Package className="h-8 w-8 text-muted-foreground" />
                                                 </div>
                                             )}
+                                            {/* Discount badge for related products */}
+                                            {relProduct.discount_percent && relProduct.discount_percent > 0 && (
+                                                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-green-500 text-white text-xs font-bold">
+                                                    {relProduct.discount_percent}% OFF
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="p-2">
                                             <p className="text-sm font-medium truncate">{relProduct.name}</p>
-                                            <p className="text-sm font-bold text-primary">₹{relProduct.price}</p>
+                                            {relProduct.discount_percent && relProduct.discount_percent > 0 ? (
+                                                <div className="flex items-center gap-1">
+                                                    <p className="text-sm font-bold text-primary">
+                                                        ₹{Math.round(relProduct.price * (100 - relProduct.discount_percent) / 100)}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground line-through">₹{relProduct.price}</p>
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm font-bold text-primary">₹{relProduct.price}</p>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>

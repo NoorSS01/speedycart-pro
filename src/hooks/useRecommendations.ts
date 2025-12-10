@@ -11,6 +11,7 @@ interface Product {
     stock_quantity: number;
     unit: string;
     created_at?: string;
+    discount_percent?: number | null;
 }
 
 interface RecommendationResult {

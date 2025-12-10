@@ -38,6 +38,7 @@ interface Product {
     image_url: string | null;
     stock_quantity: number;
     unit: string;
+    discount_percent?: number | null;
 }
 
 interface CartItem {
@@ -153,7 +154,13 @@ export default function Cart() {
 
     // Apply coupon
     const applyCoupon = (coupon: Coupon) => {
-        const currentSubtotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
+        const getDiscountedPrice = (product: Product) => {
+            if (product.discount_percent && product.discount_percent > 0) {
+                return Math.round(product.price * (100 - product.discount_percent) / 100);
+            }
+            return product.price;
+        };
+        const currentSubtotal = cartItems.reduce((sum, item) => sum + getDiscountedPrice(item.products) * item.quantity, 0);
 
         // Check minimum order
         if (coupon.minimum_order > 0 && currentSubtotal < coupon.minimum_order) {
@@ -346,8 +353,13 @@ export default function Cart() {
         }
     };
 
-    // Calculations
-    const subtotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
+    // Calculations - use discounted prices
+    const subtotal = cartItems.reduce((sum, item) => {
+        const price = item.products.discount_percent && item.products.discount_percent > 0
+            ? Math.round(item.products.price * (100 - item.products.discount_percent) / 100)
+            : item.products.price;
+        return sum + price * item.quantity;
+    }, 0);
     const discount = promoApplied ? (subtotal * promoDiscount / 100) : 0;
     const deliveryFee = subtotal > 200 ? 0 : 25;
     const finalTotal = subtotal - discount + deliveryFee;
@@ -457,12 +469,29 @@ export default function Cart() {
                                                         >
                                                             {item.products.name}
                                                         </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            ₹{item.products.price} / {item.products.unit}
-                                                        </p>
+                                                        {item.products.discount_percent && item.products.discount_percent > 0 ? (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-xs text-green-600 font-semibold">{item.products.discount_percent}% OFF</span>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    ₹{Math.round(item.products.price * (100 - item.products.discount_percent) / 100)} / {item.products.unit}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground line-through">
+                                                                    ₹{item.products.price}
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-xs text-muted-foreground">
+                                                                ₹{item.products.price} / {item.products.unit}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                     <p className="font-bold text-primary whitespace-nowrap">
-                                                        ₹{(item.products.price * item.quantity).toFixed(0)}
+                                                        ₹{(() => {
+                                                            const price = item.products.discount_percent && item.products.discount_percent > 0
+                                                                ? Math.round(item.products.price * (100 - item.products.discount_percent) / 100)
+                                                                : item.products.price;
+                                                            return (price * item.quantity).toFixed(0);
+                                                        })()}
                                                     </p>
                                                 </div>
 
@@ -570,7 +599,12 @@ export default function Cart() {
                                     <p className="text-xs text-muted-foreground mb-2">Available for you:</p>
                                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
                                         {availableCoupons.map((coupon) => {
-                                            const subtotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
+                                            const subtotal = cartItems.reduce((sum, item) => {
+                                                const price = item.products.discount_percent && item.products.discount_percent > 0
+                                                    ? Math.round(item.products.price * (100 - item.products.discount_percent) / 100)
+                                                    : item.products.price;
+                                                return sum + price * item.quantity;
+                                            }, 0);
                                             const isEligible = coupon.minimum_order <= subtotal;
 
                                             return (
