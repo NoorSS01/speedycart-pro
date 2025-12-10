@@ -20,14 +20,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-            const { data, error } = await supabase
+            const { data, error, count } = await supabase
                 .from('cart_items')
-                .select('quantity')
+                .select('id', { count: 'exact', head: true })
                 .eq('user_id', user.id);
 
-            if (!error && data) {
-                const total = data.reduce((sum, item) => sum + item.quantity, 0);
-                setCartItemCount(total);
+            if (!error) {
+                // Count unique products (number of different items in cart)
+                setCartItemCount(count || 0);
             }
         } catch (e) {
             console.error('Error fetching cart count:', e);

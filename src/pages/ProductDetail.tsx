@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +61,7 @@ export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { refreshCart } = useCart();
     const [product, setProduct] = useState<Product | null>(null);
     const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
     const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -197,6 +199,7 @@ export default function ProductDetail() {
         }
 
         toast.success(`Added ${quantity} to cart`);
+        refreshCart(); // Instant badge update
         setAddingToCart(false);
     };
 

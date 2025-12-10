@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,7 @@ interface CartItem {
 
 export default function Shop() {
   const { user, loading: authLoading, signOut } = useAuth();
+  const { refreshCart } = useCart();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -217,6 +219,7 @@ export default function Shop() {
         toast.error('Failed to update cart');
       } else {
         fetchCart();
+        refreshCart(); // Instant badge update
         toast.success('Cart updated');
       }
     } else {
@@ -228,6 +231,7 @@ export default function Shop() {
         toast.error('Failed to add to cart');
       } else {
         fetchCart();
+        refreshCart(); // Instant badge update
         toast.success('Added to cart');
       }
     }
