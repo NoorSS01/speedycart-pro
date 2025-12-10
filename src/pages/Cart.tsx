@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ interface Coupon {
 
 export default function Cart() {
     const { user, loading: authLoading } = useAuth();
+    const { refreshCart } = useCart();
     const navigate = useNavigate();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -230,6 +232,7 @@ export default function Cart() {
 
         if (!error) {
             setCartItems(prev => prev.filter(item => item.id !== itemId));
+            refreshCart(); // Instant badge update
             toast.success('Item removed');
         }
     };
