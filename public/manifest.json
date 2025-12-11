@@ -1,7 +1,7 @@
 {
     "name": "PremasShop",
     "short_name": "PremasShop",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "description": "PremasShop - fast and simple grocery delivery",
     "theme_color": "#22c55e",
     "background_color": "#ffffff",
@@ -11,25 +11,25 @@
     "start_url": "/",
     "icons": [
         {
-            "src": "/dist/logo.svg",
+            "src": "/dist/logo-icon.svg",
             "sizes": "any",
             "type": "image/svg+xml",
             "purpose": "any"
         },
         {
-            "src": "/dist/logo.svg",
+            "src": "/dist/logo-icon.svg",
             "sizes": "192x192",
             "type": "image/svg+xml",
             "purpose": "any"
         },
         {
-            "src": "/dist/logo.svg",
+            "src": "/dist/logo-icon.svg",
             "sizes": "512x512",
             "type": "image/svg+xml",
             "purpose": "any"
         },
         {
-            "src": "/dist/logo.svg",
+            "src": "/dist/logo-icon.svg",
             "sizes": "144x144",
             "type": "image/svg+xml",
             "purpose": "maskable"
@@ -43,7 +43,7 @@
             "url": "/shop",
             "icons": [
                 {
-                    "src": "/dist/logo.svg",
+                    "src": "/dist/logo-icon.svg",
                     "sizes": "96x96"
                 }
             ]
@@ -55,7 +55,7 @@
             "url": "/orders",
             "icons": [
                 {
-                    "src": "/dist/logo.svg",
+                    "src": "/dist/logo-icon.svg",
                     "sizes": "96x96"
                 }
             ]
@@ -67,7 +67,7 @@
             "url": "/profile",
             "icons": [
                 {
-                    "src": "/dist/logo.svg",
+                    "src": "/dist/logo-icon.svg",
                     "sizes": "96x96"
                 }
             ]
