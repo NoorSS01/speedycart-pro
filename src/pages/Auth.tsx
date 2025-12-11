@@ -151,9 +151,7 @@ export default function Auth() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary rounded-2xl">
-              <Package className="h-8 w-8 text-primary-foreground" />
-            </div>
+            <img src="/dist/logo.svg" alt="PremaShop" className="h-16 w-auto" />
           </div>
           <CardTitle className="text-2xl font-bold">PremaShop</CardTitle>
           <CardDescription>Your favorite groceries in minutes</CardDescription>

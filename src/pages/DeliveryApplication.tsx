@@ -23,7 +23,7 @@ export default function DeliveryApplication() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast.error('You must be signed in to apply');
       navigate('/auth');
@@ -67,7 +67,7 @@ export default function DeliveryApplication() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Package className="h-6 w-6 text-primary" />
+          <img src="/dist/logo.svg" alt="PremaShop" className="h-8 w-auto" />
           <h1 className="text-xl font-bold">PremaShop</h1>
         </div>
       </header>
