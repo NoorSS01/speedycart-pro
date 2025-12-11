@@ -105,8 +105,8 @@ self.addEventListener('push', (event) => {
     // Build notification options
     const options = {
         body: data.body || 'You have a new notification',
-        icon: data.icon || '/dist/icons/icon.svg',
-        badge: '/dist/icons/icon.svg',
+        icon: data.icon || '/dist/logo.svg',
+        badge: '/dist/logo.svg',
         vibrate: data.vibrate !== false ? [200, 100, 200] : undefined,
         tag: data.tag || `premasshop-${Date.now()}`,
         renotify: true,
@@ -213,7 +213,7 @@ self.addEventListener('notificationclick', (event) => {
             event.waitUntil(
                 self.registration.showNotification('⏰ Reminder Snoozed', {
                     body: 'We\'ll remind you again in 30 minutes.',
-                    icon: '/dist/icons/icon.svg',
+                    icon: '/dist/logo.svg',
                     tag: 'snooze-confirm',
                     requireInteraction: false,
                 })

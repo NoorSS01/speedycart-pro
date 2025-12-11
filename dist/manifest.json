@@ -1,7 +1,7 @@
 {
     "name": "PremasShop",
     "short_name": "PremasShop",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "PremasShop - fast and simple grocery delivery",
     "theme_color": "#22c55e",
     "background_color": "#ffffff",
@@ -14,17 +14,25 @@
             "src": "/dist/logo.svg",
             "sizes": "any",
             "type": "image/svg+xml",
-            "purpose": "any maskable"
+            "purpose": "any"
         },
         {
-            "src": "/dist/icons/icon-192x192.png",
+            "src": "/dist/logo.svg",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/svg+xml",
+            "purpose": "any"
         },
         {
-            "src": "/dist/icons/icon-512x512.png",
+            "src": "/dist/logo.svg",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "/dist/logo.svg",
+            "sizes": "144x144",
+            "type": "image/svg+xml",
+            "purpose": "maskable"
         }
     ],
     "shortcuts": [
