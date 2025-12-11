@@ -518,7 +518,7 @@ export default function Shop() {
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <Package className="h-6 w-6 text-primary" />
+                <img src="/dist/logo.svg" alt="PremaShop" className="h-8 w-auto" />
                 <h1 className="text-xl font-bold tracking-tight">PremaShop</h1>
               </div>
               <p className="text-xs text-muted-foreground font-medium ml-8">
