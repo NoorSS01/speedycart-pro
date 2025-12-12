@@ -37,6 +37,7 @@ import BottomNav from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useFrequentlyBoughtTogether } from '@/hooks/useFrequentlyBoughtTogether';
+import OrderConfirmation from '@/components/OrderConfirmation';
 
 interface Product {
     id: string;
@@ -92,6 +93,8 @@ export default function ProductDetail() {
     const [searchQuery, setSearchQuery] = useState('');
     const [variants, setVariants] = useState<ProductVariant[]>([]);
     const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+    const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
+    const [lastOrderId, setLastOrderId] = useState('');
     const { trackView } = useRecommendations();
     const { products: frequentlyBought, isLoading: frequentlyBoughtLoading } = useFrequentlyBoughtTogether(id);
 
@@ -373,8 +376,11 @@ export default function ProductDetail() {
 
         setShowAddressDialog(false);
         setNewAddress('');
-        toast.success('🎉 Order placed successfully!');
-        navigate('/orders');
+        // Show success animation
+        setLastOrderId(order.id);
+        setShowOrderConfirmation(true);
+        // toast.success('🎉 Order placed successfully!');
+        // navigate('/orders');
     };
 
     const handleShare = async () => {
@@ -454,6 +460,13 @@ export default function ProductDetail() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 pb-24">
+            {showOrderConfirmation && (
+                <OrderConfirmation
+                    orderId={lastOrderId}
+                    onClose={() => setShowOrderConfirmation(false)}
+                />
+            )}
+
             {/* Header - Address & Search */}
             <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
                 <div className="container mx-auto px-4 py-3">

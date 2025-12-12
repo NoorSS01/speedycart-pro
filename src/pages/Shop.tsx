@@ -30,6 +30,7 @@ import BottomNav from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { Sparkles } from 'lucide-react';
+import OrderConfirmation from '@/components/OrderConfirmation';
 
 interface Category {
   id: string;
@@ -89,6 +90,8 @@ export default function Shop() {
   const [newAddress, setNewAddress] = useState('');
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [buyNowProduct, setBuyNowProduct] = useState<Product | null>(null);
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
+  const [orderIdForConfirmation, setOrderIdForConfirmation] = useState<string | null>(null);
 
   // AI Recommendations
   const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
@@ -471,7 +474,11 @@ export default function Shop() {
       setShowCartSheet(false);
       setBuyNowProduct(null);
       setNewAddress('');
-      toast.success('🎉 Order placed successfully!');
+
+      // Show success animation
+      setOrderIdForConfirmation(order.id);
+      setShowOrderConfirmation(true);
+      // toast.success('🎉 Order placed successfully!');
     } catch (error) {
       console.error('Unexpected error placing order:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -540,6 +547,13 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+      {showOrderConfirmation && orderIdForConfirmation && (
+        <OrderConfirmation
+          orderId={orderIdForConfirmation}
+          onClose={() => setShowOrderConfirmation(false)}
+        />
+      )}
+
       {/* Header with Tagline and Profile */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm">
         <div className="container mx-auto px-4 py-3">

@@ -31,6 +31,7 @@ import {
     X,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import OrderConfirmation from '@/components/OrderConfirmation';
 
 interface Product {
     id: string;
@@ -81,6 +82,8 @@ export default function Cart() {
     const [promoCode, setPromoCode] = useState('');
     const [promoApplied, setPromoApplied] = useState(false);
     const [promoDiscount, setPromoDiscount] = useState(0);
+    const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+    const [lastOrderId, setLastOrderId] = useState('');
 
     // Address dialog
     const [showAddressDialog, setShowAddressDialog] = useState(false);
@@ -367,15 +370,17 @@ export default function Cart() {
                 }
             }
 
-            toast.success('Order placed successfully!');
+            // Show success animation
+            setLastOrderId(orderData.id);
             setShowAddressDialog(false);
             setCartItems([]);
             setAppliedCoupon(null);
             setDiscountAmount(0);
             setPromoApplied(false);
             setPromoCode('');
-            navigate('/orders');
+            setShowOrderSuccess(true);
 
+            // Only navigate after animations (handled by OrderConfirmation component)
         } catch (error: any) {
             console.error('Order error:', error);
             toast.error('Failed to place order. Please try again.');
@@ -427,6 +432,13 @@ export default function Cart() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-44">
+            {showOrderSuccess && (
+                <OrderConfirmation
+                    orderId={lastOrderId}
+                    onClose={() => setShowOrderSuccess(false)}
+                />
+            )}
+
             {/* Header + Savings Banner - Both sticky */}
             <div className="sticky top-0 z-40">
                 <header className="border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-sm">
