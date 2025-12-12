@@ -6,6 +6,17 @@
 -- =============================
 ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES product_variants(id) ON DELETE SET NULL;
 
+-- =============================
+-- FIX: Update cart_items unique constraint to include variant_id
+-- This allows the same product with different variants to be added as separate cart items
+-- (Like Amazon: "iPhone 14 - Blue" and "iPhone 14 - Red" are separate cart items)
+-- =============================
+-- Drop the old constraint first
+ALTER TABLE cart_items DROP CONSTRAINT IF EXISTS cart_items_user_id_product_id_key;
+-- Create new constraint that includes variant_id
+-- Using UNIQUE NULLS NOT DISTINCT to handle null variant_id correctly
+ALTER TABLE cart_items ADD CONSTRAINT cart_items_user_product_variant_key UNIQUE NULLS NOT DISTINCT (user_id, product_id, variant_id);
+
 
 -- =============================
 -- RLS Policies for product_variants

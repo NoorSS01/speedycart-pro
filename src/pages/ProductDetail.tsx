@@ -217,50 +217,87 @@ export default function ProductDetail() {
 
         setAddingToCart(true);
 
-        const variantId = selectedVariant?.id || null;
+        try {
+            const variantId = selectedVariant?.id || null;
 
-        // Check for existing cart item with same product AND variant
-        let query = supabase
-            .from('cart_items')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('product_id', product.id);
+            // Amazon-style: Each product+variant combo is a unique cart line item
+            // Check if this exact combo already exists in cart
+            let query = supabase
+                .from('cart_items')
+                .select('*')
+                .eq('user_id', user.id)
+                .eq('product_id', product.id);
 
-        // Handle variant matching (both null or same id)
-        if (variantId) {
-            query = query.eq('variant_id', variantId);
-        } else {
-            query = query.is('variant_id', null);
-        }
+            // Handle variant matching correctly
+            if (variantId) {
+                query = query.eq('variant_id', variantId);
+            } else {
+                query = query.is('variant_id', null);
+            }
 
-        const { data: existingItem } = await query.single();
+            // Use maybeSingle() - returns null if no match, doesn't throw error
+            const { data: existingItem, error: fetchError } = await query.maybeSingle();
 
-        if (existingItem) {
-            const newQty = existingItem.quantity + quantity;
-            if (newQty > product.stock_quantity) {
-                toast.error(`Only ${product.stock_quantity} available (${existingItem.quantity} in cart)`);
+            if (fetchError) {
+                console.error('Cart fetch error:', fetchError);
+                toast.error('Failed to check cart. Please try again.');
                 setAddingToCart(false);
                 return;
             }
-            await supabase
-                .from('cart_items')
-                .update({ quantity: newQty })
-                .eq('id', existingItem.id);
-        } else {
-            await supabase
-                .from('cart_items')
-                .insert({
-                    user_id: user.id,
-                    product_id: product.id,
-                    quantity,
-                    variant_id: variantId
-                });
-        }
 
-        const variantName = selectedVariant ? ` (${selectedVariant.variant_name})` : '';
-        toast.success(`Added ${quantity}${variantName} to cart`);
-        refreshCart(); // Instant badge update
-        setAddingToCart(false);
+            if (existingItem) {
+                // This exact product+variant already in cart - update quantity
+                const newQty = existingItem.quantity + quantity;
+                if (newQty > product.stock_quantity) {
+                    toast.error(`Only ${product.stock_quantity} available (${existingItem.quantity} already in cart)`);
+                    setAddingToCart(false);
+                    return;
+                }
+
+                const { error: updateError } = await supabase
+                    .from('cart_items')
+                    .update({ quantity: newQty })
+                    .eq('id', existingItem.id);
+
+                if (updateError) {
+                    console.error('Cart update error:', updateError);
+                    toast.error('Failed to update cart. Please try again.');
+                    setAddingToCart(false);
+                    return;
+                }
+            } else {
+                // New product+variant combo - insert new cart item
+                const { error: insertError } = await supabase
+                    .from('cart_items')
+                    .insert({
+                        user_id: user.id,
+                        product_id: product.id,
+                        quantity,
+                        variant_id: variantId
+                    });
+
+                if (insertError) {
+                    console.error('Cart insert error:', insertError);
+                    // Check if it's a unique constraint violation
+                    if (insertError.code === '23505') {
+                        toast.error('This item is already in your cart. Try refreshing the page.');
+                    } else {
+                        toast.error('Failed to add to cart. Please try again.');
+                    }
+                    setAddingToCart(false);
+                    return;
+                }
+            }
+
+            const variantName = selectedVariant ? ` (${selectedVariant.variant_name})` : '';
+            toast.success(`Added ${quantity}${variantName} to cart`);
+            refreshCart(); // Instant badge update
+        } catch (error) {
+            console.error('Unexpected cart error:', error);
+            toast.error('Something went wrong. Please try again.');
+        } finally {
+            setAddingToCart(false);
+        }
     };
 
     const handleBuyNow = () => {
