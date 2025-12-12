@@ -299,7 +299,7 @@ export default function AdminStock() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
+        <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-28">
             {/* Header */}
             <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
                 <div className="container mx-auto px-4 py-4">
@@ -413,137 +413,90 @@ export default function AdminStock() {
                     </p>
                 </div>
 
-                {/* Products Table */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Inventory List</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-border">
-                                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
-                                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Category</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Status</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Current Stock</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Update Stock</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Discount</th>
-                                        <th className="text-center py-3 px-4 font-medium text-muted-foreground">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredProducts.map((product) => {
-                                        const status = getStockStatus(product.stock_quantity);
-                                        const isEditing = editingStock[product.id] !== undefined;
-                                        const isEditingDisc = editingDiscount[product.id] !== undefined;
-                                        const isSaving = savingIds.has(product.id);
+                {/* Products List - Mobile-First Card Layout */}
+                <div className="space-y-3">
+                    <h2 className="text-sm font-medium text-muted-foreground">
+                        {filteredProducts.length} Products
+                    </h2>
 
-                                        return (
-                                            <tr
-                                                key={product.id}
-                                                className={`border-b border-border/50 hover:bg-accent/30 transition-colors ${product.stock_quantity === 0 ? 'bg-red-50/50 dark:bg-red-950/10' :
-                                                    product.stock_quantity <= 10 ? 'bg-orange-50/50 dark:bg-orange-950/10' : ''
-                                                    }`}
-                                            >
-                                                <td className="py-3 px-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                                                            {product.image_url ? (
-                                                                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <Package className="h-5 w-5 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium text-foreground">{product.name}</p>
-                                                            <p className="text-xs text-muted-foreground">₹{product.price} / {product.unit}</p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <span className="text-sm text-muted-foreground">{getCategoryName(product.category_id)}</span>
-                                                </td>
-                                                <td className="py-3 px-4 text-center">
-                                                    <Badge variant="outline" className={`${status.textColor} border-current`}>
-                                                        {status.label}
-                                                    </Badge>
-                                                </td>
-                                                <td className="py-3 px-4 text-center">
-                                                    <span className={`text-lg font-bold ${status.textColor}`}>
-                                                        {product.stock_quantity}
-                                                    </span>
-                                                    <span className="text-xs text-muted-foreground ml-1">{product.unit}s</span>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <Button
-                                                            size="icon"
-                                                            variant="outline"
-                                                            className="h-8 w-8 rounded-full"
-                                                            onClick={() => quickAdjustStock(product.id, -1)}
-                                                            disabled={isSaving || product.stock_quantity === 0}
-                                                        >
-                                                            <Minus className="h-4 w-4" />
-                                                        </Button>
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            value={isEditing ? editingStock[product.id] : product.stock_quantity}
-                                                            onChange={(e) => handleStockChange(product.id, e.target.value)}
-                                                            className="w-16 text-center"
-                                                        />
-                                                        <Button
-                                                            size="icon"
-                                                            variant="outline"
-                                                            className="h-8 w-8 rounded-full"
-                                                            onClick={() => quickAdjustStock(product.id, 1)}
-                                                            disabled={isSaving}
-                                                        >
-                                                            <Plus className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3 px-4">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <div className="flex items-center gap-1">
-                                                            <Input
-                                                                type="number"
-                                                                min="0"
-                                                                max="100"
-                                                                placeholder={product.discount_percent ? String(product.discount_percent) : "0"}
-                                                                value={isEditingDisc ? (editingDiscount[product.id] ?? '') : (product.discount_percent ?? '')}
-                                                                onChange={(e) => handleDiscountChange(product.id, e.target.value)}
-                                                                className="w-16 text-center"
-                                                            />
-                                                            <span className="text-sm text-muted-foreground">%</span>
-                                                        </div>
-                                                        <Button
-                                                            size="sm"
-                                                            variant={product.discount_percent ? "default" : "outline"}
-                                                            onClick={() => saveDiscount(product.id)}
-                                                            disabled={editingDiscount[product.id] === undefined || isSaving}
-                                                            className={`h-8 px-2 ${product.discount_percent ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                                        >
-                                                            {isSaving ? (
-                                                                <RefreshCw className="h-3 w-3 animate-spin" />
-                                                            ) : (
-                                                                <Save className="h-3 w-3" />
-                                                            )}
-                                                        </Button>
-                                                    </div>
-                                                    {product.discount_percent && product.discount_percent > 0 && (
-                                                        <p className="text-xs text-green-600 dark:text-green-400 text-center mt-1 font-medium">
-                                                            {product.discount_percent}% OFF active
-                                                        </p>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-4 text-center">
+                    {filteredProducts.map((product) => {
+                        const status = getStockStatus(product.stock_quantity);
+                        const isEditing = editingStock[product.id] !== undefined;
+                        const isSaving = savingIds.has(product.id);
+
+                        return (
+                            <Card
+                                key={product.id}
+                                className={`overflow-hidden ${product.stock_quantity === 0
+                                    ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20'
+                                    : product.stock_quantity <= 10
+                                        ? 'border-orange-300 bg-orange-50/30 dark:bg-orange-950/20'
+                                        : ''
+                                    }`}
+                            >
+                                <CardContent className="p-3">
+                                    <div className="flex gap-3">
+                                        {/* Product Image */}
+                                        <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                                            {product.image_url ? (
+                                                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <Package className="h-6 w-6 text-muted-foreground" />
+                                            )}
+                                        </div>
+
+                                        {/* Product Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <h3 className="font-medium text-sm truncate">{product.name}</h3>
+                                                    <p className="text-xs text-muted-foreground">₹{product.price} / {product.unit}</p>
+                                                </div>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={`${status.textColor} border-current text-xs whitespace-nowrap`}
+                                                >
+                                                    {status.label}
+                                                </Badge>
+                                            </div>
+
+                                            {/* Stock Controls */}
+                                            <div className="flex items-center justify-between mt-3 gap-2">
+                                                <div className="flex items-center gap-1">
+                                                    <Button
+                                                        size="icon"
+                                                        variant="outline"
+                                                        className="h-8 w-8"
+                                                        onClick={() => quickAdjustStock(product.id, -1)}
+                                                        disabled={isSaving || product.stock_quantity === 0}
+                                                    >
+                                                        <Minus className="h-4 w-4" />
+                                                    </Button>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={isEditing ? editingStock[product.id] : product.stock_quantity}
+                                                        onChange={(e) => handleStockChange(product.id, e.target.value)}
+                                                        className="w-16 h-8 text-center text-sm"
+                                                    />
+                                                    <Button
+                                                        size="icon"
+                                                        variant="outline"
+                                                        className="h-8 w-8"
+                                                        onClick={() => quickAdjustStock(product.id, 1)}
+                                                        disabled={isSaving}
+                                                    >
+                                                        <Plus className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+
+                                                {/* Save button - only show when editing */}
+                                                {isEditing && (
                                                     <Button
                                                         size="sm"
                                                         onClick={() => saveStock(product.id)}
-                                                        disabled={!isEditing || isSaving}
-                                                        className={isEditing ? 'bg-primary' : 'bg-gray-300'}
+                                                        disabled={isSaving}
+                                                        className="h-8"
                                                     >
                                                         {isSaving ? (
                                                             <RefreshCw className="h-4 w-4 animate-spin" />
@@ -554,35 +507,31 @@ export default function AdminStock() {
                                                             </>
                                                         )}
                                                     </Button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                )}
 
-                            {filteredProducts.length === 0 && (
-                                <div className="text-center py-12">
-                                    <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                                    <p className="text-muted-foreground">No products found</p>
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                                                {/* Discount Badge */}
+                                                {product.discount_percent && product.discount_percent > 0 && (
+                                                    <Badge className="bg-green-600 text-white text-xs">
+                                                        {product.discount_percent}% OFF
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
 
-                {/* Quick Tips */}
-                <Card className="mt-6 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                    <CardContent className="p-4">
-                        <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">💡 Quick Tips</h3>
-                        <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
-                            <li>• <span className="text-red-600 dark:text-red-400 font-medium">Red badges</span> = Critical or Out of Stock - Restock immediately!</li>
-                            <li>• <span className="text-orange-600 dark:text-orange-400 font-medium">Orange badges</span> = Low Stock (1-10 units) - Consider restocking soon</li>
-                            <li>• <span className="text-green-600 dark:text-green-400 font-medium">Green badges</span> = Good Stock (10+ units) - You're all set!</li>
-                            <li>• Click on the stat cards above to filter the list by stock status</li>
-                        </ul>
-                    </CardContent>
-                </Card>
+                    {filteredProducts.length === 0 && (
+                        <Card className="py-12">
+                            <CardContent className="text-center">
+                                <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                                <p className="text-muted-foreground">No products found</p>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </main>
 
             {/* Admin Bottom Navigation */}
