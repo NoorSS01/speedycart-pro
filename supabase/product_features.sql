@@ -17,6 +17,12 @@ ALTER TABLE cart_items DROP CONSTRAINT IF EXISTS cart_items_user_id_product_id_k
 -- Using UNIQUE NULLS NOT DISTINCT to handle null variant_id correctly
 ALTER TABLE cart_items ADD CONSTRAINT cart_items_user_product_variant_key UNIQUE NULLS NOT DISTINCT (user_id, product_id, variant_id);
 
+-- =============================
+-- Unique phone number constraint on profiles
+-- Prevents duplicate accounts with same phone number
+-- =============================
+ALTER TABLE profiles ADD CONSTRAINT profiles_phone_unique UNIQUE (phone);
+
 
 -- =============================
 -- RLS Policies for product_variants

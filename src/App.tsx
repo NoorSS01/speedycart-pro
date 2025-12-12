@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import ScrollToTop from "@/components/ScrollToTop";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Shop from "./pages/Shop";
@@ -37,6 +38,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter basename={basename}>
+        {/* Scroll to top on every navigation */}
+        <ScrollToTop />
         <AuthProvider>
           <CartProvider>
             <Routes>

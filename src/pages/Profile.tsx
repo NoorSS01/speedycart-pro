@@ -294,20 +294,8 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="p-0">
             <button
-              onClick={() => navigate('/orders')}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors border-b border-border/50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <ClipboardList className="h-5 w-5 text-blue-500" />
-                </div>
-                <span className="font-medium">My Orders</span>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </button>
-            <button
               onClick={() => navigate('/cart')}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors border-b border-border/50"
+              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -348,50 +336,8 @@ export default function Profile() {
             <LogOut className="mr-2 h-5 w-5" />
             Sign Out
           </Button>
-
-          <Button
-            onClick={() => setShowDeleteDialog(true)}
-            variant="ghost"
-            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete Account
-          </Button>
         </div>
       </div>
-
-      {/* Delete Account Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              Delete Account
-            </DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. All your data will be permanently deleted.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Type <span className="font-bold text-destructive">DELETE</span> to confirm:
-            </p>
-            <Input
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="Type DELETE"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteAccount}>
-              Delete Account
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <BottomNav />
     </div>

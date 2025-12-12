@@ -445,6 +445,16 @@ export default function Cart() {
                 </div>
             </header>
 
+            {/* Savings Banner - Inspired by reference design */}
+            {cartItems.length > 0 && productSavings > 0 && (
+                <div className="bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 text-white py-2.5 text-center shadow-lg">
+                    <p className="text-sm font-medium">
+                        <span className="font-bold">₹{productSavings.toFixed(0)}</span>
+                        <span className="text-purple-200"> saved on this order</span>
+                    </p>
+                </div>
+            )}
+
             <main className="container mx-auto px-4 py-4 space-y-4 max-w-2xl">
                 {/* Delivery estimate */}
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
