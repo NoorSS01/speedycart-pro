@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
+interface ProductVariant {
+    id: string;
+    variant_name: string;
+    variant_value: number;
+    variant_unit: string;
+    price: number;
+    mrp: number | null;
+    is_default: boolean | null;
+}
+
 interface Product {
     id: string;
     name: string;
@@ -13,6 +23,7 @@ interface Product {
     unit: string;
     created_at?: string;
     discount_percent?: number | null;
+    default_variant?: ProductVariant | null;
 }
 
 interface RecommendationResult {
@@ -128,12 +139,26 @@ export function useRecommendations(): RecommendationResult {
                 return;
             }
 
+            // 1b. Fetch default variants for all products
+            const productIds = allProducts.map(p => p.id);
+            const { data: defaultVariants } = await supabase
+                .from('product_variants')
+                .select('*')
+                .in('product_id', productIds)
+                .eq('is_default', true);
+
+            // Attach default variant to each product
+            const productsWithVariants = allProducts.map(product => {
+                const defaultVariant = defaultVariants?.find((v: any) => v.product_id === product.id) || null;
+                return { ...product, default_variant: defaultVariant };
+            });
+
             // 2. Calculate trending scores (works even without user)
-            const trendingScores = await calculateTrending(allProducts);
+            const trendingScores = await calculateTrending(productsWithVariants);
 
             // 3. If no user, show trending only
             if (!user) {
-                const sorted = [...allProducts].sort((a, b) => {
+                const sorted = [...productsWithVariants].sort((a, b) => {
                     const scoreA = trendingScores.get(a.id) || 0;
                     const scoreB = trendingScores.get(b.id) || 0;
                     return scoreB - scoreA;
@@ -202,7 +227,7 @@ export function useRecommendations(): RecommendationResult {
                     viewScores[view.product_id] = viewScore;
 
                     // Also boost related categories
-                    const product = allProducts.find(p => p.id === view.product_id);
+                    const product = productsWithVariants.find(p => p.id === view.product_id);
                     if (product?.category_id) {
                         categoryScores[product.category_id] =
                             (categoryScores[product.category_id] || 0) + (view.view_count * 2 * recencyFactor);
@@ -217,7 +242,7 @@ export function useRecommendations(): RecommendationResult {
             });
 
             // 9. Score all products
-            const scoredProducts = allProducts.map(product => {
+            const scoredProducts = productsWithVariants.map(product => {
                 // Skip recently purchased
                 if (recentlyPurchasedIds.has(product.id)) {
                     return { product, score: -1, reasons: ['recently_purchased'] };
@@ -276,7 +301,7 @@ export function useRecommendations(): RecommendationResult {
             setRecommendedProducts(diversified.map(d => d.product));
 
             // Also set trending (top products by trending score only)
-            const trendingOnly = [...allProducts]
+            const trendingOnly = [...productsWithVariants]
                 .filter(p => !recentlyPurchasedIds.has(p.id))
                 .sort((a, b) => (trendingScores.get(b.id) || 0) - (trendingScores.get(a.id) || 0))
                 .slice(0, 8);

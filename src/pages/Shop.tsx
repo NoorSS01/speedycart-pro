@@ -37,6 +37,16 @@ interface Category {
   image_url: string | null;
 }
 
+interface ProductVariant {
+  id: string;
+  variant_name: string;
+  variant_value: number;
+  variant_unit: string;
+  price: number;
+  mrp: number | null;
+  is_default: boolean | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -48,13 +58,16 @@ interface Product {
   unit: string;
   category_id: string | null;
   discount_percent?: number | null;
+  default_variant?: ProductVariant | null;
 }
 
 interface CartItem {
   id: string;
   product_id: string;
   quantity: number;
+  variant_id: string | null;
   products: Product;
+  product_variants: ProductVariant | null;
 }
 
 export default function Shop() {
@@ -139,7 +152,21 @@ export default function Shop() {
     const { data, error } = await query;
 
     if (!error && data) {
-      setProducts(data);
+      // Fetch default variants for all products
+      const productIds = data.map(p => p.id);
+      const { data: variants } = await supabase
+        .from('product_variants')
+        .select('*')
+        .in('product_id', productIds)
+        .eq('is_default', true);
+
+      // Attach default variant to each product
+      const productsWithVariants = data.map(product => {
+        const defaultVariant = variants?.find(v => v.product_id === product.id) || null;
+        return { ...product, default_variant: defaultVariant };
+      });
+
+      setProducts(productsWithVariants);
     }
   };
 
@@ -148,7 +175,7 @@ export default function Shop() {
 
     const { data, error } = await supabase
       .from('cart_items')
-      .select('*, products(*)')
+      .select('*, products(*), product_variants(*)')
       .eq('user_id', user.id);
 
     if (!error && data) {
@@ -679,10 +706,13 @@ export default function Shop() {
                         <Package className="h-8 w-8 text-muted-foreground" />
                       </div>
                     )}
-                    {/* Discount Badge - Use MRP if available, fallback to discount_percent */}
+                    {/* Discount Badge - Use default variant pricing if available */}
                     {(() => {
-                      const discount = product.mrp && product.mrp > product.price
-                        ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+                      const variant = product.default_variant;
+                      const displayPrice = variant?.price ?? product.price;
+                      const displayMrp = variant?.mrp ?? product.mrp;
+                      const discount = displayMrp && displayMrp > displayPrice
+                        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
                         : product.discount_percent || 0;
                       return discount > 0 ? (
                         <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] font-bold">
@@ -696,14 +726,21 @@ export default function Shop() {
                   </div>
                   <CardContent className="p-2">
                     <p className="text-sm font-medium truncate">{product.name}</p>
+                    {/* Show variant name if has default variant */}
+                    {product.default_variant && (
+                      <span className="text-[10px] text-muted-foreground">{product.default_variant.variant_name}</span>
+                    )}
                     {(() => {
-                      // Prefer MRP-based display over discount_percent
-                      const mrp = product.mrp;
-                      if (mrp && mrp > product.price) {
+                      // Use default variant pricing if available
+                      const variant = product.default_variant;
+                      const displayPrice = variant?.price ?? product.price;
+                      const displayMrp = variant?.mrp ?? product.mrp;
+
+                      if (displayMrp && displayMrp > displayPrice) {
                         return (
                           <div className="flex items-center gap-1">
-                            <p className="text-sm font-bold text-primary">₹{product.price}</p>
-                            <p className="text-xs text-muted-foreground line-through">₹{mrp}</p>
+                            <p className="text-sm font-bold text-primary">₹{displayPrice}</p>
+                            <p className="text-xs text-muted-foreground line-through">₹{displayMrp}</p>
                           </div>
                         );
                       } else if (product.discount_percent && product.discount_percent > 0) {
@@ -716,7 +753,7 @@ export default function Shop() {
                           </div>
                         );
                       } else {
-                        return <p className="text-sm font-bold text-primary">₹{product.price}</p>;
+                        return <p className="text-sm font-bold text-primary">₹{displayPrice}</p>;
                       }
                     })()}
                   </CardContent>
@@ -757,10 +794,13 @@ export default function Shop() {
                   </div>
                 )}
 
-                {/* Discount Badge - Use MRP if available */}
+                {/* Discount Badge - Use default variant pricing */}
                 {(() => {
-                  const discount = product.mrp && product.mrp > product.price
-                    ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+                  const variant = product.default_variant;
+                  const displayPrice = variant?.price ?? product.price;
+                  const displayMrp = variant?.mrp ?? product.mrp;
+                  const discount = displayMrp && displayMrp > displayPrice
+                    ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
                     : product.discount_percent || 0;
                   return discount > 0 ? (
                     <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
@@ -791,18 +831,26 @@ export default function Shop() {
                     >
                       {product.name}
                     </h3>
+                    {/* Show variant name if has default variant */}
+                    {product.default_variant && (
+                      <span className="text-[10px] text-muted-foreground block mb-1">{product.default_variant.variant_name}</span>
+                    )}
                     <div className="flex items-center justify-between">
                       <div>
                         {(() => {
-                          // Prefer MRP-based display
-                          const mrp = product.mrp;
-                          if (mrp && mrp > product.price) {
+                          // Use default variant pricing if available
+                          const variant = product.default_variant;
+                          const displayPrice = variant?.price ?? product.price;
+                          const displayMrp = variant?.mrp ?? product.mrp;
+                          const displayUnit = variant?.variant_name ?? product.unit;
+
+                          if (displayMrp && displayMrp > displayPrice) {
                             return (
                               <>
-                                <p className="text-lg font-bold text-primary">₹{product.price}</p>
+                                <p className="text-lg font-bold text-primary">₹{displayPrice}</p>
                                 <div className="flex items-center gap-1.5">
-                                  <p className="text-xs text-muted-foreground line-through">₹{mrp}</p>
-                                  <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                                  <p className="text-xs text-muted-foreground line-through">₹{displayMrp}</p>
+                                  <p className="text-xs text-muted-foreground">/ {displayUnit}</p>
                                 </div>
                               </>
                             );
@@ -821,8 +869,8 @@ export default function Shop() {
                           } else {
                             return (
                               <>
-                                <p className="text-lg font-bold text-primary">₹{product.price}</p>
-                                <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                                <p className="text-lg font-bold text-primary">₹{displayPrice}</p>
+                                <p className="text-xs text-muted-foreground">/ {displayUnit}</p>
                               </>
                             );
                           }
