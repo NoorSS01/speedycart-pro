@@ -321,80 +321,50 @@ export default function AdminStock() {
                 </div>
             </header>
 
-            <main className="container mx-auto px-4 py-6 pb-24">
-                {/* Stats Carousel on Mobile, Grid on Desktop */}
-                <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-2 lg:grid-cols-5 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'all' ? 'ring-2 ring-primary' : 'hover:bg-accent/50'}`}
+            <main className="container mx-auto px-4 py-6 pb-28">
+                {/* Stats Grid - Clean & Compact */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+                    {/* All Products */}
+                    <div
+                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'all' ? 'ring-2 ring-white bg-gradient-to-br from-primary to-primary/80' : 'bg-gradient-to-br from-slate-500 to-slate-600'}`}
                         onClick={() => setFilterStatus('all')}
                     >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">All Products</p>
-                                    <p className="text-2xl font-bold">{stats.total}</p>
-                                </div>
-                                <Package className="h-8 w-8 text-primary/40" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <p className="text-xs opacity-80 font-medium">All Products</p>
+                        <p className="text-2xl font-bold">{stats.total}</p>
+                    </div>
 
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'out' ? 'ring-2 ring-red-500' : 'hover:bg-red-50 dark:hover:bg-red-950/20'}`}
+                    {/* Out of Stock */}
+                    <div
+                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'out' ? 'ring-2 ring-white' : ''} bg-gradient-to-br from-red-500 to-red-600`}
                         onClick={() => setFilterStatus('out')}
                     >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-red-600 dark:text-red-400">Out of Stock</p>
-                                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.outOfStock}</p>
-                                </div>
-                                <AlertTriangle className="h-8 w-8 text-red-400/60" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <p className="text-xs opacity-80 font-medium">Out of Stock</p>
+                        <p className="text-2xl font-bold">{stats.outOfStock}</p>
+                    </div>
 
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'low' ? 'ring-2 ring-orange-500' : 'hover:bg-orange-50 dark:hover:bg-orange-950/20'}`}
+                    {/* Low Stock */}
+                    <div
+                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'low' ? 'ring-2 ring-white' : ''} bg-gradient-to-br from-orange-500 to-amber-600`}
                         onClick={() => setFilterStatus('low')}
                     >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-orange-600 dark:text-orange-400">Low Stock</p>
-                                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.lowStock}</p>
-                                </div>
-                                <TrendingDown className="h-8 w-8 text-orange-400/60" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <p className="text-xs opacity-80 font-medium">Low Stock</p>
+                        <p className="text-2xl font-bold">{stats.lowStock}</p>
+                    </div>
 
-                    <Card
-                        className={`min-w-[260px] snap-center cursor-pointer transition-all ${filterStatus === 'good' ? 'ring-2 ring-green-500' : 'hover:bg-green-50 dark:hover:bg-green-950/20'}`}
+                    {/* Good Stock */}
+                    <div
+                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'good' ? 'ring-2 ring-white' : ''} bg-gradient-to-br from-green-500 to-emerald-600`}
                         onClick={() => setFilterStatus('good')}
                     >
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-green-600 dark:text-green-400">Good Stock</p>
-                                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.goodStock}</p>
-                                </div>
-                                <CheckCircle className="h-8 w-8 text-green-400/60" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <p className="text-xs opacity-80 font-medium">Good Stock</p>
+                        <p className="text-2xl font-bold">{stats.goodStock}</p>
+                    </div>
 
-                    <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/5">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-primary">Total Units</p>
-                                    <p className="text-2xl font-bold text-primary">{stats.totalUnits.toLocaleString()}</p>
-                                </div>
-                                <TrendingUp className="h-8 w-8 text-primary/40" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {/* Total Units */}
+                    <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg">
+                        <p className="text-xs opacity-80 font-medium">Total Units</p>
+                        <p className="text-2xl font-bold">{stats.totalUnits.toLocaleString()}</p>
+                    </div>
                 </div>
 
                 {/* Search Bar */}

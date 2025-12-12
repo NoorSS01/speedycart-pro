@@ -505,94 +505,52 @@ export default function Admin() {
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-24">
-        {/* Stats Carousel on Mobile, Grid on Desktop */}
-        <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">
+        {/* Stats Grid - Clean & Compact */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {loadingData ? (
             [1, 2, 3, 4, 5, 6].map(i => (
-              <Skeleton key={i} className="min-w-[260px] h-[100px] snap-center rounded-lg" />
+              <Skeleton key={i} className="h-20 rounded-xl" />
             ))
           ) : (
             <>
               {/* Revenue */}
-              <Card className="min-w-[260px] snap-center bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/40 dark:to-green-900/20 border-green-200 dark:border-green-800 animate-pulse-subtle">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400 flex items-center gap-2">
-                    💰 Total Sales
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-800 dark:text-green-300">₹{stats.revenue.toFixed(0)}</p>
-                  <p className="text-xs text-green-600 dark:text-green-500 mt-1">Money from delivered orders</p>
-                </CardContent>
-              </Card>
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 text-white shadow-lg">
+                <p className="text-xs opacity-80 font-medium">Total Sales</p>
+                <p className="text-2xl font-bold">₹{stats.revenue.toFixed(0)}</p>
+              </div>
 
               {/* Profit */}
-              <Card className="min-w-[260px] snap-center bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800 animate-pulse-subtle">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
-                    📈 Your Profit
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">₹{stats.profit.toFixed(0)}</p>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">After paying ₹9/order commission</p>
-                </CardContent>
-              </Card>
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-4 text-white shadow-lg">
+                <p className="text-xs opacity-80 font-medium">Your Profit</p>
+                <p className="text-2xl font-bold">₹{stats.profit.toFixed(0)}</p>
+              </div>
 
               {/* To Pay */}
-              <Card
-                className="min-w-[260px] snap-center bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/40 dark:to-amber-900/20 border-amber-200 dark:border-amber-800 cursor-pointer hover:shadow-lg transition animate-pulse-subtle"
+              <div
+                className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-4 text-white shadow-lg cursor-pointer hover:scale-105 transition-transform"
                 onClick={() => navigate('/admin/to-pay')}
               >
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                    💳 Pending Payments
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-amber-800 dark:text-amber-300">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
-                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">Tap to see details →</p>
-                </CardContent>
-              </Card>
+                <p className="text-xs opacity-80 font-medium">To Pay</p>
+                <p className="text-2xl font-bold">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
+              </div>
 
               {/* Total Orders */}
-              <Card className="min-w-[260px] snap-center bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 animate-pulse-subtle">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                    📦 All Orders
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-blue-800 dark:text-blue-300">{stats.totalOrders}</p>
-                  <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">Total orders received</p>
-                </CardContent>
-              </Card>
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg">
+                <p className="text-xs opacity-80 font-medium">All Orders</p>
+                <p className="text-2xl font-bold">{stats.totalOrders}</p>
+              </div>
 
               {/* Pending Orders */}
-              <Card className={`min-w-[260px] snap-center bg-gradient-to-br ${stats.pendingOrders > 0 ? 'from-orange-50 to-orange-100 dark:from-orange-950/40 dark:to-orange-900/20 border-orange-300 dark:border-orange-700' : 'from-gray-50 to-gray-100 dark:from-gray-950/40 dark:to-gray-900/20 border-gray-200 dark:border-gray-800'} animate-pulse-subtle`}>
-                <CardHeader className="pb-2">
-                  <CardTitle className={`text-sm font-medium flex items-center gap-2 ${stats.pendingOrders > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-600 dark:text-gray-400'}`}>
-                    ⏳ In Progress
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className={`text-2xl font-bold ${stats.pendingOrders > 0 ? 'text-orange-800 dark:text-orange-300' : 'text-gray-700 dark:text-gray-300'}`}>{stats.pendingOrders}</p>
-                  <p className={`text-xs mt-1 ${stats.pendingOrders > 0 ? 'text-orange-600 dark:text-orange-500' : 'text-gray-500 dark:text-gray-500'}`}>Being processed/delivered</p>
-                </CardContent>
-              </Card>
+              <div className={`rounded-xl p-4 text-white shadow-lg ${stats.pendingOrders > 0 ? 'bg-gradient-to-br from-orange-500 to-red-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
+                <p className="text-xs opacity-80 font-medium">In Progress</p>
+                <p className="text-2xl font-bold">{stats.pendingOrders}</p>
+              </div>
 
               {/* Delivered */}
-              <Card className="min-w-[260px] snap-center bg-gradient-to-br from-primary/10 to-primary/20 border-primary/30 animate-pulse-subtle">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-primary flex items-center gap-2">
-                    ✅ Delivered
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-primary">{stats.deliveredOrders}</p>
-                  <p className="text-xs text-primary/70 mt-1">Successfully completed</p>
-                </CardContent>
-              </Card>
+              <div className="bg-gradient-to-br from-primary to-primary/80 rounded-xl p-4 text-white shadow-lg">
+                <p className="text-xs opacity-80 font-medium">Delivered</p>
+                <p className="text-2xl font-bold">{stats.deliveredOrders}</p>
+              </div>
             </>
           )}
         </div>
