@@ -374,6 +374,7 @@ export default function Cart() {
             setLastOrderId(orderData.id);
             setShowAddressDialog(false);
             setCartItems([]);
+            refreshCart(); // Update global cart count immediately
             setAppliedCoupon(null);
             setDiscountAmount(0);
             setPromoApplied(false);

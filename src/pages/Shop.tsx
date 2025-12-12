@@ -466,6 +466,7 @@ export default function Shop() {
           .delete()
           .eq('user_id', user.id);
         fetchCart();
+        refreshCart();
       }
 
       // Refresh products to show updated stock
