@@ -182,6 +182,17 @@ export default function SuperAdmin() {
   });
   const [dateRange, setDateRange] = useState<DateRange>('today');
 
+  // Admin lockout state
+  const [adminSettings, setAdminSettings] = useState<{
+    isLocked: boolean;
+    paymentStatus: 'none' | 'pending' | 'paid';
+    paidAt: string | null;
+  }>({
+    isLocked: false,
+    paymentStatus: 'none',
+    paidAt: null
+  });
+
   useEffect(() => {
     if (authLoading) return;
     const hasSuperAdminAccess = sessionStorage.getItem('superadmin_access') === 'true';
@@ -226,8 +237,69 @@ export default function SuperAdmin() {
       fetchMaliciousActivities(),
       fetchUserRoles(),
       fetchDeliveryApplications(),
-      fetchStats()
+      fetchStats(),
+      fetchAdminSettings()
     ]);
+  };
+
+  const fetchAdminSettings = async () => {
+    // Using direct query with any type since admin_settings is not in generated types yet
+    const supabaseAny = supabase as any;
+    const { data, error } = await supabaseAny
+      .from('admin_settings')
+      .select('*')
+      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .single();
+
+    if (data && !error) {
+      setAdminSettings({
+        isLocked: data.is_locked || false,
+        paymentStatus: data.payment_status || 'none',
+        paidAt: data.paid_at
+      });
+    }
+  };
+
+  const toggleAdminLock = async (lock: boolean) => {
+    const supabaseAny = supabase as any;
+    const { error } = await supabaseAny
+      .from('admin_settings')
+      .update({
+        is_locked: lock,
+        payment_status: lock ? 'pending' : 'none',
+        locked_at: lock ? new Date().toISOString() : null,
+        paid_at: null,
+        confirmed_at: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', '00000000-0000-0000-0000-000000000001');
+
+    if (error) {
+      toast.error('Failed to update admin lock status');
+    } else {
+      toast.success(lock ? 'Admin access locked! Payment required.' : 'Admin access unlocked!');
+      fetchAdminSettings();
+    }
+  };
+
+  const confirmPaymentReceived = async () => {
+    const supabaseAny = supabase as any;
+    const { error } = await supabaseAny
+      .from('admin_settings')
+      .update({
+        is_locked: false,
+        payment_status: 'none',
+        confirmed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', '00000000-0000-0000-0000-000000000001');
+
+    if (error) {
+      toast.error('Failed to confirm payment');
+    } else {
+      toast.success('Payment confirmed! Admin access restored.');
+      fetchAdminSettings();
+    }
   };
 
   const fetchProducts = async () => {
@@ -545,6 +617,58 @@ export default function SuperAdmin() {
             📊 Showing data for: <span className="font-medium text-foreground">{dateRangeLabels[dateRange]}</span>
           </p>
         </div>
+
+        {/* Admin Access Control Card */}
+        <Card className={`mb-6 ${adminSettings.isLocked ? 'border-red-400 bg-red-50/50 dark:bg-red-950/20' : adminSettings.paymentStatus === 'paid' ? 'border-green-400 bg-green-50/50 dark:bg-green-950/20' : 'border-border'}`}>
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${adminSettings.isLocked ? 'bg-red-500' : 'bg-green-500'}`}>
+                  <Shield className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Admin Access Control</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {adminSettings.isLocked
+                      ? adminSettings.paymentStatus === 'paid'
+                        ? '🔔 Payment marked as PAID - Confirm to unlock'
+                        : '🔒 Admin locked - Waiting for payment'
+                      : '✅ Admin access is active'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {adminSettings.paymentStatus === 'paid' && adminSettings.isLocked && (
+                  <Button
+                    onClick={confirmPaymentReceived}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    ✓ Payment Received - Unlock
+                  </Button>
+                )}
+
+                {!adminSettings.isLocked ? (
+                  <Button
+                    onClick={() => toggleAdminLock(true)}
+                    variant="destructive"
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    🔒 Lock Admin Access
+                  </Button>
+                ) : adminSettings.paymentStatus !== 'paid' && (
+                  <Button
+                    onClick={() => toggleAdminLock(false)}
+                    variant="outline"
+                    className="border-green-500 text-green-600 hover:bg-green-50"
+                  >
+                    🔓 Unlock Without Payment
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Carousel on Mobile, Grid on Desktop */}
         <div className="flex overflow-x-auto pb-6 -mx-4 px-4 gap-4 snap-x snap-mandatory md:grid md:grid-cols-3 lg:grid-cols-6 md:overflow-visible md:pb-0 md:mx-0 md:px-0 mb-6 scrollbar-hide">

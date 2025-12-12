@@ -147,6 +147,11 @@ export default function Admin() {
   });
   const [dateRange, setDateRange] = useState<DateRange>('today');
 
+  // Admin lockout state
+  const [isLocked, setIsLocked] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'none' | 'pending' | 'paid'>('none');
+  const [markingPaid, setMarkingPaid] = useState(false);
+
   // Check admin access
   useEffect(() => {
     if (authLoading) return;
@@ -199,6 +204,61 @@ export default function Admin() {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(maliciousChannel);
     };
+  };
+
+  // Fetch lockout status
+  const fetchLockoutStatus = async () => {
+    const supabaseAny = supabase as any;
+    const { data, error } = await supabaseAny
+      .from('admin_settings')
+      .select('*')
+      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .single();
+
+    if (data && !error) {
+      setIsLocked(data.is_locked || false);
+      setPaymentStatus(data.payment_status || 'none');
+    }
+  };
+
+  // Check lockout status on mount and subscribe to changes
+  useEffect(() => {
+    if (userRole === 'admin') {
+      fetchLockoutStatus();
+
+      // Subscribe to changes in admin_settings
+      const supabaseAny = supabase as any;
+      const lockoutChannel = supabaseAny
+        .channel('admin-lockout')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_settings' }, fetchLockoutStatus)
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(lockoutChannel);
+      };
+    }
+  }, [userRole]);
+
+  // Mark as paid by admin
+  const markAsPaid = async () => {
+    setMarkingPaid(true);
+    const supabaseAny = supabase as any;
+    const { error } = await supabaseAny
+      .from('admin_settings')
+      .update({
+        payment_status: 'paid',
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', '00000000-0000-0000-0000-000000000001');
+
+    if (error) {
+      toast.error('Failed to mark as paid');
+    } else {
+      toast.success('Payment marked! Waiting for developer confirmation.');
+      fetchLockoutStatus();
+    }
+    setMarkingPaid(false);
   };
 
   const fetchData = async () => {
@@ -458,6 +518,64 @@ export default function Admin() {
   // Don't render if not admin (redirect will happen)
   if (userRole !== 'admin' && userRole !== 'super_admin') {
     return null;
+  }
+
+  // Show lockout overlay if admin is locked (but not for super_admin)
+  if (isLocked && userRole === 'admin') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-900 via-red-800 to-red-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 text-center">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle className="h-10 w-10 text-red-600" />
+          </div>
+
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Access Suspended
+          </h1>
+
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Your admin access has been temporarily suspended. Please complete the pending payment to restore access.
+          </p>
+
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6">
+            <p className="text-amber-800 dark:text-amber-300 font-medium">
+              💰 Payment Required
+            </p>
+            <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+              Please pay the developer what is owed and then click the button below.
+            </p>
+          </div>
+
+          {paymentStatus === 'paid' ? (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+              <p className="text-green-800 dark:text-green-300 font-medium">
+                ✓ Payment Marked as Paid
+              </p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                Waiting for developer to confirm receipt. Your access will be restored automatically once confirmed.
+              </p>
+            </div>
+          ) : (
+            <Button
+              onClick={markAsPaid}
+              disabled={markingPaid}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg"
+            >
+              {markingPaid ? 'Processing...' : '✓ I Have Paid'}
+            </Button>
+          )}
+
+          <Button
+            onClick={handleLogout}
+            variant="ghost"
+            className="mt-4 text-gray-500"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
