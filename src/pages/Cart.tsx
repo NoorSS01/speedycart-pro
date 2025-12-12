@@ -36,17 +36,29 @@ interface Product {
     id: string;
     name: string;
     price: number;
+    mrp?: number | null;
     image_url: string | null;
     stock_quantity: number;
     unit: string;
     discount_percent?: number | null;
 }
 
+interface ProductVariant {
+    id: string;
+    variant_name: string;
+    variant_value: number;
+    variant_unit: string;
+    price: number;
+    mrp: number | null;
+}
+
 interface CartItem {
     id: string;
     product_id: string;
     quantity: number;
+    variant_id: string | null;
     products: Product;
+    product_variants: ProductVariant | null;
 }
 
 interface Coupon {
@@ -100,7 +112,8 @@ export default function Cart() {
             .from('cart_items')
             .select(`
         *,
-        products (*)
+        products (*),
+        product_variants (*)
       `)
             .eq('user_id', user.id);
 
@@ -156,13 +169,11 @@ export default function Cart() {
 
     // Apply coupon
     const applyCoupon = (coupon: Coupon) => {
-        const getDiscountedPrice = (product: Product) => {
-            if (product.discount_percent && product.discount_percent > 0) {
-                return Math.round(product.price * (100 - product.discount_percent) / 100);
-            }
-            return product.price;
-        };
-        const currentSubtotal = cartItems.reduce((sum, item) => sum + getDiscountedPrice(item.products) * item.quantity, 0);
+        const currentSubtotal = cartItems.reduce((sum, item) => {
+            // Calculate price using variant if available, otherwise use product price
+            const price = item.product_variants?.price ?? item.products.price;
+            return sum + price * item.quantity;
+        }, 0);
 
         // Check minimum order
         if (coupon.minimum_order > 0 && currentSubtotal < coupon.minimum_order) {
@@ -373,15 +384,22 @@ export default function Cart() {
         }
     };
 
-    // Calculations - use discounted prices
-    const originalTotal = cartItems.reduce((sum, item) => sum + item.products.price * item.quantity, 0);
-    const subtotal = cartItems.reduce((sum, item) => {
-        const price = item.products.discount_percent && item.products.discount_percent > 0
-            ? Math.round(item.products.price * (100 - item.products.discount_percent) / 100)
-            : item.products.price;
-        return sum + price * item.quantity;
-    }, 0);
-    const productSavings = originalTotal - subtotal; // Savings from product discounts
+    // Helper function to get effective price for a cart item
+    const getItemPrice = (item: CartItem): number => {
+        // Use variant price if variant exists, otherwise use product price
+        return item.product_variants?.price ?? item.products.price;
+    };
+
+    // Helper function to get effective MRP for a cart item
+    const getItemMrp = (item: CartItem): number => {
+        // Use variant MRP if variant exists, otherwise use product MRP
+        return item.product_variants?.mrp ?? item.products.mrp ?? item.products.price;
+    };
+
+    // Calculations - use selling prices (variant price or product price)
+    const originalTotal = cartItems.reduce((sum, item) => sum + getItemMrp(item) * item.quantity, 0);
+    const subtotal = cartItems.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
+    const productSavings = originalTotal - subtotal; // Savings from MRP vs selling price
     const discount = promoApplied ? (subtotal * promoDiscount / 100) : 0;
     const deliveryFee = subtotal > 200 ? 0 : 25;
     const finalTotal = subtotal - discount + deliveryFee;
@@ -491,29 +509,37 @@ export default function Cart() {
                                                         >
                                                             {item.products.name}
                                                         </p>
-                                                        {item.products.discount_percent && item.products.discount_percent > 0 ? (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="text-xs text-green-600 font-semibold">{item.products.discount_percent}% OFF</span>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    ₹{Math.round(item.products.price * (100 - item.products.discount_percent) / 100)} / {item.products.unit}
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground line-through">
-                                                                    ₹{item.products.price}
-                                                                </p>
-                                                            </div>
-                                                        ) : (
-                                                            <p className="text-xs text-muted-foreground">
-                                                                ₹{item.products.price} / {item.products.unit}
-                                                            </p>
+                                                        {/* Show variant name if exists */}
+                                                        {item.product_variants && (
+                                                            <span className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                                                {item.product_variants.variant_name}
+                                                            </span>
                                                         )}
+                                                        {(() => {
+                                                            const price = getItemPrice(item);
+                                                            const mrp = getItemMrp(item);
+                                                            const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+                                                            const unitName = item.product_variants?.variant_name ?? item.products.unit;
+
+                                                            return discount > 0 ? (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-xs text-green-600 font-semibold">{discount}% OFF</span>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        ₹{price} / {unitName}
+                                                                    </p>
+                                                                    <p className="text-xs text-muted-foreground line-through">
+                                                                        ₹{mrp}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    ₹{price} / {unitName}
+                                                                </p>
+                                                            );
+                                                        })()}
                                                     </div>
                                                     <p className="font-bold text-primary whitespace-nowrap">
-                                                        ₹{(() => {
-                                                            const price = item.products.discount_percent && item.products.discount_percent > 0
-                                                                ? Math.round(item.products.price * (100 - item.products.discount_percent) / 100)
-                                                                : item.products.price;
-                                                            return (price * item.quantity).toFixed(0);
-                                                        })()}
+                                                        ₹{(getItemPrice(item) * item.quantity).toFixed(0)}
                                                     </p>
                                                 </div>
 
@@ -622,9 +648,7 @@ export default function Cart() {
                                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
                                         {availableCoupons.map((coupon) => {
                                             const subtotal = cartItems.reduce((sum, item) => {
-                                                const price = item.products.discount_percent && item.products.discount_percent > 0
-                                                    ? Math.round(item.products.price * (100 - item.products.discount_percent) / 100)
-                                                    : item.products.price;
+                                                const price = item.product_variants?.price ?? item.products.price;
                                                 return sum + price * item.quantity;
                                             }, 0);
                                             const isEligible = coupon.minimum_order <= subtotal;

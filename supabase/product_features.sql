@@ -2,6 +2,12 @@
 -- Run this in Supabase SQL Editor to enable RLS and triggers
 
 -- =============================
+-- Add variant_id to cart_items
+-- =============================
+ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES product_variants(id) ON DELETE SET NULL;
+
+
+-- =============================
 -- RLS Policies for product_variants
 -- =============================
 ALTER TABLE product_variants ENABLE ROW LEVEL SECURITY;

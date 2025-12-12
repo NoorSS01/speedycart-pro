@@ -42,6 +42,7 @@ interface Product {
   name: string;
   description: string | null;
   price: number;
+  mrp?: number | null;
   image_url: string | null;
   stock_quantity: number;
   unit: string;
@@ -678,28 +679,46 @@ export default function Shop() {
                         <Package className="h-8 w-8 text-muted-foreground" />
                       </div>
                     )}
-                    {/* Discount Badge */}
-                    {product.discount_percent && product.discount_percent > 0 && (
-                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] font-bold">
-                        {product.discount_percent}% OFF
-                      </div>
-                    )}
+                    {/* Discount Badge - Use MRP if available, fallback to discount_percent */}
+                    {(() => {
+                      const discount = product.mrp && product.mrp > product.price
+                        ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+                        : product.discount_percent || 0;
+                      return discount > 0 ? (
+                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] font-bold">
+                          {discount}% OFF
+                        </div>
+                      ) : null;
+                    })()}
                     {product.stock_quantity <= 5 && product.stock_quantity > 0 && (
                       <Badge className="absolute top-1 right-1 text-[10px] bg-red-500 text-white px-1.5 py-0.5">Low</Badge>
                     )}
                   </div>
                   <CardContent className="p-2">
                     <p className="text-sm font-medium truncate">{product.name}</p>
-                    {product.discount_percent && product.discount_percent > 0 ? (
-                      <div className="flex items-center gap-1">
-                        <p className="text-sm font-bold text-primary">
-                          ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
-                        </p>
-                        <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
-                      </div>
-                    ) : (
-                      <p className="text-sm font-bold text-primary">₹{product.price}</p>
-                    )}
+                    {(() => {
+                      // Prefer MRP-based display over discount_percent
+                      const mrp = product.mrp;
+                      if (mrp && mrp > product.price) {
+                        return (
+                          <div className="flex items-center gap-1">
+                            <p className="text-sm font-bold text-primary">₹{product.price}</p>
+                            <p className="text-xs text-muted-foreground line-through">₹{mrp}</p>
+                          </div>
+                        );
+                      } else if (product.discount_percent && product.discount_percent > 0) {
+                        return (
+                          <div className="flex items-center gap-1">
+                            <p className="text-sm font-bold text-primary">
+                              ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
+                            </p>
+                            <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
+                          </div>
+                        );
+                      } else {
+                        return <p className="text-sm font-bold text-primary">₹{product.price}</p>;
+                      }
+                    })()}
                   </CardContent>
                 </Card>
               </div>
@@ -738,12 +757,17 @@ export default function Shop() {
                   </div>
                 )}
 
-                {/* Discount Badge */}
-                {product.discount_percent && product.discount_percent > 0 && (
-                  <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
-                    {product.discount_percent}% OFF
-                  </div>
-                )}
+                {/* Discount Badge - Use MRP if available */}
+                {(() => {
+                  const discount = product.mrp && product.mrp > product.price
+                    ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+                    : product.discount_percent || 0;
+                  return discount > 0 ? (
+                    <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
+                      {discount}% OFF
+                    </div>
+                  ) : null;
+                })()}
 
                 <CardContent className="p-0">
                   <div
@@ -769,22 +793,40 @@ export default function Shop() {
                     </h3>
                     <div className="flex items-center justify-between">
                       <div>
-                        {product.discount_percent && product.discount_percent > 0 ? (
-                          <>
-                            <p className="text-lg font-bold text-primary">
-                              ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
-                            </p>
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
-                              <p className="text-xs text-muted-foreground">/ {product.unit}</p>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-lg font-bold text-primary">₹{product.price}</p>
-                            <p className="text-xs text-muted-foreground">/ {product.unit}</p>
-                          </>
-                        )}
+                        {(() => {
+                          // Prefer MRP-based display
+                          const mrp = product.mrp;
+                          if (mrp && mrp > product.price) {
+                            return (
+                              <>
+                                <p className="text-lg font-bold text-primary">₹{product.price}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-xs text-muted-foreground line-through">₹{mrp}</p>
+                                  <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                                </div>
+                              </>
+                            );
+                          } else if (product.discount_percent && product.discount_percent > 0) {
+                            return (
+                              <>
+                                <p className="text-lg font-bold text-primary">
+                                  ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
+                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
+                                  <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                                </div>
+                              </>
+                            );
+                          } else {
+                            return (
+                              <>
+                                <p className="text-lg font-bold text-primary">₹{product.price}</p>
+                                <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                              </>
+                            );
+                          }
+                        })()}
                       </div>
                       <Button
                         size="icon"

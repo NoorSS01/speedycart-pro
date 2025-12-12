@@ -217,12 +217,23 @@ export default function ProductDetail() {
 
         setAddingToCart(true);
 
-        const { data: existingItem } = await supabase
+        const variantId = selectedVariant?.id || null;
+
+        // Check for existing cart item with same product AND variant
+        let query = supabase
             .from('cart_items')
             .select('*')
             .eq('user_id', user.id)
-            .eq('product_id', product.id)
-            .single();
+            .eq('product_id', product.id);
+
+        // Handle variant matching (both null or same id)
+        if (variantId) {
+            query = query.eq('variant_id', variantId);
+        } else {
+            query = query.is('variant_id', null);
+        }
+
+        const { data: existingItem } = await query.single();
 
         if (existingItem) {
             const newQty = existingItem.quantity + quantity;
@@ -238,10 +249,16 @@ export default function ProductDetail() {
         } else {
             await supabase
                 .from('cart_items')
-                .insert({ user_id: user.id, product_id: product.id, quantity });
+                .insert({
+                    user_id: user.id,
+                    product_id: product.id,
+                    quantity,
+                    variant_id: variantId
+                });
         }
 
-        toast.success(`Added ${quantity} to cart`);
+        const variantName = selectedVariant ? ` (${selectedVariant.variant_name})` : '';
+        toast.success(`Added ${quantity}${variantName} to cart`);
         refreshCart(); // Instant badge update
         setAddingToCart(false);
     };
