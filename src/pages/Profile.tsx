@@ -106,11 +106,28 @@ export default function Profile() {
   const saveProfile = async () => {
     if (!user) return;
 
-    // Validate phone (if provided)
+    // Validate phone format (if provided)
     if (profile.phone && profile.phone.length > 0) {
       const digitsOnly = profile.phone.replace(/\D/g, '');
       if (digitsOnly.length !== 10 && !profile.phone.startsWith('+91')) {
         toast.error('Please enter a valid 10-digit phone number');
+        return;
+      }
+
+      // Check if phone number is already used by another account
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', profile.phone)
+        .neq('id', user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Phone check error:', checkError);
+      }
+
+      if (existingUser) {
+        toast.error('This phone number is already registered with another account');
         return;
       }
     }
