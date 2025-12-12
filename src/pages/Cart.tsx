@@ -427,33 +427,34 @@ export default function Cart() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-44">
-            {/* Header */}
-            <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-sm">
-                <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
-                        <ArrowLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-                            <ShoppingCart className="h-4 w-4 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold">Your Cart</h1>
-                            <p className="text-xs text-muted-foreground">{cartItems.length} items</p>
+            {/* Header + Savings Banner - Both sticky */}
+            <div className="sticky top-0 z-40">
+                <header className="border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-sm">
+                    <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+                        <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+                                <ShoppingCart className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-bold">Your Cart</h1>
+                                <p className="text-xs text-muted-foreground">{cartItems.length} items</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </header>
+                </header>
 
-            {/* Savings Banner - Inspired by reference design */}
-            {cartItems.length > 0 && productSavings > 0 && (
-                <div className="bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 text-white py-2.5 text-center shadow-lg">
-                    <p className="text-sm font-medium">
-                        <span className="font-bold">₹{productSavings.toFixed(0)}</span>
-                        <span className="text-purple-200"> saved on this order</span>
-                    </p>
-                </div>
-            )}
+                {/* Savings Banner - Green theme matching website */}
+                {cartItems.length > 0 && productSavings > 0 && (
+                    <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 text-white py-2 text-center shadow-md">
+                        <p className="text-sm font-medium">
+                            You save <span className="font-bold">₹{productSavings.toFixed(0)}</span>
+                        </p>
+                    </div>
+                )}
+            </div>
 
             <main className="container mx-auto px-4 py-4 space-y-4 max-w-2xl">
                 {/* Delivery estimate */}
