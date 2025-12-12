@@ -677,7 +677,7 @@ export default function Admin() {
                             </div>
                           </div>
                           <div className="flex gap-1.5 ml-2">
-                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10" onClick={() => handleEditProduct(product)}>
+                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10" onClick={() => navigate(`/admin/add-product?id=${product.id}`)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteProduct(product.id)}>

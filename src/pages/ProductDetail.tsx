@@ -43,11 +43,22 @@ interface Product {
     name: string;
     description: string | null;
     price: number;
+    mrp?: number | null;
     image_url: string | null;
     stock_quantity: number;
     unit: string;
     category_id: string | null;
     discount_percent?: number | null;
+}
+
+interface ProductVariant {
+    id: string;
+    variant_name: string;
+    variant_value: number;
+    variant_unit: string;
+    price: number;
+    mrp: number | null;
+    is_default: boolean | null;
 }
 
 interface ProductReview {
@@ -79,6 +90,8 @@ export default function ProductDetail() {
     const [showInfo, setShowInfo] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [variants, setVariants] = useState<ProductVariant[]>([]);
+    const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
     const { trackView } = useRecommendations();
     const { products: frequentlyBought, isLoading: frequentlyBoughtLoading } = useFrequentlyBoughtTogether(id);
 
@@ -86,6 +99,7 @@ export default function ProductDetail() {
         if (id) {
             fetchProduct();
             fetchReviews();
+            fetchVariants();
         }
     }, [id]);
 
@@ -154,6 +168,28 @@ export default function ProductDetail() {
             setRelatedProducts(data);
         }
     };
+
+    const fetchVariants = async () => {
+        if (!id) return;
+
+        try {
+            const { data, error } = await supabase
+                .from('product_variants')
+                .select('*')
+                .eq('product_id', id)
+                .order('display_order');
+
+            if (!error && data && data.length > 0) {
+                setVariants(data as ProductVariant[]);
+                // Set default variant or first one
+                const defaultVariant = data.find(v => v.is_default) || data[0];
+                setSelectedVariant(defaultVariant as ProductVariant);
+            }
+        } catch (e) {
+            console.log('Product variants table may not exist yet');
+        }
+    };
+
 
     const fetchSavedAddress = async () => {
         if (!user) return;
@@ -416,11 +452,19 @@ export default function ProductDetail() {
                     </div>
                 )}
                 {/* Discount Badge - Top Left */}
-                {product.discount_percent && product.discount_percent > 0 && (
-                    <div className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg">
-                        {product.discount_percent}% OFF
-                    </div>
-                )}
+                {(() => {
+                    const displayMrp = selectedVariant?.mrp ?? product.mrp;
+                    const displayPrice = selectedVariant?.price ?? product.price;
+                    const discount = displayMrp && displayMrp > displayPrice
+                        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
+                        : 0;
+
+                    return discount > 0 ? (
+                        <div className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg">
+                            {discount}% OFF
+                        </div>
+                    ) : null;
+                })()}
                 {isLowStock && (
                     <Badge className="absolute top-4 right-4 bg-red-500 text-white">Only {product.stock_quantity} left!</Badge>
                 )}
@@ -435,22 +479,96 @@ export default function ProductDetail() {
             <div className="container mx-auto px-4 py-4 space-y-4">
                 <div>
                     <h1 className="text-2xl font-bold">{product.name}</h1>
-                    <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-baseline gap-2">
-                            {product.discount_percent && product.discount_percent > 0 ? (
-                                <>
-                                    <span className="text-3xl font-bold text-primary">
-                                        ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
-                                    </span>
-                                    <span className="text-lg text-muted-foreground line-through">₹{product.price}</span>
-                                    <span className="text-muted-foreground">/ {product.unit}</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span className="text-3xl font-bold text-primary">₹{product.price}</span>
-                                    <span className="text-muted-foreground">/ {product.unit}</span>
-                                </>
-                            )}
+
+                    {/* Variant Selector */}
+                    {variants.length > 0 && (
+                        <div className="mt-4">
+                            <p className="text-sm text-muted-foreground mb-2">Select Size/Quantity:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {variants.map(variant => {
+                                    const isSelected = selectedVariant?.id === variant.id;
+                                    const variantDiscount = variant.mrp ? Math.round(((variant.mrp - variant.price) / variant.mrp) * 100) : 0;
+                                    return (
+                                        <button
+                                            key={variant.id}
+                                            onClick={() => setSelectedVariant(variant)}
+                                            className={`relative p-3 rounded-xl border-2 transition-all min-w-[100px] ${isSelected
+                                                ? 'border-primary bg-primary/5 shadow-md'
+                                                : 'border-border hover:border-primary/50'
+                                                }`}
+                                        >
+                                            {variantDiscount > 0 && (
+                                                <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                                    {variantDiscount}% OFF
+                                                </span>
+                                            )}
+                                            <p className="font-semibold text-sm">{variant.variant_name}</p>
+                                            <p className="text-primary font-bold">₹{variant.price}</p>
+                                            {variant.mrp && variant.mrp > variant.price && (
+                                                <p className="text-xs text-muted-foreground line-through">₹{variant.mrp}</p>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pricing Display */}
+                    <div className="flex items-center justify-between mt-4">
+                        <div className="flex flex-col">
+                            <div className="flex items-baseline gap-2">
+                                {(() => {
+                                    // Use selected variant price if available, otherwise use product price
+                                    const displayPrice = selectedVariant?.price ?? product.price;
+                                    const displayMrp = selectedVariant?.mrp ?? product.mrp;
+                                    const displayUnit = selectedVariant?.variant_name ?? product.unit;
+                                    const discount = displayMrp ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100) : 0;
+
+                                    return (
+                                        <>
+                                            <span className="text-3xl font-bold text-primary">₹{displayPrice}</span>
+                                            {displayMrp && displayMrp > displayPrice && (
+                                                <span className="text-lg text-muted-foreground line-through">₹{displayMrp}</span>
+                                            )}
+                                            <span className="text-muted-foreground">/ {displayUnit}</span>
+                                            {discount > 0 && !selectedVariant && (
+                                                <span className="ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-semibold rounded">
+                                                    {discount}% OFF
+                                                </span>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Price per 100g for weighted items */}
+                            {(() => {
+                                const variantUnit = selectedVariant?.variant_unit ?? product.unit;
+                                const variantValue = selectedVariant?.variant_value ?? 1;
+                                const variantPrice = selectedVariant?.price ?? product.price;
+
+                                // Calculate price per 100g for kg/g items
+                                if (['kg', 'g'].includes(variantUnit)) {
+                                    const grams = variantUnit === 'kg' ? variantValue * 1000 : variantValue;
+                                    const pricePer100g = (variantPrice / grams) * 100;
+                                    return (
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            ₹{pricePer100g.toFixed(2)} per 100g
+                                        </p>
+                                    );
+                                }
+                                // Calculate price per unit for dozen/pack items
+                                if (['dozen', 'pack', 'box'].includes(variantUnit) && variantValue > 1) {
+                                    const pricePerUnit = variantPrice / variantValue;
+                                    return (
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            ₹{pricePerUnit.toFixed(2)} per piece
+                                        </p>
+                                    );
+                                }
+                                return null;
+                            })()}
                         </div>
                         {averageRating && (
                             <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded-full">

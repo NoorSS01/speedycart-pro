@@ -17,7 +17,9 @@ import {
     TrendingUp,
     Boxes,
     RefreshCw,
-    Save
+    Save,
+    Plus,
+    Minus
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -132,6 +134,35 @@ export default function AdminStock() {
                 delete updated[productId];
                 return updated;
             });
+        }
+
+        setSavingIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(productId);
+            return updated;
+        });
+    };
+
+    // Quick +/- stock adjustment (instant update)
+    const quickAdjustStock = async (productId: string, delta: number) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+
+        const newStock = Math.max(0, product.stock_quantity + delta);
+
+        setSavingIds(prev => new Set(prev).add(productId));
+
+        const { error } = await supabase
+            .from('products')
+            .update({ stock_quantity: newStock })
+            .eq('id', productId);
+
+        if (error) {
+            toast.error('Failed to update stock');
+        } else {
+            setProducts(prev =>
+                prev.map(p => p.id === productId ? { ...p, stock_quantity: newStock } : p)
+            );
         }
 
         setSavingIds(prev => {
@@ -445,14 +476,32 @@ export default function AdminStock() {
                                                     <span className="text-xs text-muted-foreground ml-1">{product.unit}s</span>
                                                 </td>
                                                 <td className="py-3 px-4">
-                                                    <div className="flex items-center justify-center gap-2">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Button
+                                                            size="icon"
+                                                            variant="outline"
+                                                            className="h-8 w-8 rounded-full"
+                                                            onClick={() => quickAdjustStock(product.id, -1)}
+                                                            disabled={isSaving || product.stock_quantity === 0}
+                                                        >
+                                                            <Minus className="h-4 w-4" />
+                                                        </Button>
                                                         <Input
                                                             type="number"
                                                             min="0"
                                                             value={isEditing ? editingStock[product.id] : product.stock_quantity}
                                                             onChange={(e) => handleStockChange(product.id, e.target.value)}
-                                                            className="w-24 text-center"
+                                                            className="w-16 text-center"
                                                         />
+                                                        <Button
+                                                            size="icon"
+                                                            variant="outline"
+                                                            className="h-8 w-8 rounded-full"
+                                                            onClick={() => quickAdjustStock(product.id, 1)}
+                                                            disabled={isSaving}
+                                                        >
+                                                            <Plus className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </td>
                                                 <td className="py-3 px-4">
