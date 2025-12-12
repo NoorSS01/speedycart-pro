@@ -151,6 +151,23 @@ export default function Admin() {
   const [isLocked, setIsLocked] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'none' | 'pending' | 'paid'>('none');
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [lockoutChecked, setLockoutChecked] = useState(false);
+
+  // Fetch lockout status - defined before useEffect that uses it
+  const fetchLockoutStatus = async () => {
+    const supabaseAny = supabase as any;
+    const { data, error } = await supabaseAny
+      .from('admin_settings')
+      .select('*')
+      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .single();
+
+    if (data && !error) {
+      setIsLocked(data.is_locked || false);
+      setPaymentStatus(data.payment_status || 'none');
+    }
+    setLockoutChecked(true);
+  };
 
   // Check admin access
   useEffect(() => {
@@ -177,6 +194,13 @@ export default function Admin() {
       return;
     }
 
+    // Fetch lockout status first for admins (not super_admin)
+    if (userRole === 'admin') {
+      fetchLockoutStatus();
+    } else {
+      setLockoutChecked(true); // Super admins bypass lockout
+    }
+
     fetchData();
     subscribeToChanges();
   }, [user, userRole, authLoading, navigate]);
@@ -200,44 +224,19 @@ export default function Admin() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'malicious_activities' }, fetchMaliciousActivities)
       .subscribe();
 
+    // Subscribe to lockout changes for real-time updates
+    const supabaseAny = supabase as any;
+    const lockoutChannel = supabaseAny
+      .channel('admin-lockout-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_settings' }, fetchLockoutStatus)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(maliciousChannel);
+      supabase.removeChannel(lockoutChannel);
     };
   };
-
-  // Fetch lockout status
-  const fetchLockoutStatus = async () => {
-    const supabaseAny = supabase as any;
-    const { data, error } = await supabaseAny
-      .from('admin_settings')
-      .select('*')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
-      .single();
-
-    if (data && !error) {
-      setIsLocked(data.is_locked || false);
-      setPaymentStatus(data.payment_status || 'none');
-    }
-  };
-
-  // Check lockout status on mount and subscribe to changes
-  useEffect(() => {
-    if (userRole === 'admin') {
-      fetchLockoutStatus();
-
-      // Subscribe to changes in admin_settings
-      const supabaseAny = supabase as any;
-      const lockoutChannel = supabaseAny
-        .channel('admin-lockout')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_settings' }, fetchLockoutStatus)
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(lockoutChannel);
-      };
-    }
-  }, [userRole]);
 
   // Mark as paid by admin
   const markAsPaid = async () => {
@@ -518,6 +517,18 @@ export default function Admin() {
   // Don't render if not admin (redirect will happen)
   if (userRole !== 'admin' && userRole !== 'super_admin') {
     return null;
+  }
+
+  // Wait for lockout status to be checked before rendering (only for admin, not super_admin)
+  if (userRole === 'admin' && !lockoutChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking access...</p>
+        </div>
+      </div>
+    );
   }
 
   // Show lockout overlay if admin is locked (but not for super_admin)

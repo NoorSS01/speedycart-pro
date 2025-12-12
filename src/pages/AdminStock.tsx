@@ -52,6 +52,25 @@ export default function AdminStock() {
     const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    // Lockout state
+    const [isLocked, setIsLocked] = useState(false);
+    const [lockoutChecked, setLockoutChecked] = useState(false);
+
+    // Fetch lockout status
+    const fetchLockoutStatus = async () => {
+        const supabaseAny = supabase as any;
+        const { data, error } = await supabaseAny
+            .from('admin_settings')
+            .select('*')
+            .eq('id', '00000000-0000-0000-0000-000000000001')
+            .single();
+
+        if (data && !error) {
+            setIsLocked(data.is_locked || false);
+        }
+        setLockoutChecked(true);
+    };
+
     useEffect(() => {
         if (authLoading) return;
 
@@ -74,6 +93,13 @@ export default function AdminStock() {
                     break;
             }
             return;
+        }
+
+        // Check lockout for admins
+        if (userRole === 'admin') {
+            fetchLockoutStatus();
+        } else {
+            setLockoutChecked(true);
         }
 
         fetchProducts();
@@ -295,6 +321,24 @@ export default function AdminStock() {
 
     // Don't render if not admin
     if (userRole !== 'admin' && userRole !== 'super_admin') {
+        return null;
+    }
+
+    // Wait for lockout check (only for admin)
+    if (userRole === 'admin' && !lockoutChecked) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Checking access...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Redirect to admin page if locked (will show lockout overlay there)
+    if (isLocked && userRole === 'admin') {
+        navigate('/admin');
         return null;
     }
 
