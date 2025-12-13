@@ -3,26 +3,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import {
     Package,
     AlertTriangle,
-    CheckCircle,
     Search,
-    TrendingDown,
-    TrendingUp,
-    Boxes,
-    RefreshCw,
-    Save,
     Plus,
-    Minus
+    Minus,
+    RefreshCw,
+    Filter,
+    ArrowUpRight
 } from 'lucide-react';
-import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminLayout from '@/components/layouts/AdminLayout';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Product {
     id: string;
@@ -46,510 +50,181 @@ export default function AdminStock() {
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out' | 'good'>('all');
-    const [editingStock, setEditingStock] = useState<Record<string, number>>({});
-    const [editingDiscount, setEditingDiscount] = useState<Record<string, number | null>>({});
+    const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out'>('all');
+    const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
-    const [isRefreshing, setIsRefreshing] = useState(false);
-
-    // Lockout state
-    const [isLocked, setIsLocked] = useState(false);
-    const [lockoutChecked, setLockoutChecked] = useState(false);
-
-    // Fetch lockout status
-    const fetchLockoutStatus = async () => {
-        const supabaseAny = supabase as any;
-        const { data, error } = await supabaseAny
-            .from('admin_settings')
-            .select('*')
-            .eq('id', '00000000-0000-0000-0000-000000000001')
-            .single();
-
-        if (data && !error) {
-            setIsLocked(data.is_locked || false);
-        }
-        setLockoutChecked(true);
-    };
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (authLoading) return;
-
-        if (!user) {
+        if (!authLoading && (!user || (userRole !== 'admin' && userRole !== 'super_admin'))) {
             navigate('/auth');
-            return;
+        } else if (user) {
+            fetchData();
         }
-
-        // Wait for userRole to be loaded
-        if (userRole === null) return;
-
-        // Redirect non-admins
-        if (userRole !== 'admin' && userRole !== 'super_admin') {
-            switch (userRole) {
-                case 'delivery':
-                    navigate('/delivery');
-                    break;
-                default:
-                    navigate('/shop');
-                    break;
-            }
-            return;
-        }
-
-        // Check lockout for admins
-        if (userRole === 'admin') {
-            fetchLockoutStatus();
-        } else {
-            setLockoutChecked(true);
-        }
-
-        fetchProducts();
-        fetchCategories();
     }, [user, userRole, authLoading, navigate]);
 
-    const fetchProducts = async () => {
-        const { data, error } = await supabase
-            .from('products')
-            .select('id, name, price, stock_quantity, unit, image_url, category_id, discount_percent')
-            .order('stock_quantity', { ascending: true });
+    const fetchData = async () => {
+        setIsLoading(true);
+        const [prodRes, catRes] = await Promise.all([
+            supabase.from('products').select('*').order('stock_quantity', { ascending: true }),
+            supabase.from('categories').select('id, name').order('name')
+        ]);
 
-        if (!error && data) {
-            setProducts(data as unknown as Product[]);
-        }
+        if (prodRes.data) setProducts(prodRes.data as unknown as Product[]);
+        if (catRes.data) setCategories(catRes.data);
+        setIsLoading(false);
     };
 
-    const fetchCategories = async () => {
-        const { data } = await supabase.from('categories').select('id, name');
-        if (data) setCategories(data);
-    };
-
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        await fetchProducts();
-        setIsRefreshing(false);
-        toast.success('Stock data refreshed');
-    };
-
-    const handleStockChange = (productId: string, value: string) => {
-        const numValue = parseInt(value) || 0;
-        setEditingStock(prev => ({
-            ...prev,
-            [productId]: Math.max(0, numValue)
-        }));
-    };
-
-    const saveStock = async (productId: string) => {
-        const newStock = editingStock[productId];
-        if (newStock === undefined) return;
-
+    const handleStockUpdate = async (productId: string, newQuantity: number) => {
+        if (newQuantity < 0) return;
         setSavingIds(prev => new Set(prev).add(productId));
+
+        // Optimistic update
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock_quantity: newQuantity } : p));
 
         const { error } = await supabase
             .from('products')
-            .update({ stock_quantity: newStock })
+            .update({ stock_quantity: newQuantity })
             .eq('id', productId);
 
         if (error) {
             toast.error('Failed to update stock');
-        } else {
-            toast.success('Stock updated successfully');
-            setProducts(prev =>
-                prev.map(p => p.id === productId ? { ...p, stock_quantity: newStock } : p)
-            );
-            setEditingStock(prev => {
-                const updated = { ...prev };
-                delete updated[productId];
-                return updated;
-            });
+            // Revert on error
+            fetchData();
         }
 
         setSavingIds(prev => {
-            const updated = new Set(prev);
-            updated.delete(productId);
-            return updated;
+            const next = new Set(prev);
+            next.delete(productId);
+            return next;
         });
     };
 
-    // Quick +/- stock adjustment (instant update)
-    const quickAdjustStock = async (productId: string, delta: number) => {
-        const product = products.find(p => p.id === productId);
-        if (!product) return;
-
-        const newStock = Math.max(0, product.stock_quantity + delta);
-
-        setSavingIds(prev => new Set(prev).add(productId));
-
-        const { error } = await supabase
-            .from('products')
-            .update({ stock_quantity: newStock })
-            .eq('id', productId);
-
-        if (error) {
-            toast.error('Failed to update stock');
-        } else {
-            setProducts(prev =>
-                prev.map(p => p.id === productId ? { ...p, stock_quantity: newStock } : p)
-            );
-        }
-
-        setSavingIds(prev => {
-            const updated = new Set(prev);
-            updated.delete(productId);
-            return updated;
-        });
-    };
-
-    const handleDiscountChange = (productId: string, value: string) => {
-        if (value === '' || value === '-') {
-            setEditingDiscount(prev => ({ ...prev, [productId]: null }));
-            return;
-        }
-        const numValue = parseInt(value) || 0;
-        setEditingDiscount(prev => ({
-            ...prev,
-            [productId]: Math.min(100, Math.max(0, numValue))
-        }));
-    };
-
-    const saveDiscount = async (productId: string) => {
-        const newDiscount = editingDiscount[productId];
-        if (newDiscount === undefined) return;
-
-        setSavingIds(prev => new Set(prev).add(productId));
-
-        const { error } = await supabase
-            .from('products')
-            .update({ discount_percent: newDiscount } as any)
-            .eq('id', productId);
-
-        if (error) {
-            toast.error('Failed to update discount');
-        } else {
-            toast.success(newDiscount ? `${newDiscount}% discount applied!` : 'Discount removed');
-            setProducts(prev =>
-                prev.map(p => p.id === productId ? { ...p, discount_percent: newDiscount } : p)
-            );
-            setEditingDiscount(prev => {
-                const updated = { ...prev };
-                delete updated[productId];
-                return updated;
-            });
-        }
-
-        setSavingIds(prev => {
-            const updated = new Set(prev);
-            updated.delete(productId);
-            return updated;
-        });
-    };
-
-    const getCategoryName = (categoryId: string | null) => {
-        if (!categoryId) return 'Uncategorized';
-        const category = categories.find(c => c.id === categoryId);
-        return category?.name || 'Unknown';
-    };
-
-    const getStockStatus = (stock: number) => {
-        if (stock === 0) return { label: 'Out of Stock', color: 'bg-red-500', textColor: 'text-red-700 dark:text-red-400' };
-        if (stock <= 5) return { label: 'Critical', color: 'bg-red-400', textColor: 'text-red-600 dark:text-red-400' };
-        if (stock <= 10) return { label: 'Low Stock', color: 'bg-orange-400', textColor: 'text-orange-600 dark:text-orange-400' };
-        if (stock <= 25) return { label: 'Medium', color: 'bg-yellow-400', textColor: 'text-yellow-600 dark:text-yellow-400' };
-        return { label: 'In Stock', color: 'bg-green-500', textColor: 'text-green-600 dark:text-green-400' };
-    };
-
-    // Stats calculations
-    const stats = {
-        total: products.length,
-        outOfStock: products.filter(p => p.stock_quantity === 0).length,
-        lowStock: products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 10).length,
-        goodStock: products.filter(p => p.stock_quantity > 10).length,
-        totalUnits: products.reduce((sum, p) => sum + p.stock_quantity, 0)
-    };
-
-    // Filtered products
     const filteredProducts = products.filter(product => {
         const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = selectedCategory === 'all' || product.category_id === selectedCategory;
 
-        if (!matchesSearch) return false;
+        let matchesStatus = true;
+        if (filterStatus === 'low') matchesStatus = product.stock_quantity > 0 && product.stock_quantity <= 10;
+        if (filterStatus === 'out') matchesStatus = product.stock_quantity === 0;
 
-        switch (filterStatus) {
-            case 'out':
-                return product.stock_quantity === 0;
-            case 'low':
-                return product.stock_quantity > 0 && product.stock_quantity <= 10;
-            case 'good':
-                return product.stock_quantity > 10;
-            default:
-                return true;
-        }
+        return matchesSearch && matchesCategory && matchesStatus;
     });
 
-    // Show loading while checking auth
-    if (authLoading || userRole === null) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
-                <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-                    <div className="container mx-auto px-4 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <Skeleton className="h-10 w-10 rounded-xl" />
-                                <Skeleton className="h-7 w-48" />
-                            </div>
-                            <Skeleton className="h-10 w-10 rounded-md" />
-                        </div>
-                    </div>
-                </header>
-                <main className="container mx-auto px-4 py-6 pb-24 space-y-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[1, 2, 3, 4].map(i => (
-                            <Skeleton key={i} className="h-24 rounded-xl" />
-                        ))}
-                    </div>
-                    <div className="flex gap-4">
-                        <Skeleton className="h-10 flex-1" />
-                        <Skeleton className="h-10 w-32" />
-                    </div>
-                    <div className="space-y-3">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <Skeleton key={i} className="h-20 w-full rounded-xl" />
-                        ))}
-                    </div>
-                </main>
-                <AdminBottomNav />
-            </div>
-        );
-    }
-
-    // Don't render if not admin
-    if (userRole !== 'admin' && userRole !== 'super_admin') {
-        return null;
-    }
-
-    // Wait for lockout check (only for admin)
-    if (userRole === 'admin' && !lockoutChecked) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Checking access...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Redirect to admin page if locked (will show lockout overlay there)
-    if (isLocked && userRole === 'admin') {
-        navigate('/admin');
-        return null;
-    }
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-28">
-            {/* Header */}
-            <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg">
-                                <Boxes className="h-5 w-5 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold tracking-tight">Stock Management</h1>
-                                <p className="text-xs text-muted-foreground">Manage your inventory levels</p>
+        <AdminLayout title="Stock Management">
+            {/* Control Bar */}
+            <div className="flex flex-col md:flex-row gap-4 mb-8 sticky top-20 z-20 bg-slate-50/95 dark:bg-slate-900/95 p-4 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-xl shadow-sm">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Input
+                        placeholder="Search products..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                    />
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <SelectTrigger className="w-[140px] bg-white dark:bg-slate-800">
+                            <Filter className="w-3.5 h-3.5 mr-2" />
+                            <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+
+                    <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)} className="w-[240px]">
+                        <TabsList>
+                            <TabsTrigger value="all">All</TabsTrigger>
+                            <TabsTrigger value="low" className="data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700">Low</TabsTrigger>
+                            <TabsTrigger value="out" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">Out</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
+            </div>
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
+                {isLoading ? (
+                    [1, 2, 3, 4, 5, 6].map(i => (
+                        <Card key={i} className="border-0 shadow-sm bg-white/50">
+                            <CardContent className="p-4"><Skeleton className="h-32 w-full rounded-xl" /></CardContent>
+                        </Card>
+                    ))
+                ) : filteredProducts.map((product) => (
+                    <Card key={product.id} className="overflow-hidden border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all bg-white dark:bg-slate-900 group">
+                        <div className="relative h-40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+                            {product.image_url ? (
+                                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                            ) : (
+                                <Package className="w-12 h-12 text-slate-300" />
+                            )}
+
+                            {/* Stock Badge Overlay */}
+                            <div className="absolute top-2 right-2 flex gap-1">
+                                {product.stock_quantity === 0 ? (
+                                    <Badge variant="destructive" className="shadow-lg animate-pulse">Out of Stock</Badge>
+                                ) : product.stock_quantity <= 10 ? (
+                                    <Badge className="bg-amber-500 hover:bg-amber-600 shadow-lg text-white">Low Stock: {product.stock_quantity}</Badge>
+                                ) : null}
                             </div>
                         </div>
-                        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-background/60">
-                            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                    </div>
+
+                        <CardContent className="p-4">
+                            <div className="mb-4">
+                                <h3 className="font-semibold text-slate-900 dark:text-white truncate" title={product.name}>{product.name}</h3>
+                                <p className="text-sm text-slate-500">{categories.find(c => c.id === product.category_id)?.name || 'Uncategorized'}</p>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Stock:</span>
+
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-8 w-8 rounded-full border-slate-200 hover:bg-slate-100 hover:text-red-500 transition-colors"
+                                        onClick={() => handleStockUpdate(product.id, product.stock_quantity - 1)}
+                                        disabled={product.stock_quantity <= 0 || savingIds.has(product.id)}
+                                    >
+                                        <Minus className="w-3 h-3" />
+                                    </Button>
+
+                                    <span className={`w-12 text-center font-bold text-lg ${product.stock_quantity === 0 ? 'text-red-500' :
+                                            product.stock_quantity <= 10 ? 'text-amber-500' :
+                                                'text-emerald-600'
+                                        }`}>
+                                        {savingIds.has(product.id) ? (
+                                            <RefreshCw className="w-4 h-4 animate-spin mx-auto text-slate-400" />
+                                        ) : product.stock_quantity}
+                                    </span>
+
+                                    <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-8 w-8 rounded-full border-slate-200 hover:bg-slate-100 hover:text-emerald-500 transition-colors"
+                                        onClick={() => handleStockUpdate(product.id, product.stock_quantity + 1)}
+                                        disabled={savingIds.has(product.id)}
+                                    >
+                                        <Plus className="w-3 h-3" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {!isLoading && filteredProducts.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                    <Package className="w-16 h-16 mb-4 opacity-20" />
+                    <p>No products found matching your filters.</p>
                 </div>
-            </header>
-
-            <main className="container mx-auto px-4 py-6 pb-28">
-                {/* Stats Grid - Clean & Compact */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-                    {/* All Products */}
-                    <div
-                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'all' ? 'ring-2 ring-white bg-gradient-to-br from-primary to-primary/80' : 'bg-gradient-to-br from-slate-500 to-slate-600'}`}
-                        onClick={() => setFilterStatus('all')}
-                    >
-                        <p className="text-xs opacity-80 font-medium">All Products</p>
-                        <p className="text-2xl font-bold">{stats.total}</p>
-                    </div>
-
-                    {/* Out of Stock */}
-                    <div
-                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'out' ? 'ring-2 ring-white' : ''} bg-gradient-to-br from-red-500 to-red-600`}
-                        onClick={() => setFilterStatus('out')}
-                    >
-                        <p className="text-xs opacity-80 font-medium">Out of Stock</p>
-                        <p className="text-2xl font-bold">{stats.outOfStock}</p>
-                    </div>
-
-                    {/* Low Stock */}
-                    <div
-                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'low' ? 'ring-2 ring-white' : ''} bg-gradient-to-br from-orange-500 to-amber-600`}
-                        onClick={() => setFilterStatus('low')}
-                    >
-                        <p className="text-xs opacity-80 font-medium">Low Stock</p>
-                        <p className="text-2xl font-bold">{stats.lowStock}</p>
-                    </div>
-
-                    {/* Good Stock */}
-                    <div
-                        className={`rounded-xl p-4 text-white shadow-lg cursor-pointer transition-transform hover:scale-105 ${filterStatus === 'good' ? 'ring-2 ring-white' : ''} bg-gradient-to-br from-green-500 to-emerald-600`}
-                        onClick={() => setFilterStatus('good')}
-                    >
-                        <p className="text-xs opacity-80 font-medium">Good Stock</p>
-                        <p className="text-2xl font-bold">{stats.goodStock}</p>
-                    </div>
-
-                    {/* Total Units */}
-                    <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg">
-                        <p className="text-xs opacity-80 font-medium">Total Units</p>
-                        <p className="text-2xl font-bold">{stats.totalUnits.toLocaleString()}</p>
-                    </div>
-                </div>
-
-                {/* Search Bar */}
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search products..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        Showing {filteredProducts.length} of {products.length} products
-                    </p>
-                </div>
-
-                {/* Products List - Mobile-First Card Layout */}
-                <div className="space-y-3">
-                    <h2 className="text-sm font-medium text-muted-foreground">
-                        {filteredProducts.length} Products
-                    </h2>
-
-                    {filteredProducts.map((product) => {
-                        const status = getStockStatus(product.stock_quantity);
-                        const isEditing = editingStock[product.id] !== undefined;
-                        const isSaving = savingIds.has(product.id);
-
-                        return (
-                            <Card
-                                key={product.id}
-                                className={`overflow-hidden ${product.stock_quantity === 0
-                                    ? 'border-red-300 bg-red-50/30 dark:bg-red-950/20'
-                                    : product.stock_quantity <= 10
-                                        ? 'border-orange-300 bg-orange-50/30 dark:bg-orange-950/20'
-                                        : ''
-                                    }`}
-                            >
-                                <CardContent className="p-3">
-                                    <div className="flex gap-3">
-                                        {/* Product Image */}
-                                        <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                                            {product.image_url ? (
-                                                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <Package className="h-6 w-6 text-muted-foreground" />
-                                            )}
-                                        </div>
-
-                                        {/* Product Info */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <h3 className="font-medium text-sm truncate">{product.name}</h3>
-                                                    <p className="text-xs text-muted-foreground">₹{product.price} / {product.unit}</p>
-                                                </div>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={`${status.textColor} border-current text-xs whitespace-nowrap`}
-                                                >
-                                                    {status.label}
-                                                </Badge>
-                                            </div>
-
-                                            {/* Stock Controls */}
-                                            <div className="flex items-center justify-between mt-3 gap-2">
-                                                <div className="flex items-center gap-1">
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        className="h-8 w-8"
-                                                        onClick={() => quickAdjustStock(product.id, -1)}
-                                                        disabled={isSaving || product.stock_quantity === 0}
-                                                    >
-                                                        <Minus className="h-4 w-4" />
-                                                    </Button>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        value={isEditing ? editingStock[product.id] : product.stock_quantity}
-                                                        onChange={(e) => handleStockChange(product.id, e.target.value)}
-                                                        className="w-16 h-8 text-center text-sm"
-                                                    />
-                                                    <Button
-                                                        size="icon"
-                                                        variant="outline"
-                                                        className="h-8 w-8"
-                                                        onClick={() => quickAdjustStock(product.id, 1)}
-                                                        disabled={isSaving}
-                                                    >
-                                                        <Plus className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-
-                                                {/* Save button - only show when editing */}
-                                                {isEditing && (
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => saveStock(product.id)}
-                                                        disabled={isSaving}
-                                                        className="h-8"
-                                                    >
-                                                        {isSaving ? (
-                                                            <RefreshCw className="h-4 w-4 animate-spin" />
-                                                        ) : (
-                                                            <>
-                                                                <Save className="h-4 w-4 mr-1" />
-                                                                Save
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                )}
-
-                                                {/* Discount Badge */}
-                                                {product.discount_percent && product.discount_percent > 0 && (
-                                                    <Badge className="bg-green-600 text-white text-xs">
-                                                        {product.discount_percent}% OFF
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-
-                    {filteredProducts.length === 0 && (
-                        <Card className="py-12">
-                            <CardContent className="text-center">
-                                <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                                <p className="text-muted-foreground">No products found</p>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
-            </main>
-
-            {/* Admin Bottom Navigation */}
-            <AdminBottomNav />
-        </div>
+            )}
+        </AdminLayout>
     );
 }

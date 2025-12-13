@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Megaphone } from 'lucide-react';
 import AdminBroadcastNotifications from '@/components/AdminBroadcastNotifications';
-import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminLayout from '@/components/layouts/AdminLayout';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminNotifications() {
@@ -41,51 +41,31 @@ export default function AdminNotifications() {
 
     if (authLoading || userRole === null || !isAdmin) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
-                <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-                    <div className="container mx-auto px-4 py-4">
-                        <div className="flex items-center gap-3">
-                            <Skeleton className="h-10 w-10 rounded-xl" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-6 w-40" />
-                                <Skeleton className="h-3 w-32" />
-                            </div>
-                        </div>
-                    </div>
-                </header>
-                <main className="container mx-auto px-4 py-6 max-w-5xl space-y-4">
+            <AdminLayout title="Broadcast Center">
+                <main className="space-y-4">
                     <Skeleton className="h-64 w-full rounded-xl" />
                     <Skeleton className="h-40 w-full rounded-xl" />
                 </main>
-                <AdminBottomNav />
-            </div>
+            </AdminLayout>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
-            {/* Header */}
-            <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-                <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
-                            <Megaphone className="h-5 w-5 text-white" />
+        <AdminLayout title="Broadcast Center">
+            <main className="max-w-5xl">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                            <Megaphone className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold tracking-tight">Broadcast Center</h1>
-                            <p className="text-xs text-muted-foreground">Send notifications to users</p>
+                            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">New Broadcast</h2>
+                            <p className="text-sm text-slate-500">Send notifications to all users or specific groups.</p>
                         </div>
                     </div>
+                    <AdminBroadcastNotifications />
                 </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="container mx-auto px-4 py-6 max-w-5xl">
-                <AdminBroadcastNotifications />
             </main>
-
-            {/* Admin Bottom Navigation */}
-            <AdminBottomNav />
-        </div>
+        </AdminLayout>
     );
 }

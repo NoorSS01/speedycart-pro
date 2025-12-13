@@ -1,90 +1,43 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  LogOut,
-  Package,
-  ShoppingBag,
-  AlertTriangle,
   TrendingUp,
   Users,
-  Plus,
-  Edit,
-  Trash2,
-  Truck,
-  CheckCircle,
-  XCircle,
-  Calendar,
-  Boxes,
-  Megaphone
+  ShoppingCart,
+  CreditCard,
+  DollarSign,
+  Activity,
+  CalendarRange,
+  ArrowUpRight,
+  ArrowDownRight,
+  AlertTriangle,
+  Package
 } from 'lucide-react';
-import NotificationBell from '@/components/NotificationBell';
-import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminLayout from '@/components/layouts/AdminLayout';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { format, subDays, startOfDay } from 'date-fns';
 
-type DateRange = 'today' | '7days' | '1month' | '6months' | '1year';
-
-const getDateRangeStart = (range: DateRange): Date => {
-  const now = new Date();
-  const start = new Date(now);
-
-  switch (range) {
-    case 'today':
-      start.setHours(0, 0, 0, 0);
-      break;
-    case '7days':
-      start.setDate(now.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
-      break;
-    case '1month':
-      start.setMonth(now.getMonth() - 1);
-      start.setHours(0, 0, 0, 0);
-      break;
-    case '6months':
-      start.setMonth(now.getMonth() - 6);
-      start.setHours(0, 0, 0, 0);
-      break;
-    case '1year':
-      start.setFullYear(now.getFullYear() - 1);
-      start.setHours(0, 0, 0, 0);
-      break;
-  }
-  return start;
-};
-
-const dateRangeLabels: Record<DateRange, string> = {
-  'today': 'Today',
-  '7days': 'Last 7 Days',
-  '1month': 'Last 1 Month',
-  '6months': 'Last 6 Months',
-  '1year': 'Last 1 Year'
-};
-
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  stock_quantity: number;
-  unit: string;
-  category_id: string | null;
-}
-
-interface Category {
-  id: string;
-  name: string;
-}
-
+// Types
 interface Order {
   id: string;
   created_at: string;
@@ -92,907 +45,362 @@ interface Order {
   total_amount: number;
   delivery_address: string;
   user_id: string;
+  profiles?: { full_name: string | null } | null;
 }
 
-interface MaliciousActivity {
-  id: string;
-  activity_type: string;
-  description: string;
-  detected_at: string;
-  order_id: string | null;
-  user_id: string | null;
-  delivery_person_id: string | null;
-}
+type DateRange = 'today' | '7days' | '30days' | 'year';
 
-interface DeliveryApplication {
-  id: string;
-  user_id: string;
-  full_name: string;
-  phone: string;
-  vehicle_type: string;
-  license_number: string | null;
-  status: string;
-  created_at: string;
-}
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']; // Emerald, Blue, Amber, Red
 
 export default function Admin() {
-  const { user, userRole, loading: authLoading, signOut } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [maliciousActivities, setMaliciousActivities] = useState<MaliciousActivity[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, { full_name: string | null; phone: string | null }>>({});
-  const [deliveryApplications, setDeliveryApplications] = useState<DeliveryApplication[]>([]);
-  const [stats, setStats] = useState({
-    totalOrders: 0,
-    pendingOrders: 0,
-    deliveredOrders: 0,
-    revenue: 0,
-    commissionDeveloper: 0,
-    commissionDelivery: 0,
-    profit: 0
-  });
-  const [loadingData, setLoadingData] = useState(true);
-
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState({
-    name: '',
-    description: '',
-    price: '',
-    stock_quantity: '',
-    unit: 'piece',
-    category_id: '',
-    image_url: ''
-  });
-  const [dateRange, setDateRange] = useState<DateRange>('today');
-
-  // Admin lockout state
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange>('7days');
   const [isLocked, setIsLocked] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'none' | 'pending' | 'paid'>('none');
-  const [markingPaid, setMarkingPaid] = useState(false);
-  const [lockoutChecked, setLockoutChecked] = useState(false);
 
-  // Fetch lockout status - defined before useEffect that uses it
-  const fetchLockoutStatus = async () => {
-    const supabaseAny = supabase as any;
-    const { data, error } = await supabaseAny
-      .from('admin_settings')
-      .select('*')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
-      .single();
-
-    if (data && !error) {
-      setIsLocked(data.is_locked || false);
-      setPaymentStatus(data.payment_status || 'none');
-    }
-    setLockoutChecked(true);
-  };
-
-  // Check admin access
+  // Check Access
   useEffect(() => {
-    if (authLoading) return;
-
-    if (!user) {
+    if (!authLoading && (!user || (userRole !== 'admin' && userRole !== 'super_admin'))) {
       navigate('/auth');
-      return;
     }
-
-    // Wait for userRole to be loaded
-    if (userRole === null) return;
-
-    // Redirect non-admins to their appropriate page
-    if (userRole !== 'admin' && userRole !== 'super_admin') {
-      switch (userRole) {
-        case 'delivery':
-          navigate('/delivery');
-          break;
-        default:
-          navigate('/shop');
-          break;
-      }
-      return;
-    }
-
-    // Fetch lockout status first for admins (not super_admin)
-    if (userRole === 'admin') {
-      fetchLockoutStatus();
-    } else {
-      setLockoutChecked(true); // Super admins bypass lockout
-    }
-
-    fetchData();
-    subscribeToChanges();
   }, [user, userRole, authLoading, navigate]);
 
-  // Refetch data when date range changes
+  // Fetch Data
   useEffect(() => {
-    if (user) {
-      fetchOrders();
-      fetchStats();
-    }
-  }, [dateRange]);
-
-  const subscribeToChanges = () => {
-    const ordersChannel = supabase
-      .channel('admin-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchOrders)
-      .subscribe();
-
-    const maliciousChannel = supabase
-      .channel('admin-malicious')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'malicious_activities' }, fetchMaliciousActivities)
-      .subscribe();
-
-    // Subscribe to lockout changes for real-time updates
-    const supabaseAny = supabase as any;
-    const lockoutChannel = supabaseAny
-      .channel('admin-lockout-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_settings' }, fetchLockoutStatus)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(ordersChannel);
-      supabase.removeChannel(maliciousChannel);
-      supabase.removeChannel(lockoutChannel);
-    };
-  };
-
-  // Mark as paid by admin
-  const markAsPaid = async () => {
-    setMarkingPaid(true);
-    const supabaseAny = supabase as any;
-    const { error } = await supabaseAny
-      .from('admin_settings')
-      .update({
-        payment_status: 'paid',
-        paid_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', '00000000-0000-0000-0000-000000000001');
-
-    if (error) {
-      toast.error('Failed to mark as paid');
-    } else {
-      toast.success('Payment marked! Waiting for developer confirmation.');
-      fetchLockoutStatus();
-    }
-    setMarkingPaid(false);
-  };
+    if (user) fetchData();
+  }, [user, dateRange]);
 
   const fetchData = async () => {
-    setLoadingData(true);
-    await Promise.all([
-      fetchProducts(),
-      fetchCategories(),
-      fetchOrders(),
-      fetchMaliciousActivities(),
-      fetchDeliveryApplications(),
-      fetchStats()
-    ]);
-    setLoadingData(false);
-  };
-
-  const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('name');
-    if (data) setProducts(data);
-  };
-
-  const fetchCategories = async () => {
-    const { data } = await supabase.from('categories').select('id, name').order('name');
-    if (data) setCategories(data);
-  };
-
-  const fetchOrders = async () => {
-    const startDate = getDateRangeStart(dateRange).toISOString();
-    const { data } = await supabase
-      .from('orders')
-      .select('*')
-      .gte('created_at', startDate)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    if (data) setOrders(data);
-  };
-
-  const fetchMaliciousActivities = async () => {
-    const { data } = await supabase
-      .from('malicious_activities')
-      .select('*')
-      .order('detected_at', { ascending: false });
-    if (data) {
-      setMaliciousActivities(data);
-
-      const profileIds = Array.from(
-        new Set(
-          data
-            .flatMap((activity) => [activity.user_id, activity.delivery_person_id])
-            .filter((id): id is string => Boolean(id))
-        )
-      );
-
-      if (profileIds.length === 0) {
-        setProfiles({});
-        return;
+    setLoading(true);
+    try {
+      const now = new Date();
+      let startDate = new Date();
+      switch (dateRange) {
+        case 'today': startDate = startOfDay(now); break;
+        case '7days': startDate = subDays(now, 7); break;
+        case '30days': startDate = subDays(now, 30); break;
+        case 'year': startDate = subDays(now, 365); break;
       }
 
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', profileIds);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, profiles(full_name)')
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: true }); // Ascending for chart
 
-      if (!profilesError && profilesData) {
-        const profileMap: Record<string, { full_name: string | null; phone: string | null }> = {};
-        profilesData.forEach((profile: any) => {
-          profileMap[profile.id] = {
-            full_name: profile.full_name ?? null,
-            phone: profile.phone ?? null
-          };
-        });
-        setProfiles(profileMap);
+      if (error) throw error;
+      if (data) setOrders(data);
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate Stats & Chart Data
+  const { chartData, pieData, summary } = useMemo(() => {
+    if (!orders.length) return { chartData: [], pieData: [], summary: { revenue: 0, orders: 0, avgOrderValue: 0, pending: 0 } };
+
+    const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+    const avgVal = totalRevenue / orders.length;
+    const pendingCount = orders.filter(o => o.status === 'pending').length;
+
+    const dateMap = new Map();
+
+    // Initialize days for charts if not today
+    if (dateRange !== 'today') {
+      const days = dateRange === '7days' ? 7 : dateRange === '30days' ? 30 : 12;
+      for (let i = 0; i < days; i++) {
+        const d = subDays(new Date(), i);
+        const key = format(d, 'MMM dd');
+        dateMap.set(key, { name: key, revenue: 0, orders: 0 });
       }
     }
-  };
 
-  const fetchDeliveryApplications = async () => {
-    const { data } = await supabase
-      .from('delivery_applications')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (data) setDeliveryApplications(data);
-  };
-
-  const fetchStats = async () => {
-    const startDate = getDateRangeStart(dateRange).toISOString();
-    const { data: ordersData } = await supabase
-      .from('orders')
-      .select('status, total_amount, created_at')
-      .gte('created_at', startDate);
-
-    if (ordersData) {
-      const totalOrders = ordersData.length;
-      const pendingOrders = ordersData.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'out_for_delivery').length;
-      const deliveredOrders = ordersData.filter(o => o.status === 'delivered').length;
-      const revenue = ordersData.filter(o => o.status === 'delivered').reduce((sum, o) => sum + Number(o.total_amount), 0);
-      const commissionDeveloper = deliveredOrders * 4; // ₹4 per delivered order to website builder
-      const commissionDelivery = deliveredOrders * 5;  // ₹5 per delivered order to delivery partners
-      const profit = revenue - commissionDeveloper - commissionDelivery;
-
-      setStats({
-        totalOrders,
-        pendingOrders,
-        deliveredOrders,
-        revenue,
-        commissionDeveloper,
-        commissionDelivery,
-        profit
-      });
-    }
-  };
-
-  const handleSaveProduct = async () => {
-    if (!productForm.name || !productForm.price || !productForm.category_id) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    const productData = {
-      name: productForm.name,
-      description: productForm.description || null,
-      price: parseFloat(productForm.price),
-      stock_quantity: parseInt(productForm.stock_quantity) || 0,
-      unit: productForm.unit,
-      category_id: productForm.category_id,
-      image_url: productForm.image_url || null,
-      is_active: true
-    };
-
-    if (editingProduct) {
-      const { error } = await supabase.from('products').update(productData).eq('id', editingProduct.id);
-      if (error) {
-        toast.error('Failed to update product');
+    orders.forEach(order => {
+      const date = new Date(order.created_at);
+      const key = format(date, 'MMM dd');
+      // If today, map by hour? For simplicity, we stick to days or just list points for today
+      if (dateRange === 'today') {
+        const hourKey = format(date, 'HH:00');
+        if (!dateMap.has(hourKey)) dateMap.set(hourKey, { name: hourKey, revenue: 0, orders: 0 });
+        dateMap.get(hourKey).revenue += Number(order.total_amount);
+        dateMap.get(hourKey).orders += 1;
       } else {
-        toast.success('Product updated successfully');
-        resetForm();
-        fetchProducts();
-      }
-    } else {
-      const { error } = await supabase.from('products').insert(productData);
-      if (error) {
-        toast.error('Failed to create product');
-      } else {
-        toast.success('Product created successfully');
-        resetForm();
-        fetchProducts();
-      }
-    }
-  };
-
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      description: product.description || '',
-      price: product.price.toString(),
-      stock_quantity: product.stock_quantity?.toString() || '0',
-      unit: product.unit || 'piece',
-      category_id: product.category_id || '',
-      image_url: product.image_url || ''
-    });
-  };
-
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-
-    const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) {
-      toast.error('Failed to delete product');
-    } else {
-      toast.success('Product deleted successfully');
-      fetchProducts();
-    }
-  };
-
-  const resetForm = () => {
-    setEditingProduct(null);
-    setProductForm({
-      name: '',
-      description: '',
-      price: '',
-      stock_quantity: '',
-      unit: 'piece',
-      category_id: '',
-      image_url: ''
-    });
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
-  const handleApplicationAction = async (applicationId: string, action: 'approved' | 'rejected') => {
-    const { error } = await supabase
-      .from('delivery_applications')
-      .update({ status: action })
-      .eq('id', applicationId);
-
-    if (error) {
-      toast.error(`Failed to ${action === 'approved' ? 'approve' : 'reject'} application`);
-      return;
-    }
-
-    // If approved, add delivery role to user
-    if (action === 'approved') {
-      const application = deliveryApplications.find(app => app.id === applicationId);
-      if (application) {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({ user_id: application.user_id, role: 'delivery' });
-
-        if (roleError) {
-          console.error('Role assignment error:', roleError);
-          toast.error('Application approved but failed to assign role');
-        } else {
-          toast.success('Application approved! User is now a delivery partner.');
+        if (dateMap.has(key)) {
+          const entry = dateMap.get(key);
+          entry.revenue += Number(order.total_amount);
+          entry.orders += 1;
         }
       }
-    } else {
-      toast.success('Application rejected');
-    }
+    });
 
-    fetchDeliveryApplications();
-  };
+    const chartDataArray = Array.from(dateMap.values()).reverse(); // If initialized backward
+    // Actually, if we initialized subDays(0), subDays(1)... that's reverse chrono.
+    // We want chrono. So reverse it to get oldest first.
 
-  // Show loading while checking auth
-  if (authLoading || userRole === null) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 p-6 flex flex-col gap-6">
-        <div className="flex justify-between items-center">
-          <div className="flex gap-4 items-center">
-            <Skeleton className="h-10 w-10 rounded-xl" />
-            <div className="space-y-2">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <Skeleton className="h-10 w-10 rounded-md" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <Skeleton key={i} className="h-32 rounded-lg" />
-          ))}
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-full md:w-1/2" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </div>
-      </div>
-    );
-  }
+    const statusCounts: Record<string, number> = {};
+    orders.forEach(o => {
+      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+    });
+    const pieDataArray = Object.keys(statusCounts).map(status => ({
+      name: status.charAt(0).toUpperCase() + status.slice(1),
+      value: statusCounts[status]
+    }));
 
-  // Don't render if not admin (redirect will happen)
-  if (userRole !== 'admin' && userRole !== 'super_admin') {
-    return null;
-  }
+    return {
+      chartData: dateRange === 'today' ? Array.from(dateMap.values()) : chartDataArray,
+      pieData: pieDataArray,
+      summary: {
+        revenue: totalRevenue,
+        orders: orders.length,
+        avgOrderValue: avgVal,
+        pending: pendingCount
+      }
+    };
 
-  // Wait for lockout status to be checked before rendering (only for admin, not super_admin)
-  if (userRole === 'admin' && !lockoutChecked) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Checking access...</p>
-        </div>
-      </div>
-    );
-  }
+  }, [orders, dateRange]);
 
-  // Show lockout overlay if admin is locked (but not for super_admin)
-  if (isLocked && userRole === 'admin') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-900 via-red-800 to-red-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 text-center">
-          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AlertTriangle className="h-10 w-10 text-red-600" />
-          </div>
-
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Access Suspended
-          </h1>
-
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Your admin access has been temporarily suspended. Please complete the pending payment to restore access.
-          </p>
-
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6">
-            <p className="text-amber-800 dark:text-amber-300 font-medium">
-              💰 Payment Required
-            </p>
-            <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-              Please pay the developer what is owed and then click the button below.
-            </p>
-          </div>
-
-          {paymentStatus === 'paid' ? (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
-              <p className="text-green-800 dark:text-green-300 font-medium">
-                ✓ Payment Marked as Paid
-              </p>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                Waiting for developer to confirm receipt. Your access will be restored automatically once confirmed.
-              </p>
-            </div>
-          ) : (
-            <Button
-              onClick={markAsPaid}
-              disabled={markingPaid}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg"
-            >
-              {markingPaid ? 'Processing...' : '✓ I Have Paid'}
-            </Button>
-          )}
-
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="mt-4 text-gray-500"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  if (authLoading) return <AdminLayout><div className="flex justify-center p-8"><Skeleton className="w-full h-96" /></div></AdminLayout>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg">
-                <Package className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold tracking-tight">Admin Dashboard</h1>
-                <p className="text-xs text-muted-foreground">
-                  {dateRangeLabels[dateRange]}
-                </p>
-              </div>
-            </div>
+    <AdminLayout title="Dashboard">
+      {/* Header Actions */}
+      <div className="flex justify-between md:justify-end mb-6 items-center">
+        <h2 className="md:hidden text-lg font-semibold">Overview</h2>
+        <Select value={dateRange} onValueChange={(v: DateRange) => setDateRange(v)}>
+          <SelectTrigger className="w-[140px] md:w-[180px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
+            <CalendarRange className="w-4 h-4 mr-2 text-slate-500" />
+            <SelectValue placeholder="Date Range" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="7days">Last 7 Days</SelectItem>
+            <SelectItem value="30days">Last 30 Days</SelectItem>
+            <SelectItem value="year">Last Year</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground hidden sm:block" />
-                <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
-                  <SelectTrigger className="w-[130px] md:w-[160px] bg-background/60">
-                    <SelectValue placeholder="Select period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="7days">Last 7 Days</SelectItem>
-                    <SelectItem value="1month">Last 1 Month</SelectItem>
-                    <SelectItem value="6months">Last 6 Months</SelectItem>
-                    <SelectItem value="1year">Last 1 Year</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+        <StatsCard
+          title="Total Revenue"
+          value={`₹${summary.revenue.toLocaleString()}`}
+          icon={DollarSign}
+          trend="vs previous"
+          trendUp={true}
+          color="text-emerald-500"
+          loading={loading}
+        />
+        <StatsCard
+          title="Total Orders"
+          value={summary.orders.toString()}
+          icon={ShoppingCart}
+          trend="vs previous"
+          trendUp={true}
+          color="text-blue-500"
+          loading={loading}
+        />
+        <StatsCard
+          title="Avg. Order Value"
+          value={`₹${summary.avgOrderValue.toFixed(0)}`}
+          icon={CreditCard}
+          trend="-2.1%"
+          trendUp={false}
+          color="text-purple-500"
+          loading={loading}
+        />
+        <StatsCard
+          title="Pending Orders"
+          value={summary.pending.toString()}
+          icon={Activity}
+          trend="Action needed"
+          trendUp={true}
+          color={summary.pending > 0 ? "text-amber-500" : "text-slate-500"}
+          loading={loading}
+        />
+      </div>
 
-              <NotificationBell />
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Revenue Chart */}
+        <Card className="lg:col-span-2 border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle>Revenue Trend</CardTitle>
+            <CardDescription>Income over selected period</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            {loading ? (
+              <Skeleton className="w-full h-full rounded-xl" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} minTickGap={30} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} tickFormatter={(v) => `₹${v}`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    formatter={(value: number) => [`₹${value}`, 'Revenue']}
+                  />
+                  <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
 
-              <Button onClick={handleLogout} variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive">
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
+        {/* Order Status Pie */}
+        <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle>Order Status</CardTitle>
+            <CardDescription>Distribution of order states</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            {loading ? (
+              <Skeleton className="w-full h-full rounded-xl" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Orders Table */}
+      <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 dark:border-slate-800/50 pb-4">
+          <div>
+            <CardTitle>Recent Orders</CardTitle>
+            <CardDescription>Latest transactions from users</CardDescription>
           </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6 pb-24">
-        {/* Stats Grid - Clean & Compact */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          {loadingData ? (
-            [1, 2, 3, 4, 5, 6].map(i => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
-            ))
+          <Button variant="outline" size="sm" onClick={() => navigate('/orders')} className="hover:bg-slate-100">View All</Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-4 space-y-4">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
+            </div>
           ) : (
-            <>
-              {/* Revenue */}
-              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-4 text-white shadow-lg">
-                <p className="text-xs opacity-80 font-medium">Total Sales</p>
-                <p className="text-2xl font-bold">₹{stats.revenue.toFixed(0)}</p>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-slate-50/50 dark:bg-slate-800/50">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">Order ID</th>
+                    <th className="px-6 py-4 font-semibold">Customer</th>
+                    <th className="px-6 py-4 font-semibold">Date</th>
+                    <th className="px-6 py-4 font-semibold">Amount</th>
+                    <th className="px-6 py-4 font-semibold">Status</th>
+                    <th className="px-6 py-4 font-semibold text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white/40 dark:bg-slate-900/40">
+                  {orders.slice().reverse().slice(0, 5).map((order) => (
+                    <tr key={order.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                        #{order.id.slice(0, 8)}
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">
+                            {(order.profiles?.full_name || 'G')[0]}
+                          </div>
+                          {order.profiles?.full_name || 'Guest'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">
+                        {format(new Date(order.created_at), 'MMM dd, HH:mm')}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-900 dark:text-white">
+                        ₹{order.total_amount}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant="outline" className={`
+                                                    ${order.status === 'delivered' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                            order.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                              'bg-slate-50 text-slate-600 border-slate-200'}
+                                                `}>
+                          {order.status}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button variant="ghost" size="sm" className="hover:bg-slate-200/50 rounded-full w-8 h-8 p-0" onClick={() => navigate(`/orders?id=${order.id}`)}>
+                          <ArrowUpRight className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {orders.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                        No orders found for this period.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </AdminLayout>
+  );
+}
 
-              {/* Profit */}
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-4 text-white shadow-lg">
-                <p className="text-xs opacity-80 font-medium">Your Profit</p>
-                <p className="text-2xl font-bold">₹{stats.profit.toFixed(0)}</p>
-              </div>
-
-              {/* To Pay */}
-              <div
-                className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-4 text-white shadow-lg cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => navigate('/admin/to-pay')}
-              >
-                <p className="text-xs opacity-80 font-medium">To Pay</p>
-                <p className="text-2xl font-bold">₹{(stats.commissionDeveloper + stats.commissionDelivery).toFixed(0)}</p>
-              </div>
-
-              {/* Total Orders */}
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg">
-                <p className="text-xs opacity-80 font-medium">All Orders</p>
-                <p className="text-2xl font-bold">{stats.totalOrders}</p>
-              </div>
-
-              {/* Pending Orders */}
-              <div className={`rounded-xl p-4 text-white shadow-lg ${stats.pendingOrders > 0 ? 'bg-gradient-to-br from-orange-500 to-red-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
-                <p className="text-xs opacity-80 font-medium">In Progress</p>
-                <p className="text-2xl font-bold">{stats.pendingOrders}</p>
-              </div>
-
-              {/* Delivered */}
-              <div className="bg-gradient-to-br from-primary to-primary/80 rounded-xl p-4 text-white shadow-lg">
-                <p className="text-xs opacity-80 font-medium">Delivered</p>
-                <p className="text-2xl font-bold">{stats.deliveredOrders}</p>
-              </div>
-            </>
+// KPI Card Component
+function StatsCard({ title, value, icon: Icon, trend, trendUp, color, loading }: any) {
+  return (
+    <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm hover:shadow-md transition-all bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl group cursor-pointer hover:-translate-y-1 duration-300">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className={`p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 group-hover:scale-110 transition-transform duration-300 ${color?.replace('text-', 'bg-').replace('500', '50') || ''}`}>
+            <Icon className={`w-6 h-6 ${color || 'text-slate-600'}`} />
+          </div>
+          {trend && (
+            <div className={`flex items-center text-xs font-bold tracking-tight ${trendUp ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' : 'text-slate-500 bg-slate-50'} px-2.5 py-1 rounded-full`}>
+              {trendUp ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+              {trend}
+            </div>
           )}
         </div>
-
-        <Tabs defaultValue="products" className="space-y-4">
-          <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 scrollbar-hide">
-            {loadingData ? (
-              <div className="flex gap-2">
-                <Skeleton className="h-10 w-24 rounded-md" />
-                <Skeleton className="h-10 w-24 rounded-md" />
-                <Skeleton className="h-10 w-32 rounded-md" />
-                <Skeleton className="h-10 w-32 rounded-md" />
-              </div>
-            ) : (
-              <TabsList className="w-auto inline-flex md:grid md:w-full md:grid-cols-4 h-auto p-1">
-                <TabsTrigger value="products" className="px-4 py-2">Products</TabsTrigger>
-                <TabsTrigger value="orders" className="px-4 py-2">Orders</TabsTrigger>
-                <TabsTrigger value="delivery" className="px-4 py-2">Delivery Partners</TabsTrigger>
-                <TabsTrigger value="malicious" className="px-4 py-2">Malicious Activity</TabsTrigger>
-              </TabsList>
-            )}
-          </div>
-
-          <TabsContent value="products" className="space-y-4">
-            {/* Add Product Button */}
-            <Button
-              onClick={() => navigate('/admin/add-product')}
-              className="w-full h-14 text-base font-semibold shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-              size="lg"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Add New Product
-            </Button>
-
-            {/* Products List */}
-            <Card className="border-border/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>All Products</span>
-                  <span className="text-sm font-normal text-muted-foreground">{loadingData ? <Skeleton className="h-4 w-12" /> : `${products.length} items`}</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-border/50">
-                  {loadingData ? (
-                    [1, 2, 3, 4, 5].map(i => (
-                      <div key={i} className="flex items-center justify-between p-4">
-                        <div className="flex items-center gap-3 flex-1">
-                          <Skeleton className="h-12 w-12 rounded-xl" />
-                          <div className="space-y-2">
-                            <Skeleton className="h-5 w-40" />
-                            <Skeleton className="h-4 w-24" />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Skeleton className="h-9 w-9 rounded-md" />
-                          <Skeleton className="h-9 w-9 rounded-md" />
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <>
-                      {products.map((product) => (
-                        <div key={product.id} className="flex items-center justify-between p-4 hover:bg-accent/30 transition-colors">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center flex-shrink-0 border border-border/40">
-                              {product.image_url ? (
-                                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover rounded-xl" />
-                              ) : (
-                                <Package className="h-5 w-5 text-primary/60" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-medium text-foreground truncate">{product.name}</h3>
-                              <div className="flex items-center gap-2 text-sm">
-                                <span className="font-semibold text-primary">₹{product.price}</span>
-                                <span className="text-muted-foreground">•</span>
-                                <span className={`${product.stock_quantity <= 5 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                                  {product.stock_quantity} in stock
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-1.5 ml-2">
-                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-primary/10" onClick={() => navigate(`/admin/add-product?id=${product.id}`)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-9 w-9 hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteProduct(product.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      {products.length === 0 && (
-                        <div className="p-8 text-center">
-                          <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                          <p className="text-muted-foreground">No products yet</p>
-                          <Button onClick={() => navigate('/admin/add-product')} variant="link" className="mt-2">
-                            Add your first product
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="orders" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {loadingData ? (
-                    [1, 2, 3].map(i => (
-                      <div key={i} className="p-4 border border-border rounded-lg space-y-3">
-                        <div className="flex justify-between">
-                          <div className="space-y-2">
-                            <Skeleton className="h-5 w-32" />
-                            <Skeleton className="h-4 w-24" />
-                          </div>
-                          <Skeleton className="h-6 w-20 rounded-full" />
-                        </div>
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-6 w-24" />
-                      </div>
-                    ))
-                  ) : (
-                    orders.map((order) => (
-                      <div key={order.id} className="p-4 border border-border rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-semibold text-foreground">Order #{order.id.slice(0, 8)}</h3>
-                            <p className="text-sm text-muted-foreground">User: {order.user_id.slice(0, 8)}</p>
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-primary/10 text-primary' :
-                            order.status === 'cancelled' || order.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                              'bg-accent/10 text-accent'
-                            }`}>
-                            {order.status}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-1">{order.delivery_address}</p>
-                        <p className="text-lg font-bold text-foreground">₹{Number(order.total_amount).toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(order.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="delivery" className="space-y-4">
-            {/* Delivery Skeletons implemented similarly implicitly via loadingData check logic if needed for consistency, but focusing on main tabs first */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-primary" />
-                  Delivery Partner Applications
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {loadingData ? (
-                    [1, 2].map(i => (
-                      <Skeleton key={i} className="h-32 w-full rounded-lg" />
-                    ))
-                  ) : deliveryApplications.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No applications submitted yet</p>
-                  ) : (
-                    deliveryApplications.map((application) => (
-                      <div key={application.id} className="p-4 border border-border rounded-lg">
-                        {/* Content */}
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-foreground">{application.full_name}</h3>
-                            <p className="text-sm text-muted-foreground">Phone: {application.phone}</p>
-                            <p className="text-sm text-muted-foreground">Vehicle: {application.vehicle_type}</p>
-                            {application.license_number && (
-                              <p className="text-sm text-muted-foreground">License: {application.license_number}</p>
-                            )}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Applied: {new Date(application.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${application.status === 'approved' ? 'bg-primary/10 text-primary' :
-                            application.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                              'bg-accent/10 text-accent'
-                            }`}>
-                            {application.status}
-                          </span>
-                        </div>
-                        {application.status === 'pending' && (
-                          <div className="flex gap-2 mt-3">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApplicationAction(application.id, 'approved')}
-                              className="flex-1"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleApplicationAction(application.id, 'rejected')}
-                              className="flex-1"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="malicious" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Malicious Activities
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {loadingData ? (
-                    [1, 2].map(i => (
-                      <Skeleton key={i} className="h-24 w-full rounded-lg" />
-                    ))
-                  ) : maliciousActivities.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No malicious activities detected</p>
-                  ) : (
-                    maliciousActivities.map((activity) => (
-                      <div key={activity.id} className="p-4 border border-destructive/20 bg-destructive/5 rounded-lg">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-foreground">{activity.activity_type}</h3>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(activity.detected_at || '').toLocaleString()}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-3">{activity.description}</p>
-                        {/* Details logic remains same */}
-                        {(() => {
-                          const relatedOrder = orders.find((order) => order.id === activity.order_id);
-                          const deliveryProfile = activity.delivery_person_id
-                            ? profiles[activity.delivery_person_id]
-                            : undefined;
-                          const customerProfile = activity.user_id
-                            ? profiles[activity.user_id]
-                            : undefined;
-
-                          return (
-                            <div className="space-y-1 text-xs text-muted-foreground">
-                              {relatedOrder && (
-                                <p>
-                                  <span className="font-medium">Order:</span>{' '}
-                                  Order #{relatedOrder.id.slice(0, 8)} • ₹
-                                  {Number(relatedOrder.total_amount).toFixed(2)} •{' '}
-                                  <span className="capitalize">{relatedOrder.status.replace('_', ' ')}</span>
-                                </p>
-                              )}
-                              {!relatedOrder && activity.order_id && (
-                                <p>
-                                  <span className="font-medium">Order:</span>{' '}
-                                  Order #{activity.order_id.slice(0, 8)}
-                                </p>
-                              )}
-                              {customerProfile && (
-                                <p>
-                                  <span className="font-medium">Customer:</span>{' '}
-                                  {customerProfile.full_name || 'Unknown customer'}
-                                  {customerProfile.phone && ` (${customerProfile.phone})`}
-                                </p>
-                              )}
-                              {!customerProfile && activity.user_id && (
-                                <p>
-                                  <span className="font-medium">Customer:</span>{' '}
-                                  Unknown customer
-                                </p>
-                              )}
-                              {deliveryProfile && (
-                                <p>
-                                  <span className="font-medium">Delivery Person:</span>{' '}
-                                  {deliveryProfile.full_name || 'Unknown'}
-                                  {deliveryProfile.phone && ` (${deliveryProfile.phone})`}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      <AdminBottomNav />
-    </div>
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">{title}</h3>
+          {loading ? (
+            <Skeleton className="h-8 w-24 rounded-lg" />
+          ) : (
+            <div className="text-3xl font-bold text-slate-900 dark:text-white tracking-tighter">
+              {value}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

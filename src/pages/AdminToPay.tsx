@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Smartphone, TrendingUp, ShoppingBag, Wallet } from 'lucide-react';
-import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminLayout from '@/components/layouts/AdminLayout';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface PayoutStats {
@@ -85,10 +85,7 @@ const AdminToPay = () => {
 
     if (ordersData) {
       const deliveredOrders = ordersData.filter((o) => o.status === 'delivered').length;
-      const revenue = ordersData
-        .filter((o) => o.status === 'delivered')
-        .reduce((sum, o) => sum + Number(o.total_amount), 0);
-
+      // Revenue calculation not strictly needed here but good for verification if wanted
       const commissionDeveloper = deliveredOrders * 4;
       const commissionDelivery = deliveredOrders * 5;
 
@@ -164,30 +161,13 @@ const AdminToPay = () => {
     openUpiLink(url);
   };
 
-  // Show loading while checking auth
   if (loading || userRole === null || loadingPage) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
-        <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-xl" />
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-3 w-36" />
-              </div>
-            </div>
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-6 pb-24">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {[1, 2].map(i => (
-              <Skeleton key={i} className="h-48 w-full rounded-xl" />
-            ))}
-          </div>
-        </main>
-        <AdminBottomNav />
-      </div>
+      <AdminLayout title="Pending Payments">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2].map(i => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
+        </div>
+      </AdminLayout>
     );
   }
 
@@ -197,88 +177,76 @@ const AdminToPay = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-20">
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-[0_10px_40px_rgba(15,23,42,0.35)]">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
-              <Wallet className="h-5 w-5 text-white" />
+    <AdminLayout title="Pending Payments">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white dark:bg-slate-900">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-500" />
+              Developer (Website Builder)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-sm text-muted-foreground mb-1">Amount to Pay</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white">₹{stats.commissionDeveloper.toFixed(2)}</p>
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Pending Payments</h1>
-              <p className="text-xs text-muted-foreground">Manage commission payouts</p>
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>Orders: {stats.deliveredOrders}</span>
+              <span>To: {DEVELOPER_PHONE}</span>
             </div>
-          </div>
-        </div>
-      </header>
+            <div className="mt-3">
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20" onClick={() => setShowDeveloperPayOptions(true)}>
+                <Smartphone className="h-4 w-4 mr-2" />
+                Pay Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-      <main className="container mx-auto px-4 py-6 pb-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Developer (Website Builder)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                  <p className="text-2xl font-bold text-foreground">₹{stats.commissionDeveloper.toFixed(2)}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Orders: {stats.deliveredOrders}</p>
-              <p className="text-xs text-muted-foreground">Pay to: {DEVELOPER_PHONE}</p>
-              <div className="mt-3">
-                <Button className="w-full" onClick={() => setShowDeveloperPayOptions(true)}>
-                  <Smartphone className="h-4 w-4 mr-2" />
-                  Pay
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Delivery Partner</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                  <p className="text-2xl font-bold text-foreground">₹{stats.commissionDelivery.toFixed(2)}</p>
-                </div>
-                <ShoppingBag className="h-8 w-8 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">Orders: {stats.deliveredOrders}</p>
-              <p className="text-xs text-muted-foreground">
+        <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white dark:bg-slate-900">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-blue-500" />
+              Delivery Partner
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-sm text-muted-foreground mb-1">Amount to Pay</p>
+              <p className="text-3xl font-bold text-slate-900 dark:text-white">₹{stats.commissionDelivery.toFixed(2)}</p>
+            </div>
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>Orders: {stats.deliveredOrders}</span>
+              <span className="truncate max-w-[150px]">
                 {deliveryProfile?.phone
-                  ? `Pay to: ${deliveryProfile.full_name || 'Delivery Partner'} (${deliveryProfile.phone})`
-                  : 'No delivery partner phone found'}
-              </p>
-              <div className="mt-3">
-                <Button
-                  className="w-full"
-                  onClick={() => setShowDeliveryPayOptions(true)}
-                  disabled={!deliveryProfile?.phone}
-                >
-                  <Smartphone className="h-4 w-4 mr-2" />
-                  Pay
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+                  ? `${deliveryProfile.full_name || 'Partner'}`
+                  : 'No Partner'}
+              </span>
+            </div>
+            <div className="mt-3">
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
+                onClick={() => setShowDeliveryPayOptions(true)}
+                disabled={!deliveryProfile?.phone}
+              >
+                <Smartphone className="h-4 w-4 mr-2" />
+                Pay Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Developer pay options popup */}
       {showDeveloperPayOptions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-lg p-4 w-full max-w-sm space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">Pay Developer</h2>
-            <p className="text-sm text-muted-foreground">Choose payment app</p>
-            <div className="flex gap-2 mt-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Pay Developer</h2>
+            <p className="text-sm text-muted-foreground">Select payment method for ₹{stats.commissionDeveloper.toFixed(2)}</p>
+            <div className="flex gap-3 mt-2">
               <Button
-                className="flex-1"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
                 onClick={() => {
                   handlePayDeveloper();
                   setShowDeveloperPayOptions(false);
@@ -287,7 +255,7 @@ const AdminToPay = () => {
                 GPay
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
                 onClick={() => {
                   handlePayDeveloper();
                   setShowDeveloperPayOptions(false);
@@ -309,13 +277,13 @@ const AdminToPay = () => {
 
       {/* Delivery pay options popup */}
       {showDeliveryPayOptions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-lg p-4 w-full max-w-sm space-y-3">
-            <h2 className="text-lg font-semibold text-foreground">Pay Delivery Partner</h2>
-            <p className="text-sm text-muted-foreground">Choose payment app</p>
-            <div className="flex gap-2 mt-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Pay Delivery Partner</h2>
+            <p className="text-sm text-muted-foreground">Select payment method for ₹{stats.commissionDelivery.toFixed(2)}</p>
+            <div className="flex gap-3 mt-2">
               <Button
-                className="flex-1"
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
                 onClick={() => {
                   handlePayDelivery();
                   setShowDeliveryPayOptions(false);
@@ -325,7 +293,7 @@ const AdminToPay = () => {
                 GPay
               </Button>
               <Button
-                className="flex-1"
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
                 onClick={() => {
                   handlePayDelivery();
                   setShowDeliveryPayOptions(false);
@@ -345,10 +313,7 @@ const AdminToPay = () => {
           </div>
         </div>
       )}
-
-      {/* Admin Bottom Navigation */}
-      <AdminBottomNav />
-    </div>
+    </AdminLayout>
   );
 };
 
