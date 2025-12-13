@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Megaphone } from 'lucide-react';
 import AdminBroadcastNotifications from '@/components/AdminBroadcastNotifications';
-import AdminLayout from '@/components/layouts/AdminLayout';
+import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminNotifications() {
@@ -19,14 +19,11 @@ export default function AdminNotifications() {
             return;
         }
 
-        // Wait for userRole to be loaded
         if (userRole === null) return;
 
-        // Check if user is admin
         const hasAdminRole = userRole === 'admin' || userRole === 'super_admin';
         setIsAdmin(hasAdminRole);
 
-        // Redirect non-admins to their appropriate page
         if (!hasAdminRole) {
             switch (userRole) {
                 case 'delivery':
@@ -41,31 +38,42 @@ export default function AdminNotifications() {
 
     if (authLoading || userRole === null || !isAdmin) {
         return (
-            <AdminLayout title="Broadcast Center">
-                <main className="space-y-4">
-                    <Skeleton className="h-64 w-full rounded-xl" />
-                    <Skeleton className="h-40 w-full rounded-xl" />
+            <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
+                <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
+                    <div className="container mx-auto px-4 py-4">
+                        <Skeleton className="h-8 w-48" />
+                    </div>
+                </header>
+                <main className="container mx-auto px-4 py-6 space-y-4">
+                    <Skeleton className="h-64 rounded-xl" />
                 </main>
-            </AdminLayout>
+                <AdminBottomNav />
+            </div>
         );
     }
 
     return (
-        <AdminLayout title="Broadcast Center">
-            <main className="max-w-5xl">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
-                    <div className="flex items-center gap-4 mb-6">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                            <Megaphone className="h-6 w-6 text-white" />
+        <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
+            {/* Header */}
+            <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
+                <div className="container mx-auto px-4 py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+                            <Megaphone className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">New Broadcast</h2>
-                            <p className="text-sm text-slate-500">Send notifications to all users or specific groups.</p>
+                            <h1 className="text-xl font-bold tracking-tight">Broadcast Center</h1>
+                            <p className="text-xs text-muted-foreground">Send notifications to users</p>
                         </div>
                     </div>
-                    <AdminBroadcastNotifications />
                 </div>
+            </header>
+
+            <main className="container mx-auto px-4 py-6 max-w-5xl">
+                <AdminBroadcastNotifications />
             </main>
-        </AdminLayout>
+
+            <AdminBottomNav />
+        </div>
     );
 }

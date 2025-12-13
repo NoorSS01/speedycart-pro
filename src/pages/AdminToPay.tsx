@@ -5,8 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Smartphone, TrendingUp, ShoppingBag, Wallet } from 'lucide-react';
-import AdminLayout from '@/components/layouts/AdminLayout';
+import { Smartphone, TrendingUp, ShoppingBag, Wallet, Truck } from 'lucide-react';
+import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface PayoutStats {
@@ -45,10 +45,8 @@ const AdminToPay = () => {
       return;
     }
 
-    // Wait for userRole to be loaded
     if (userRole === null) return;
 
-    // Redirect non-admins
     if (userRole !== 'admin' && userRole !== 'super_admin') {
       switch (userRole) {
         case 'delivery':
@@ -85,10 +83,8 @@ const AdminToPay = () => {
 
     if (ordersData) {
       const deliveredOrders = ordersData.filter((o) => o.status === 'delivered').length;
-      // Revenue calculation not strictly needed here but good for verification if wanted
       const commissionDeveloper = deliveredOrders * 4;
       const commissionDelivery = deliveredOrders * 5;
-
       setStats({ deliveredOrders, commissionDeveloper, commissionDelivery });
     }
   };
@@ -99,24 +95,13 @@ const AdminToPay = () => {
       .select('user_id')
       .eq('role', 'delivery');
 
-    if (rolesError) {
-      console.error('Error fetching delivery roles', rolesError);
-      return;
-    }
-
-    if (!rolesData || rolesData.length === 0) return;
+    if (rolesError || !rolesData || rolesData.length === 0) return;
 
     const userIds = rolesData.map((r) => r.user_id);
-
-    const { data: profilesData, error: profilesError } = await supabase
+    const { data: profilesData } = await supabase
       .from('profiles')
       .select('id, full_name, phone')
       .in('id', userIds);
-
-    if (profilesError) {
-      console.error('Error fetching delivery profiles', profilesError);
-      return;
-    }
 
     if (profilesData && profilesData.length > 0) {
       const first = profilesData[0];
@@ -125,9 +110,7 @@ const AdminToPay = () => {
   };
 
   const createUpiLink = (upiId: string, name: string, amount: number) => {
-    return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amount.toFixed(
-      2
-    )}&cu=INR&tn=${encodeURIComponent('PremasShop payout')}`;
+    return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('PremasShop payout')}`;
   };
 
   const openUpiLink = (url: string) => {
@@ -139,7 +122,6 @@ const AdminToPay = () => {
       toast.message('No payout pending for developer');
       return;
     }
-
     const url = createUpiLink(DEVELOPER_UPI_ID, 'Developer', stats.commissionDeveloper);
     openUpiLink(url);
   };
@@ -149,12 +131,10 @@ const AdminToPay = () => {
       toast.message('No payout pending for delivery partners');
       return;
     }
-
     if (!deliveryProfile || !deliveryProfile.phone) {
       toast.error('No delivery partner phone available');
       return;
     }
-
     const upiId = `${deliveryProfile.phone}@upi`;
     const name = deliveryProfile.full_name || 'Delivery Partner';
     const url = createUpiLink(upiId, name, stats.commissionDelivery);
@@ -163,157 +143,147 @@ const AdminToPay = () => {
 
   if (loading || userRole === null || loadingPage) {
     return (
-      <AdminLayout title="Pending Payments">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2].map(i => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
-        </div>
-      </AdminLayout>
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
+        <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
+          <div className="container mx-auto px-4 py-4">
+            <Skeleton className="h-8 w-48" />
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-6 space-y-4">
+          {[1, 2].map(i => <Skeleton key={i} className="h-48 rounded-xl" />)}
+        </main>
+        <AdminBottomNav />
+      </div>
     );
   }
 
-  // Don't render if not admin
-  if (userRole !== 'admin' && userRole !== 'super_admin') {
-    return null;
-  }
+  if (userRole !== 'admin' && userRole !== 'super_admin') return null;
 
   return (
-    <AdminLayout title="Pending Payments">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white dark:bg-slate-900">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-              Developer (Website Builder)
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Pending Payments</h1>
+              <p className="text-xs text-muted-foreground">Manage commission payouts</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6 space-y-4">
+        {/* Developer Card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-indigo-500" />
+              Developer Commission
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-              <p className="text-sm text-muted-foreground mb-1">Amount to Pay</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">₹{stats.commissionDeveloper.toFixed(2)}</p>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Amount to Pay</p>
+                <p className="text-3xl font-bold">₹{stats.commissionDeveloper}</p>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">
+                <p>{stats.deliveredOrders} orders</p>
+                <p>₹4/order</p>
+              </div>
             </div>
-            <div className="flex justify-between text-sm text-slate-500">
-              <span>Orders: {stats.deliveredOrders}</span>
-              <span>To: {DEVELOPER_PHONE}</span>
-            </div>
-            <div className="mt-3">
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20" onClick={() => setShowDeveloperPayOptions(true)}>
-                <Smartphone className="h-4 w-4 mr-2" />
-                Pay Now
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground mb-3">Pay to: {DEVELOPER_PHONE}</p>
+            <Button className="w-full" onClick={() => setShowDeveloperPayOptions(true)}>
+              <Smartphone className="h-4 w-4 mr-2" />
+              Pay Now
+            </Button>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white dark:bg-slate-900">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-blue-500" />
-              Delivery Partner
+        {/* Delivery Card */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="w-4 h-4 text-rose-500" />
+              Delivery Partner Commission
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-              <p className="text-sm text-muted-foreground mb-1">Amount to Pay</p>
-              <p className="text-3xl font-bold text-slate-900 dark:text-white">₹{stats.commissionDelivery.toFixed(2)}</p>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Amount to Pay</p>
+                <p className="text-3xl font-bold">₹{stats.commissionDelivery}</p>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">
+                <p>{stats.deliveredOrders} orders</p>
+                <p>₹5/order</p>
+              </div>
             </div>
-            <div className="flex justify-between text-sm text-slate-500">
-              <span>Orders: {stats.deliveredOrders}</span>
-              <span className="truncate max-w-[150px]">
-                {deliveryProfile?.phone
-                  ? `${deliveryProfile.full_name || 'Partner'}`
-                  : 'No Partner'}
-              </span>
-            </div>
-            <div className="mt-3">
-              <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20"
-                onClick={() => setShowDeliveryPayOptions(true)}
-                disabled={!deliveryProfile?.phone}
-              >
-                <Smartphone className="h-4 w-4 mr-2" />
-                Pay Now
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              {deliveryProfile?.phone
+                ? `Pay to: ${deliveryProfile.full_name || 'Partner'} (${deliveryProfile.phone})`
+                : 'No delivery partner found'}
+            </p>
+            <Button
+              className="w-full"
+              onClick={() => setShowDeliveryPayOptions(true)}
+              disabled={!deliveryProfile?.phone}
+            >
+              <Smartphone className="h-4 w-4 mr-2" />
+              Pay Now
+            </Button>
           </CardContent>
         </Card>
-      </div>
+      </main>
 
-      {/* Developer pay options popup */}
+      {/* Developer Pay Modal */}
       {showDeveloperPayOptions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Pay Developer</h2>
-            <p className="text-sm text-muted-foreground">Select payment method for ₹{stats.commissionDeveloper.toFixed(2)}</p>
-            <div className="flex gap-3 mt-2">
-              <Button
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={() => {
-                  handlePayDeveloper();
-                  setShowDeveloperPayOptions(false);
-                }}
-              >
+          <div className="bg-background rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border">
+            <h2 className="text-lg font-bold">Pay Developer</h2>
+            <p className="text-sm text-muted-foreground">Amount: ₹{stats.commissionDeveloper}</p>
+            <div className="flex gap-3">
+              <Button className="flex-1" onClick={() => { handlePayDeveloper(); setShowDeveloperPayOptions(false); }}>
                 GPay
               </Button>
-              <Button
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                onClick={() => {
-                  handlePayDeveloper();
-                  setShowDeveloperPayOptions(false);
-                }}
-              >
+              <Button className="flex-1" variant="outline" onClick={() => { handlePayDeveloper(); setShowDeveloperPayOptions(false); }}>
                 PhonePe
               </Button>
             </div>
-            <Button
-              variant="outline"
-              className="w-full mt-2"
-              onClick={() => setShowDeveloperPayOptions(false)}
-            >
+            <Button variant="ghost" className="w-full" onClick={() => setShowDeveloperPayOptions(false)}>
               Cancel
             </Button>
           </div>
         </div>
       )}
 
-      {/* Delivery pay options popup */}
+      {/* Delivery Pay Modal */}
       {showDeliveryPayOptions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border border-slate-200 dark:border-slate-800">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Pay Delivery Partner</h2>
-            <p className="text-sm text-muted-foreground">Select payment method for ₹{stats.commissionDelivery.toFixed(2)}</p>
-            <div className="flex gap-3 mt-2">
-              <Button
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={() => {
-                  handlePayDelivery();
-                  setShowDeliveryPayOptions(false);
-                }}
-                disabled={!deliveryProfile?.phone}
-              >
+          <div className="bg-background rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border">
+            <h2 className="text-lg font-bold">Pay Delivery Partner</h2>
+            <p className="text-sm text-muted-foreground">Amount: ₹{stats.commissionDelivery}</p>
+            <div className="flex gap-3">
+              <Button className="flex-1" onClick={() => { handlePayDelivery(); setShowDeliveryPayOptions(false); }}>
                 GPay
               </Button>
-              <Button
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                onClick={() => {
-                  handlePayDelivery();
-                  setShowDeliveryPayOptions(false);
-                }}
-                disabled={!deliveryProfile?.phone}
-              >
+              <Button className="flex-1" variant="outline" onClick={() => { handlePayDelivery(); setShowDeliveryPayOptions(false); }}>
                 PhonePe
               </Button>
             </div>
-            <Button
-              variant="outline"
-              className="w-full mt-2"
-              onClick={() => setShowDeliveryPayOptions(false)}
-            >
+            <Button variant="ghost" className="w-full" onClick={() => setShowDeliveryPayOptions(false)}>
               Cancel
             </Button>
           </div>
         </div>
       )}
-    </AdminLayout>
+
+      <AdminBottomNav />
+    </div>
   );
 };
 
