@@ -3,24 +3,60 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
   TrendingUp,
   ShoppingCart,
   DollarSign,
   Activity,
-  ArrowUpRight,
-  ArrowDownRight,
   Wallet,
   PackageCheck,
   Truck,
   Package,
-  Clock
+  Clock,
+  Calendar,
+  Plus,
+  Users,
+  CreditCard,
+  AlertCircle
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+
+type DateRange = 'today' | '7days' | '30days' | 'all';
+
+const getDateRangeStart = (range: DateRange): Date => {
+  const now = new Date();
+  const start = new Date(now);
+
+  switch (range) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '7days':
+      start.setDate(now.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case '30days':
+      start.setDate(now.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      break;
+    case 'all':
+    default:
+      return new Date(0); // Beginning of time
+  }
+  return start;
+};
+
+const dateRangeLabels: Record<DateRange, string> = {
+  'today': 'Today',
+  '7days': '7 Days',
+  '30days': '30 Days',
+  'all': 'All Time'
+};
 
 interface Order {
   id: string;
@@ -36,6 +72,8 @@ export default function Admin() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange>('7days');
+  const [pendingApplications, setPendingApplications] = useState(0);
 
   // Auth Check
   useEffect(() => {
@@ -60,22 +98,39 @@ export default function Admin() {
       return;
     }
 
-    fetchOrders();
-  }, [user, userRole, authLoading, navigate]);
+    fetchData();
+  }, [user, userRole, authLoading, navigate, dateRange]);
 
-  const fetchOrders = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Fetch orders with date filter
+      const startDate = getDateRangeStart(dateRange).toISOString();
+
+      let query = supabase
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
 
+      if (dateRange !== 'all') {
+        query = query.gte('created_at', startDate);
+      }
+
+      const { data: ordersData, error } = await query;
       if (error) throw error;
-      setOrders(data || []);
+      setOrders(ordersData || []);
+
+      // Fetch pending delivery applications
+      const { data: appsData } = await supabase
+        .from('delivery_applications')
+        .select('status')
+        .eq('status', 'pending');
+
+      setPendingApplications(appsData?.length || 0);
+
     } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -84,7 +139,7 @@ export default function Admin() {
   // Calculations
   const stats = useMemo(() => {
     const deliveredOrders = orders.filter(o => o.status === 'delivered');
-    const pendingOrders = orders.filter(o => o.status === 'pending');
+    const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'out_for_delivery');
 
     const revenue = deliveredOrders.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
     const commissionDeveloper = deliveredOrders.length * 4;
@@ -127,20 +182,69 @@ export default function Admin() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
-              <Package className="h-5 w-5 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                <Package className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">Admin Dashboard</h1>
+                <p className="text-xs text-muted-foreground">Business Overview</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Admin Dashboard</h1>
-              <p className="text-xs text-muted-foreground">Business Overview</p>
-            </div>
+            <Button
+              size="sm"
+              onClick={() => navigate('/admin/add-product')}
+              className="gap-1"
+            >
+              <Plus className="w-4 h-4" />
+              Add
+            </Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Primary Stats Grid - Profit, Revenue, Delivered, Pending */}
+        {/* Date Range Filter */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+          {(Object.keys(dateRangeLabels) as DateRange[]).map((range) => (
+            <Button
+              key={range}
+              variant={dateRange === range ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setDateRange(range)}
+              className="shrink-0"
+            >
+              {dateRangeLabels[range]}
+            </Button>
+          ))}
+        </div>
+
+        {/* Pending Applications Alert */}
+        {pendingApplications > 0 && (
+          <Card
+            className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/super-admin')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-xl">
+                    <Users className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Delivery Applications</p>
+                    <p className="text-xs text-muted-foreground">{pendingApplications} pending review</p>
+                  </div>
+                </div>
+                <Badge className="bg-amber-500">{pendingApplications}</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Primary Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           <StatCard
             title="Net Profit"
@@ -157,9 +261,9 @@ export default function Admin() {
             loading={loading}
           />
           <StatCard
-            title="Delivered"
-            value={stats.deliveredOrders.toString()}
-            icon={PackageCheck}
+            title="Total Orders"
+            value={stats.totalOrders.toString()}
+            icon={ShoppingCart}
             color="purple"
             loading={loading}
           />
@@ -173,32 +277,35 @@ export default function Admin() {
           />
         </div>
 
-        {/* Commission Cards */}
+        {/* Second Row - Delivered & Payments */}
         <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-900/20 dark:to-slate-900 border-indigo-100">
+          <StatCard
+            title="Delivered"
+            value={stats.deliveredOrders.toString()}
+            icon={PackageCheck}
+            color="emerald"
+            loading={loading}
+          />
+          <Card
+            className="bg-gradient-to-br from-rose-50 to-white dark:from-rose-900/20 dark:to-slate-900 border-rose-100 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate('/admin/to-pay')}
+          >
             <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl">
-                  <TrendingUp className="w-5 h-5 text-indigo-600" />
+              <div className="flex items-start justify-between mb-3">
+                <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-900/40">
+                  <CreditCard className="w-5 h-5 text-rose-600" />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Dev Commission</p>
-                  <p className="text-lg font-bold">₹{stats.commissionDeveloper}</p>
-                </div>
+                <AlertCircle className="w-4 h-4 text-rose-500" />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-rose-50 to-white dark:from-rose-900/20 dark:to-slate-900 border-rose-100">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-rose-100 dark:bg-rose-900/40 rounded-xl">
-                  <Truck className="w-5 h-5 text-rose-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Delivery Commission</p>
-                  <p className="text-lg font-bold">₹{stats.commissionDelivery}</p>
-                </div>
-              </div>
+              <p className="text-xs text-muted-foreground font-medium">Payments</p>
+              {loading ? (
+                <Skeleton className="h-7 w-20 mt-1" />
+              ) : (
+                <p className="text-2xl font-bold tracking-tight text-rose-600">
+                  ₹{stats.commissionDeveloper + stats.commissionDelivery}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">Tap to pay →</p>
             </CardContent>
           </Card>
         </div>
@@ -220,15 +327,15 @@ export default function Admin() {
               orders.slice(0, 5).map(order => (
                 <div
                   key={order.id}
-                  className="flex items-center justify-between p-3 bg-muted/50 rounded-xl"
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-xl cursor-pointer hover:bg-muted/70 transition-colors"
                   onClick={() => navigate('/orders')}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white
-                                            ${order.status === 'delivered' ? 'bg-emerald-500' :
+                      ${order.status === 'delivered' ? 'bg-emerald-500' :
                         order.status === 'pending' ? 'bg-amber-500' :
                           order.status === 'cancelled' ? 'bg-red-500' : 'bg-blue-500'}
-                                        `}>
+                    `}>
                       {order.status === 'delivered' ? <PackageCheck className="w-5 h-5" /> :
                         order.status === 'pending' ? <Clock className="w-5 h-5" /> :
                           <Activity className="w-5 h-5" />}
@@ -245,11 +352,11 @@ export default function Admin() {
                     <Badge
                       variant="outline"
                       className={`text-[10px] capitalize
-                                                ${order.status === 'delivered' ? 'border-emerald-500 text-emerald-600' :
+                        ${order.status === 'delivered' ? 'border-emerald-500 text-emerald-600' :
                           order.status === 'pending' ? 'border-amber-500 text-amber-600' :
                             order.status === 'cancelled' ? 'border-red-500 text-red-600' :
                               'border-blue-500 text-blue-600'}
-                                            `}
+                      `}
                     >
                       {order.status}
                     </Badge>
