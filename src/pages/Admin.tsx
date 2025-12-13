@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
-  TrendingUp,
   ShoppingCart,
   DollarSign,
   Activity,
@@ -19,7 +18,11 @@ import {
   Plus,
   Users,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  Shield,
+  Boxes,
+  ChevronRight
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -309,6 +312,77 @@ export default function Admin() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Admin Tools */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Admin Tools
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3">
+            {/* Delivery Applications */}
+            <button
+              onClick={() => navigate('/super-admin')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-slate-900 border border-blue-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+                <Truck className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Delivery Apps</p>
+                <p className="text-xs text-muted-foreground truncate">Review applications</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Products */}
+            <button
+              onClick={() => navigate('/admin/stock')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-900/20 dark:to-slate-900 border border-emerald-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg">
+                <Boxes className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Products</p>
+                <p className="text-xs text-muted-foreground truncate">Manage inventory</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Malicious Activity */}
+            <button
+              onClick={() => navigate('/super-admin')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-red-50 to-white dark:from-red-900/20 dark:to-slate-900 border border-red-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Security</p>
+                <p className="text-xs text-muted-foreground truncate">Malicious activity</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* User Management */}
+            <button
+              onClick={() => navigate('/super-admin')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-slate-900 border border-purple-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg">
+                <Users className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Users</p>
+                <p className="text-xs text-muted-foreground truncate">Manage roles</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </CardContent>
+        </Card>
 
         {/* Recent Orders */}
         <Card>
