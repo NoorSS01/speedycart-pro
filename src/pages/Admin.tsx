@@ -228,7 +228,7 @@ export default function Admin() {
         {pendingApplications > 0 && (
           <Card
             className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate('/super-admin')}
+            onClick={() => navigate('/admin/delivery-apps')}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -324,7 +324,7 @@ export default function Admin() {
           <CardContent className="grid grid-cols-2 gap-3">
             {/* Delivery Applications */}
             <button
-              onClick={() => navigate('/super-admin')}
+              onClick={() => navigate('/admin/delivery-apps')}
               className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-slate-900 border border-blue-100 rounded-xl text-left hover:shadow-md transition-shadow"
             >
               <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
@@ -354,7 +354,7 @@ export default function Admin() {
 
             {/* Malicious Activity */}
             <button
-              onClick={() => navigate('/super-admin')}
+              onClick={() => navigate('/admin/security')}
               className="flex items-center gap-3 p-3 bg-gradient-to-br from-red-50 to-white dark:from-red-900/20 dark:to-slate-900 border border-red-100 rounded-xl text-left hover:shadow-md transition-shadow"
             >
               <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg">
@@ -369,7 +369,7 @@ export default function Admin() {
 
             {/* User Management */}
             <button
-              onClick={() => navigate('/super-admin')}
+              onClick={() => navigate('/admin/users')}
               className="flex items-center gap-3 p-3 bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-slate-900 border border-purple-100 rounded-xl text-left hover:shadow-md transition-shadow"
             >
               <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg">

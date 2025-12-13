@@ -17,6 +17,10 @@ import Admin from "./pages/Admin";
 import AdminStock from "./pages/AdminStock";
 import AdminToPay from "./pages/AdminToPay";
 import AdminNotifications from "./pages/AdminNotifications";
+import AdminDeliveryApps from "./pages/AdminDeliveryApps";
+import AdminSecurity from "./pages/AdminSecurity";
+import AdminUsers from "./pages/AdminUsers";
+import AdminOrders from "./pages/AdminOrders";
 import SuperAdmin from "./pages/SuperAdmin";
 import DeliveryApplication from "./pages/DeliveryApplication";
 import PhoneSetup from "./pages/PhoneSetup";
@@ -25,6 +29,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
 import Categories from "./pages/Categories";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -55,6 +60,10 @@ const App = () => (
               <Route path="/admin/stock" element={<AdminStock />} />
               <Route path="/admin/to-pay" element={<AdminToPay />} />
               <Route path="/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/admin/delivery-apps" element={<AdminDeliveryApps />} />
+              <Route path="/admin/security" element={<AdminSecurity />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/super-admin" element={<SuperAdmin />} />
               <Route path="/delivery-application" element={<DeliveryApplication />} />
               <Route path="/admin/add-product" element={<AddProduct />} />
