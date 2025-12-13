@@ -14,7 +14,8 @@ import {
     Plus,
     Minus,
     RefreshCw,
-    Boxes
+    Boxes,
+    Edit
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -229,36 +230,47 @@ export default function AdminStock() {
                                         </div>
                                     </div>
 
-                                    {/* Stock Controls */}
-                                    <div className="flex items-center gap-1">
+                                    {/* Edit & Stock Controls */}
+                                    <div className="flex items-center gap-2">
                                         <Button
                                             size="icon"
-                                            variant="outline"
-                                            className="h-8 w-8 rounded-full"
-                                            onClick={() => handleStockUpdate(product.id, product.stock_quantity - 1)}
-                                            disabled={product.stock_quantity <= 0 || savingIds.has(product.id)}
+                                            variant="ghost"
+                                            className="h-8 w-8"
+                                            onClick={() => navigate(`/admin/add-product?id=${product.id}`)}
+                                            title="Edit Product"
                                         >
-                                            <Minus className="w-3 h-3" />
+                                            <Edit className="w-4 h-4" />
                                         </Button>
+                                        <div className="flex items-center gap-1">
+                                            <Button
+                                                size="icon"
+                                                variant="outline"
+                                                className="h-8 w-8 rounded-full"
+                                                onClick={() => handleStockUpdate(product.id, product.stock_quantity - 1)}
+                                                disabled={product.stock_quantity <= 0 || savingIds.has(product.id)}
+                                            >
+                                                <Minus className="w-3 h-3" />
+                                            </Button>
 
-                                        <span className={`w-10 text-center font-bold text-sm ${product.stock_quantity === 0 ? 'text-red-500' :
+                                            <span className={`w-10 text-center font-bold text-sm ${product.stock_quantity === 0 ? 'text-red-500' :
                                                 product.stock_quantity <= 10 ? 'text-amber-500' :
                                                     'text-emerald-600'
-                                            }`}>
-                                            {savingIds.has(product.id) ? (
-                                                <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
-                                            ) : product.stock_quantity}
-                                        </span>
+                                                }`}>
+                                                {savingIds.has(product.id) ? (
+                                                    <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                                                ) : product.stock_quantity}
+                                            </span>
 
-                                        <Button
-                                            size="icon"
-                                            variant="outline"
-                                            className="h-8 w-8 rounded-full"
-                                            onClick={() => handleStockUpdate(product.id, product.stock_quantity + 1)}
-                                            disabled={savingIds.has(product.id)}
-                                        >
-                                            <Plus className="w-3 h-3" />
-                                        </Button>
+                                            <Button
+                                                size="icon"
+                                                variant="outline"
+                                                className="h-8 w-8 rounded-full"
+                                                onClick={() => handleStockUpdate(product.id, product.stock_quantity + 1)}
+                                                disabled={savingIds.has(product.id)}
+                                            >
+                                                <Plus className="w-3 h-3" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>
