@@ -402,7 +402,7 @@ export default function Admin() {
                 <div
                   key={order.id}
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-xl cursor-pointer hover:bg-muted/70 transition-colors"
-                  onClick={() => navigate('/orders')}
+                  onClick={() => navigate('/admin/orders')}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white
