@@ -12,14 +12,18 @@ import {
   CheckCircle,
   Truck,
   MapPin,
-  Phone,
   Clock,
   PackageCheck,
-  Navigation
+  Navigation,
+  AlertTriangle,
+  Timer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+
+// Default delivery time in minutes (can be changed by admin)
+const DEFAULT_DELIVERY_TIME = 30;
 
 interface DeliveryOrder {
   id: string;
@@ -35,6 +39,7 @@ interface DeliveryOrder {
     status: string;
     created_at: string;
   };
+  productName: string;
 }
 
 export default function Delivery() {
@@ -43,6 +48,16 @@ export default function Delivery() {
   const [assignments, setAssignments] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Get delivery time from localStorage (set by admin)
+  const deliveryTimeMinutes = parseInt(localStorage.getItem('delivery_time_minutes') || String(DEFAULT_DELIVERY_TIME));
+
+  // Update current time every second for timer
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -56,7 +71,6 @@ export default function Delivery() {
     }
     fetchAssignments();
 
-    // Realtime subscription - listen to both tables
     const channel = supabase
       .channel('delivery-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments' }, fetchAssignments)
@@ -66,7 +80,6 @@ export default function Delivery() {
     return () => { supabase.removeChannel(channel); };
   }, [user, userRole, authLoading, navigate]);
 
-  // SINGLE QUERY - NO EXTRA CALLS
   const fetchAssignments = async () => {
     if (!user) {
       setLoading(false);
@@ -74,6 +87,7 @@ export default function Delivery() {
     }
 
     try {
+      // Fetch assignments with orders
       const { data, error } = await supabase
         .from('delivery_assignments')
         .select(`
@@ -83,21 +97,60 @@ export default function Delivery() {
         .eq('delivery_person_id', user.id)
         .order('assigned_at', { ascending: false });
 
-      if (error) {
+      if (error || !data) {
         console.error('Fetch error:', error);
         setAssignments([]);
-      } else {
-        setAssignments((data || []).map((a: any) => ({
-          ...a,
-          is_rejected: a.is_rejected || false
-        })));
+        setLoading(false);
+        return;
       }
+
+      // Fetch first product name for each order
+      const enriched = await Promise.all(
+        data.map(async (a: any) => {
+          const { data: itemData } = await supabase
+            .from('order_items')
+            .select('products(name)')
+            .eq('order_id', a.orders.id)
+            .limit(1)
+            .single();
+
+          return {
+            ...a,
+            is_rejected: a.is_rejected || false,
+            productName: itemData?.products?.name || 'Order'
+          };
+        })
+      );
+
+      setAssignments(enriched);
     } catch (err) {
       console.error('Exception:', err);
       setAssignments([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Calculate time remaining and color
+  const getTimeInfo = (createdAt: string) => {
+    const orderTime = new Date(createdAt);
+    const deadlineTime = new Date(orderTime.getTime() + deliveryTimeMinutes * 60 * 1000);
+    const remaining = Math.max(0, deadlineTime.getTime() - currentTime.getTime());
+    const totalTime = deliveryTimeMinutes * 60 * 1000;
+    const percentRemaining = (remaining / totalTime) * 100;
+
+    // Format remaining time
+    const mins = Math.floor(remaining / 60000);
+    const secs = Math.floor((remaining % 60000) / 1000);
+    const timeString = remaining > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : '0:00';
+
+    // Color based on percentage
+    let color: 'green' | 'yellow' | 'red';
+    if (percentRemaining > 50) color = 'green';
+    else if (percentRemaining > 25) color = 'yellow';
+    else color = 'red';
+
+    return { timeString, color, isExpired: remaining === 0 };
   };
 
   // Pick order
@@ -151,6 +204,7 @@ export default function Delivery() {
     a => !a.is_rejected && a.marked_delivered_at && !a.user_confirmed_at
   );
   const completed = assignments.filter(a => a.user_confirmed_at);
+  const rejected = assignments.filter(a => a.is_rejected);
 
   // Stats
   const stats = useMemo(() => {
@@ -164,21 +218,44 @@ export default function Delivery() {
     };
   }, [completed, newOrders, inTransit]);
 
-  // Order Card - Platform Theme
-  const OrderCard = ({ a, type }: { a: DeliveryOrder; type: 'new' | 'transit' | 'await' | 'done' }) => (
+  // Timer Badge Component
+  const TimerBadge = ({ createdAt }: { createdAt: string }) => {
+    const { timeString, color, isExpired } = getTimeInfo(createdAt);
+
+    const colorClasses = {
+      green: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+      yellow: 'bg-amber-100 text-amber-700 border-amber-200',
+      red: 'bg-red-100 text-red-700 border-red-200 animate-pulse'
+    };
+
+    return (
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-mono font-bold ${colorClasses[color]}`}>
+        <Timer className="w-3 h-3" />
+        {isExpired ? 'LATE' : timeString}
+      </div>
+    );
+  };
+
+  // Order Card
+  const OrderCard = ({ a, type }: { a: DeliveryOrder; type: 'new' | 'transit' | 'await' | 'done' | 'rejected' }) => (
     <Card className="mb-3 border border-border/40">
       <CardContent className="p-4">
-        {/* Order Header */}
+        {/* Header with Product Name and Timer */}
         <div className="flex justify-between items-start mb-3">
-          <div>
-            <p className="font-bold text-foreground">#{a.order_id.slice(0, 8)}</p>
+          <div className="flex-1 min-w-0 mr-2">
+            <p className="font-bold text-foreground truncate">{a.productName}</p>
             <p className="text-xs text-muted-foreground">
               {format(new Date(a.orders.created_at), 'dd MMM, hh:mm a')}
             </p>
           </div>
-          <Badge className="bg-primary text-primary-foreground">
-            ₹{a.orders.total_amount}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {(type === 'new' || type === 'transit') && (
+              <TimerBadge createdAt={a.orders.created_at} />
+            )}
+            <Badge className="bg-primary text-primary-foreground shrink-0">
+              ₹{a.orders.total_amount}
+            </Badge>
+          </div>
         </div>
 
         {/* Address with Map Button */}
@@ -223,9 +300,9 @@ export default function Delivery() {
 
         {type === 'await' && (
           <div className="flex items-center justify-center gap-2 p-3 bg-secondary rounded-lg">
-            <div className="w-2 h-2 bg-warning rounded-full animate-pulse" />
+            <Clock className="w-4 h-4 text-muted-foreground" />
             <p className="text-sm text-secondary-foreground font-medium">
-              Awaiting customer confirmation
+              Pending confirmation
             </p>
           </div>
         )}
@@ -233,9 +310,14 @@ export default function Delivery() {
         {type === 'done' && (
           <div className="flex items-center justify-center gap-2 p-3 bg-primary/10 rounded-lg">
             <PackageCheck className="w-4 h-4 text-primary" />
-            <p className="text-sm text-primary font-medium">
-              Delivered Successfully
-            </p>
+            <p className="text-sm text-primary font-medium">Delivered</p>
+          </div>
+        )}
+
+        {type === 'rejected' && (
+          <div className="flex items-center justify-center gap-2 p-3 bg-destructive/10 rounded-lg">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+            <p className="text-sm text-destructive font-medium">Rejected by customer</p>
           </div>
         )}
       </CardContent>
@@ -265,7 +347,7 @@ export default function Delivery() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
-      {/* Header - Platform Style */}
+      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/40 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -274,7 +356,7 @@ export default function Delivery() {
             </div>
             <div>
               <h1 className="font-bold text-lg text-foreground">Delivery</h1>
-              <p className="text-xs text-muted-foreground">Partner Dashboard</p>
+              <p className="text-xs text-muted-foreground">Time limit: {deliveryTimeMinutes} min</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={signOut}>
@@ -283,7 +365,7 @@ export default function Delivery() {
         </div>
       </header>
 
-      {/* Stats - Platform Colors */}
+      {/* Stats */}
       <div className="grid grid-cols-3 gap-3 p-4">
         <Card className="bg-primary/10 border-primary/20">
           <CardContent className="p-3 text-center">
@@ -308,21 +390,24 @@ export default function Delivery() {
         </Card>
       </div>
 
-      {/* Tabs - Platform Style */}
+      {/* Tabs */}
       <div className="px-4 pb-8">
         <Tabs defaultValue="new">
-          <TabsList className="w-full grid grid-cols-4 h-10 mb-4 bg-muted">
-            <TabsTrigger value="new" className="text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              New {newOrders.length > 0 && <Badge className="ml-1 h-4 px-1 bg-primary/80 text-[10px]">{newOrders.length}</Badge>}
+          <TabsList className="w-full grid grid-cols-5 h-10 mb-4 bg-muted">
+            <TabsTrigger value="new" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              New {newOrders.length > 0 && <Badge className="ml-1 h-4 px-1 text-[8px]">{newOrders.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="transit" className="text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Transit {inTransit.length > 0 && <Badge className="ml-1 h-4 px-1 bg-primary/80 text-[10px]">{inTransit.length}</Badge>}
+            <TabsTrigger value="transit" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Transit {inTransit.length > 0 && <Badge className="ml-1 h-4 px-1 text-[8px]">{inTransit.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="await" className="text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Await {awaiting.length > 0 && <Badge className="ml-1 h-4 px-1 bg-primary/80 text-[10px]">{awaiting.length}</Badge>}
+            <TabsTrigger value="await" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Await {awaiting.length > 0 && <Badge className="ml-1 h-4 px-1 text-[8px]">{awaiting.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="done" className="text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="done" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Done
+            </TabsTrigger>
+            <TabsTrigger value="rejected" className="text-[10px] data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
+              Reject {rejected.length > 0 && <Badge variant="destructive" className="ml-1 h-4 px-1 text-[8px]">{rejected.length}</Badge>}
             </TabsTrigger>
           </TabsList>
 
@@ -344,6 +429,11 @@ export default function Delivery() {
           <TabsContent value="done">
             {completed.length === 0 ? <Empty text="No completed deliveries" /> :
               completed.slice(0, 15).map(a => <OrderCard key={a.id} a={a} type="done" />)}
+          </TabsContent>
+
+          <TabsContent value="rejected">
+            {rejected.length === 0 ? <Empty text="No rejected orders" /> :
+              rejected.map(a => <OrderCard key={a.id} a={a} type="rejected" />)}
           </TabsContent>
         </Tabs>
       </div>

@@ -384,6 +384,40 @@ export default function Admin() {
           </CardContent>
         </Card>
 
+        {/* Delivery Time Setting */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Delivery Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-sm">Delivery Time Limit</p>
+                <p className="text-xs text-muted-foreground">Max time for each delivery</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="border rounded-lg px-3 py-2 text-sm bg-background"
+                  defaultValue={localStorage.getItem('delivery_time_minutes') || '30'}
+                  onChange={(e) => {
+                    localStorage.setItem('delivery_time_minutes', e.target.value);
+                    toast.success(`Delivery time set to ${e.target.value} minutes`);
+                  }}
+                >
+                  <option value="15">15 min</option>
+                  <option value="20">20 min</option>
+                  <option value="30">30 min</option>
+                  <option value="45">45 min</option>
+                  <option value="60">60 min</option>
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Recent Orders */}
         <Card>
           <CardHeader className="pb-2">
