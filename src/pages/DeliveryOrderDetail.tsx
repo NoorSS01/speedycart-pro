@@ -11,7 +11,6 @@ import {
     MapPin,
     Phone,
     User,
-    Clock,
     Navigation,
     CheckCircle,
     Truck
@@ -24,37 +23,28 @@ interface OrderItem {
     id: string;
     quantity: number;
     price: number;
-    products: {
-        name: string;
-        image_url: string | null;
-        unit: string;
-    };
+    product_id: string;
+    product_name: string;
+    product_image: string | null;
 }
 
-interface OrderDetail {
+interface OrderData {
     id: string;
     total_amount: number;
     delivery_address: string;
     status: string;
     created_at: string;
     user_id: string;
-    order_items: OrderItem[];
-    profiles: {
-        full_name: string | null;
-        phone: string | null;
-    } | null;
-    delivery_assignments: Array<{
-        id: string;
-        marked_delivered_at: string | null;
-        user_confirmed_at: string | null;
-    }>;
 }
 
 export default function DeliveryOrderDetail() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const { orderId } = useParams<{ orderId: string }>();
-    const [order, setOrder] = useState<OrderDetail | null>(null);
+    const [order, setOrder] = useState<OrderData | null>(null);
+    const [items, setItems] = useState<OrderItem[]>([]);
+    const [customer, setCustomer] = useState<{ name: string; phone: string }>({ name: 'Customer', phone: '' });
+    const [assignment, setAssignment] = useState<{ id: string; marked_delivered_at: string | null } | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
 
@@ -64,46 +54,72 @@ export default function DeliveryOrderDetail() {
             navigate('/auth');
             return;
         }
-        if (orderId) fetchOrder();
+        if (orderId) fetchOrderData();
     }, [user, authLoading, orderId, navigate]);
 
-    const fetchOrder = async () => {
+    const fetchOrderData = async () => {
         if (!orderId) return;
+        setLoading(true);
 
         try {
-            // Fetch order with items
-            const { data: orderData, error } = await supabase
+            // 1. Fetch order
+            const { data: orderData, error: orderError } = await supabase
                 .from('orders')
-                .select(`
-          id, total_amount, delivery_address, status, created_at, user_id,
-          order_items(id, quantity, price, products(name, image_url, unit)),
-          delivery_assignments(id, marked_delivered_at, user_confirmed_at)
-        `)
+                .select('id, total_amount, delivery_address, status, created_at, user_id')
                 .eq('id', orderId)
                 .single();
 
-            if (error) {
-                console.error('Error:', error);
+            if (orderError || !orderData) {
+                console.error('Order error:', orderError);
                 toast.error('Order not found');
                 navigate('/delivery');
                 return;
             }
+            setOrder(orderData);
 
-            // Fetch customer profile
-            const { data: profile } = await supabase
+            // 2. Fetch order items with products
+            const { data: itemsData, error: itemsError } = await supabase
+                .from('order_items')
+                .select('id, quantity, price, product_id, products(name, image_url)')
+                .eq('order_id', orderId);
+
+            if (!itemsError && itemsData) {
+                const formattedItems = itemsData.map((item: any) => ({
+                    id: item.id,
+                    quantity: item.quantity,
+                    price: item.price,
+                    product_id: item.product_id,
+                    product_name: item.products?.name || 'Unknown Product',
+                    product_image: item.products?.image_url || null
+                }));
+                setItems(formattedItems);
+            }
+
+            // 3. Fetch customer profile
+            const { data: profileData } = await supabase
                 .from('profiles')
                 .select('full_name, phone')
                 .eq('id', orderData.user_id)
                 .single();
 
-            setOrder({
-                ...orderData,
-                profiles: profile,
-                order_items: Array.isArray(orderData.order_items) ? orderData.order_items : [],
-                delivery_assignments: Array.isArray(orderData.delivery_assignments)
-                    ? orderData.delivery_assignments
-                    : orderData.delivery_assignments ? [orderData.delivery_assignments] : []
-            } as OrderDetail);
+            if (profileData) {
+                setCustomer({
+                    name: profileData.full_name || 'Customer',
+                    phone: profileData.phone || ''
+                });
+            }
+
+            // 4. Fetch delivery assignment
+            const { data: assignmentData } = await supabase
+                .from('delivery_assignments')
+                .select('id, marked_delivered_at')
+                .eq('order_id', orderId)
+                .single();
+
+            if (assignmentData) {
+                setAssignment(assignmentData);
+            }
+
         } catch (err) {
             console.error('Exception:', err);
             toast.error('Failed to load order');
@@ -124,7 +140,7 @@ export default function DeliveryOrderDetail() {
 
         if (!error) {
             toast.success('Order picked up!');
-            fetchOrder();
+            fetchOrderData();
         } else {
             toast.error('Failed');
         }
@@ -133,16 +149,16 @@ export default function DeliveryOrderDetail() {
 
     // Mark delivered
     const markAsDelivered = async () => {
-        if (!order || !order.delivery_assignments[0]) return;
+        if (!assignment) return;
         setActionLoading(true);
         const { error } = await supabase
             .from('delivery_assignments')
             .update({ marked_delivered_at: new Date().toISOString() })
-            .eq('id', order.delivery_assignments[0].id);
+            .eq('id', assignment.id);
 
         if (!error) {
             toast.success('Marked as delivered!');
-            fetchOrder();
+            fetchOrderData();
         } else {
             toast.error('Failed');
         }
@@ -157,35 +173,18 @@ export default function DeliveryOrderDetail() {
 
     // Call customer
     const callCustomer = () => {
-        if (order?.profiles?.phone) {
-            window.location.href = `tel:${order.profiles.phone}`;
+        if (customer.phone) {
+            window.location.href = `tel:${customer.phone}`;
         }
-    };
-
-    // Get status info
-    const getStatusBadge = () => {
-        if (!order) return null;
-        const assignment = order.delivery_assignments[0];
-
-        if (assignment?.user_confirmed_at) {
-            return <Badge className="bg-emerald-500">Delivered</Badge>;
-        }
-        if (assignment?.marked_delivered_at) {
-            return <Badge className="bg-amber-500">Awaiting Confirmation</Badge>;
-        }
-        if (order.status === 'out_for_delivery') {
-            return <Badge className="bg-blue-500">In Transit</Badge>;
-        }
-        return <Badge className="bg-primary">Ready for Pickup</Badge>;
     };
 
     if (loading) {
         return (
             <div className="min-h-screen bg-background p-4">
-                <Skeleton className="h-10 w-32 mb-4" />
-                <Skeleton className="h-40 w-full mb-4 rounded-xl" />
+                <Skeleton className="h-12 w-full mb-4" />
                 <Skeleton className="h-24 w-full mb-4 rounded-xl" />
-                <Skeleton className="h-60 w-full rounded-xl" />
+                <Skeleton className="h-24 w-full mb-4 rounded-xl" />
+                <Skeleton className="h-48 w-full rounded-xl" />
             </div>
         );
     }
@@ -198,7 +197,6 @@ export default function DeliveryOrderDetail() {
         );
     }
 
-    const assignment = order.delivery_assignments[0];
     const canPick = order.status === 'pending' || order.status === 'confirmed';
     const canDeliver = order.status === 'out_for_delivery' && !assignment?.marked_delivered_at;
 
@@ -216,7 +214,7 @@ export default function DeliveryOrderDetail() {
                             {format(new Date(order.created_at), 'dd MMM yyyy, hh:mm a')}
                         </p>
                     </div>
-                    {getStatusBadge()}
+                    <Badge className="bg-primary">₹{order.total_amount}</Badge>
                 </div>
             </header>
 
@@ -232,10 +230,10 @@ export default function DeliveryOrderDetail() {
                     <CardContent>
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="font-medium">{order.profiles?.full_name || 'Customer'}</p>
-                                <p className="text-sm text-muted-foreground">{order.profiles?.phone || 'No phone'}</p>
+                                <p className="font-medium">{customer.name}</p>
+                                <p className="text-sm text-muted-foreground">{customer.phone || 'No phone'}</p>
                             </div>
-                            {order.profiles?.phone && (
+                            {customer.phone && (
                                 <Button size="sm" variant="outline" className="gap-2" onClick={callCustomer}>
                                     <Phone className="w-4 h-4" />
                                     Call
@@ -267,37 +265,44 @@ export default function DeliveryOrderDetail() {
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center gap-2">
                             <Package className="w-4 h-4" />
-                            Items ({order.order_items.length})
+                            Items ({items.length})
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {order.order_items.map((item) => (
-                            <div key={item.id} className="flex items-center gap-3 p-2 bg-muted rounded-lg">
-                                {item.products.image_url ? (
-                                    <img
-                                        src={item.products.image_url}
-                                        alt={item.products.name}
-                                        className="w-12 h-12 rounded-lg object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-lg bg-slate-200 flex items-center justify-center">
-                                        <Package className="w-6 h-6 text-slate-400" />
+                        {items.length === 0 ? (
+                            <p className="text-muted-foreground text-sm text-center py-4">No items found</p>
+                        ) : (
+                            items.map((item) => (
+                                <div key={item.id} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                                    {item.product_image ? (
+                                        <img
+                                            src={item.product_image}
+                                            alt={item.product_name}
+                                            className="w-14 h-14 rounded-lg object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center">
+                                            <Package className="w-6 h-6 text-slate-400" />
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm">{item.product_name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            ₹{item.price} × {item.quantity}
+                                        </p>
                                     </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm truncate">{item.products.name}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {item.quantity} × ₹{item.price} = ₹{item.quantity * item.price}
-                                    </p>
+                                    <div className="text-right">
+                                        <Badge variant="secondary" className="mb-1">×{item.quantity}</Badge>
+                                        <p className="text-sm font-bold text-primary">₹{item.price * item.quantity}</p>
+                                    </div>
                                 </div>
-                                <Badge variant="secondary">×{item.quantity}</Badge>
-                            </div>
-                        ))}
+                            ))
+                        )}
 
                         {/* Total */}
-                        <div className="flex justify-between items-center pt-3 border-t">
-                            <span className="font-medium">Total</span>
-                            <span className="text-xl font-bold text-primary">₹{order.total_amount}</span>
+                        <div className="flex justify-between items-center pt-3 border-t mt-3">
+                            <span className="font-medium">Total Amount</span>
+                            <span className="text-2xl font-bold text-primary">₹{order.total_amount}</span>
                         </div>
                     </CardContent>
                 </Card>
