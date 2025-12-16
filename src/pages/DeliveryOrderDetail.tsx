@@ -186,20 +186,20 @@ export default function DeliveryOrderDetail() {
                                     <p className="text-xs">(RLS permission issue)</p>
                                 </div>
                             ) : (
-                                <div className="space-y-0">
+                                <div className="divide-y">
                                     {/* Items */}
                                     {items.map((item, index) => (
-                                        <div key={item.id} className="py-3 border-b border-dashed last:border-0">
-                                            {/* Product Name - Full Width */}
-                                            <p className="font-medium text-sm mb-1">
+                                        <div key={item.id} className="py-4">
+                                            {/* Product Name - Full Width, Larger */}
+                                            <p className="font-semibold text-base leading-snug mb-2">
                                                 {index + 1}. {item.name}
                                             </p>
-                                            {/* Qty x Rate = Amount */}
-                                            <div className="flex justify-between items-center text-xs">
-                                                <span className="text-muted-foreground">
-                                                    {item.quantity} × ₹{item.price}
-                                                </span>
-                                                <span className="font-bold text-primary">
+                                            {/* Price Details Row */}
+                                            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
+                                                <div className="text-sm text-muted-foreground">
+                                                    <span className="font-medium text-foreground">{item.quantity}</span> × ₹{item.price}
+                                                </div>
+                                                <span className="text-lg font-bold text-primary">
                                                     ₹{item.quantity * item.price}
                                                 </span>
                                             </div>
