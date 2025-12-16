@@ -16,13 +16,13 @@ import {
   PackageCheck,
   Navigation,
   AlertTriangle,
-  Timer
+  Timer,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 
-// Default delivery time in minutes (can be changed by admin)
 const DEFAULT_DELIVERY_TIME = 30;
 
 interface DeliveryOrder {
@@ -39,7 +39,7 @@ interface DeliveryOrder {
     status: string;
     created_at: string;
   };
-  productName: string;
+  orderNumber: number; // Platform-wide daily order number
 }
 
 export default function Delivery() {
@@ -50,10 +50,9 @@ export default function Delivery() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Get delivery time from localStorage (set by admin)
   const deliveryTimeMinutes = parseInt(localStorage.getItem('delivery_time_minutes') || String(DEFAULT_DELIVERY_TIME));
 
-  // Update current time every second for timer
+  // Timer update every second
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
@@ -80,6 +79,7 @@ export default function Delivery() {
     return () => { supabase.removeChannel(channel); };
   }, [user, userRole, authLoading, navigate]);
 
+  // SINGLE QUERY - NO EXTRA CALLS
   const fetchAssignments = async () => {
     if (!user) {
       setLoading(false);
@@ -87,7 +87,24 @@ export default function Delivery() {
     }
 
     try {
-      // Fetch assignments with orders
+      // Get today's start
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      // Fetch ALL today's orders to calculate order numbers
+      const { data: allTodayOrders } = await supabase
+        .from('orders')
+        .select('id, created_at')
+        .gte('created_at', todayStart.toISOString())
+        .order('created_at', { ascending: true });
+
+      // Create order number map (Order 1, Order 2, etc.)
+      const orderNumberMap: Record<string, number> = {};
+      (allTodayOrders || []).forEach((order, index) => {
+        orderNumberMap[order.id] = index + 1;
+      });
+
+      // Fetch this delivery person's assignments
       const { data, error } = await supabase
         .from('delivery_assignments')
         .select(`
@@ -97,32 +114,18 @@ export default function Delivery() {
         .eq('delivery_person_id', user.id)
         .order('assigned_at', { ascending: false });
 
-      if (error || !data) {
+      if (error) {
         console.error('Fetch error:', error);
         setAssignments([]);
-        setLoading(false);
-        return;
+      } else {
+        // Add order numbers
+        const enriched = (data || []).map((a: any) => ({
+          ...a,
+          is_rejected: a.is_rejected || false,
+          orderNumber: orderNumberMap[a.orders.id] || 0
+        }));
+        setAssignments(enriched);
       }
-
-      // Fetch first product name for each order
-      const enriched = await Promise.all(
-        data.map(async (a: any) => {
-          const { data: itemData } = await supabase
-            .from('order_items')
-            .select('products(name)')
-            .eq('order_id', a.orders.id)
-            .limit(1)
-            .single();
-
-          return {
-            ...a,
-            is_rejected: a.is_rejected || false,
-            productName: itemData?.products?.name || 'Order'
-          };
-        })
-      );
-
-      setAssignments(enriched);
     } catch (err) {
       console.error('Exception:', err);
       setAssignments([]);
@@ -131,7 +134,7 @@ export default function Delivery() {
     }
   };
 
-  // Calculate time remaining and color
+  // Timer calculation
   const getTimeInfo = (createdAt: string) => {
     const orderTime = new Date(createdAt);
     const deadlineTime = new Date(orderTime.getTime() + deliveryTimeMinutes * 60 * 1000);
@@ -139,12 +142,10 @@ export default function Delivery() {
     const totalTime = deliveryTimeMinutes * 60 * 1000;
     const percentRemaining = (remaining / totalTime) * 100;
 
-    // Format remaining time
     const mins = Math.floor(remaining / 60000);
     const secs = Math.floor((remaining % 60000) / 1000);
     const timeString = remaining > 0 ? `${mins}:${secs.toString().padStart(2, '0')}` : '0:00';
 
-    // Color based on percentage
     let color: 'green' | 'yellow' | 'red';
     if (percentRemaining > 50) color = 'green';
     else if (percentRemaining > 25) color = 'yellow';
@@ -154,7 +155,8 @@ export default function Delivery() {
   };
 
   // Pick order
-  const pickOrder = async (assignmentId: string, orderId: string) => {
+  const pickOrder = async (e: React.MouseEvent, assignmentId: string, orderId: string) => {
+    e.stopPropagation();
     setActionLoading(assignmentId);
     const { error } = await supabase
       .from('orders')
@@ -171,7 +173,8 @@ export default function Delivery() {
   };
 
   // Mark delivered
-  const markAsDelivered = async (assignmentId: string) => {
+  const markAsDelivered = async (e: React.MouseEvent, assignmentId: string) => {
+    e.stopPropagation();
     setActionLoading(assignmentId);
     const { error } = await supabase
       .from('delivery_assignments')
@@ -187,22 +190,21 @@ export default function Delivery() {
     setActionLoading(null);
   };
 
-  // Open Google Maps
-  const openMaps = (address: string) => {
+  // Open maps
+  const openMaps = (e: React.MouseEvent, address: string) => {
+    e.stopPropagation();
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
   };
 
-  // Categorize orders
-  const newOrders = assignments.filter(
-    a => !a.is_rejected && !a.marked_delivered_at &&
-      (a.orders.status === 'pending' || a.orders.status === 'confirmed')
-  );
-  const inTransit = assignments.filter(
-    a => !a.is_rejected && !a.marked_delivered_at && a.orders.status === 'out_for_delivery'
-  );
-  const awaiting = assignments.filter(
-    a => !a.is_rejected && a.marked_delivered_at && !a.user_confirmed_at
-  );
+  // Navigate to order detail
+  const viewOrderDetail = (orderId: string) => {
+    navigate(`/delivery/order/${orderId}`);
+  };
+
+  // Categorize
+  const newOrders = assignments.filter(a => !a.is_rejected && !a.marked_delivered_at && (a.orders.status === 'pending' || a.orders.status === 'confirmed'));
+  const inTransit = assignments.filter(a => !a.is_rejected && !a.marked_delivered_at && a.orders.status === 'out_for_delivery');
+  const awaiting = assignments.filter(a => !a.is_rejected && a.marked_delivered_at && !a.user_confirmed_at);
   const completed = assignments.filter(a => a.user_confirmed_at);
   const rejected = assignments.filter(a => a.is_rejected);
 
@@ -211,86 +213,77 @@ export default function Delivery() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayDone = completed.filter(a => a.user_confirmed_at && new Date(a.user_confirmed_at) >= today).length;
-    return {
-      today: todayDone,
-      earnings: completed.length * 5,
-      pending: newOrders.length + inTransit.length
-    };
+    return { today: todayDone, earnings: completed.length * 5, pending: newOrders.length + inTransit.length };
   }, [completed, newOrders, inTransit]);
 
-  // Timer Badge Component
+  // Timer Badge
   const TimerBadge = ({ createdAt }: { createdAt: string }) => {
     const { timeString, color, isExpired } = getTimeInfo(createdAt);
-
     const colorClasses = {
-      green: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      yellow: 'bg-amber-100 text-amber-700 border-amber-200',
-      red: 'bg-red-100 text-red-700 border-red-200 animate-pulse'
+      green: 'bg-emerald-100 text-emerald-700',
+      yellow: 'bg-amber-100 text-amber-700',
+      red: 'bg-red-100 text-red-700 animate-pulse'
     };
-
     return (
-      <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-mono font-bold ${colorClasses[color]}`}>
+      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${colorClasses[color]}`}>
         <Timer className="w-3 h-3" />
         {isExpired ? 'LATE' : timeString}
       </div>
     );
   };
 
-  // Order Card
+  // Order Card - Clickable
   const OrderCard = ({ a, type }: { a: DeliveryOrder; type: 'new' | 'transit' | 'await' | 'done' | 'rejected' }) => (
-    <Card className="mb-3 border border-border/40">
+    <Card
+      className="mb-3 border border-border/40 cursor-pointer hover:shadow-md transition-shadow"
+      onClick={() => viewOrderDetail(a.order_id)}
+    >
       <CardContent className="p-4">
-        {/* Header with Product Name and Timer */}
+        {/* Header */}
         <div className="flex justify-between items-start mb-3">
-          <div className="flex-1 min-w-0 mr-2">
-            <p className="font-bold text-foreground truncate">{a.productName}</p>
+          <div className="flex-1">
+            <p className="font-bold text-foreground">Order {a.orderNumber}</p>
             <p className="text-xs text-muted-foreground">
-              {format(new Date(a.orders.created_at), 'dd MMM, hh:mm a')}
+              {format(new Date(a.orders.created_at), 'hh:mm a')}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {(type === 'new' || type === 'transit') && (
-              <TimerBadge createdAt={a.orders.created_at} />
-            )}
-            <Badge className="bg-primary text-primary-foreground shrink-0">
-              ₹{a.orders.total_amount}
-            </Badge>
+            {(type === 'new' || type === 'transit') && <TimerBadge createdAt={a.orders.created_at} />}
+            <Badge className="bg-primary text-primary-foreground">₹{a.orders.total_amount}</Badge>
           </div>
         </div>
 
-        {/* Address with Map Button */}
-        <div className="flex gap-2 mb-4">
-          <div className="flex-1 flex items-start gap-2 p-3 bg-muted rounded-lg">
+        {/* Address */}
+        <div className="flex gap-2 mb-3">
+          <div className="flex-1 flex items-start gap-2 p-2 bg-muted rounded-lg">
             <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <p className="text-sm text-foreground leading-tight">
-              {a.orders.delivery_address}
-            </p>
+            <p className="text-xs text-foreground leading-tight line-clamp-2">{a.orders.delivery_address}</p>
           </div>
           <Button
             size="icon"
-            className="h-auto aspect-square bg-primary hover:bg-primary/90"
-            onClick={() => openMaps(a.orders.delivery_address)}
+            className="h-10 w-10 bg-primary hover:bg-primary/90"
+            onClick={(e) => openMaps(e, a.orders.delivery_address)}
           >
             <Navigation className="w-4 h-4" />
           </Button>
         </div>
 
-        {/* Action Buttons */}
+        {/* Actions */}
         {type === 'new' && (
           <Button
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={() => pickOrder(a.id, a.order_id)}
+            className="w-full bg-primary hover:bg-primary/90"
+            onClick={(e) => pickOrder(e, a.id, a.order_id)}
             disabled={actionLoading === a.id}
           >
             <Truck className="w-4 h-4 mr-2" />
-            {actionLoading === a.id ? 'Picking...' : 'Pick Up Order'}
+            {actionLoading === a.id ? 'Picking...' : 'Pick Up'}
           </Button>
         )}
 
         {type === 'transit' && (
           <Button
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={() => markAsDelivered(a.id)}
+            className="w-full bg-primary hover:bg-primary/90"
+            onClick={(e) => markAsDelivered(e, a.id)}
             disabled={actionLoading === a.id}
           >
             <CheckCircle className="w-4 h-4 mr-2" />
@@ -299,48 +292,45 @@ export default function Delivery() {
         )}
 
         {type === 'await' && (
-          <div className="flex items-center justify-center gap-2 p-3 bg-secondary rounded-lg">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <p className="text-sm text-secondary-foreground font-medium">
-              Pending confirmation
-            </p>
+          <div className="flex items-center justify-between p-2 bg-secondary rounded-lg">
+            <span className="text-xs text-muted-foreground">Pending confirmation</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </div>
         )}
 
         {type === 'done' && (
-          <div className="flex items-center justify-center gap-2 p-3 bg-primary/10 rounded-lg">
-            <PackageCheck className="w-4 h-4 text-primary" />
-            <p className="text-sm text-primary font-medium">Delivered</p>
+          <div className="flex items-center justify-between p-2 bg-primary/10 rounded-lg">
+            <span className="text-xs text-primary font-medium">Delivered</span>
+            <ChevronRight className="w-4 h-4 text-primary" />
           </div>
         )}
 
         {type === 'rejected' && (
-          <div className="flex items-center justify-center gap-2 p-3 bg-destructive/10 rounded-lg">
-            <AlertTriangle className="w-4 h-4 text-destructive" />
-            <p className="text-sm text-destructive font-medium">Rejected by customer</p>
+          <div className="flex items-center justify-between p-2 bg-destructive/10 rounded-lg">
+            <span className="text-xs text-destructive font-medium">Rejected</span>
+            <ChevronRight className="w-4 h-4 text-destructive" />
           </div>
         )}
       </CardContent>
     </Card>
   );
 
-  // Empty State
   const Empty = ({ text }: { text: string }) => (
-    <div className="text-center py-16">
-      <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-      <p className="text-muted-foreground">{text}</p>
+    <div className="text-center py-12">
+      <Package className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-50" />
+      <p className="text-sm text-muted-foreground">{text}</p>
     </div>
   );
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background p-4">
-        <Skeleton className="h-16 w-full mb-4 rounded-xl" />
+        <Skeleton className="h-14 w-full mb-4 rounded-xl" />
         <div className="grid grid-cols-3 gap-3 mb-4">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
         </div>
-        <Skeleton className="h-10 w-full mb-4 rounded-lg" />
-        {[1, 2].map(i => <Skeleton key={i} className="h-40 w-full mb-3 rounded-xl" />)}
+        <Skeleton className="h-10 w-full mb-4" />
+        {[1, 2].map(i => <Skeleton key={i} className="h-32 w-full mb-3 rounded-xl" />)}
       </div>
     );
   }
@@ -348,15 +338,15 @@ export default function Delivery() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/40 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
               <Truck className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-bold text-lg text-foreground">Delivery</h1>
-              <p className="text-xs text-muted-foreground">Time limit: {deliveryTimeMinutes} min</p>
+              <h1 className="font-bold text-base">Delivery</h1>
+              <p className="text-[10px] text-muted-foreground">{deliveryTimeMinutes} min limit</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={signOut}>
@@ -366,74 +356,58 @@ export default function Delivery() {
       </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 p-4">
-        <Card className="bg-primary/10 border-primary/20">
-          <CardContent className="p-3 text-center">
-            <PackageCheck className="w-5 h-5 mx-auto mb-1 text-primary" />
-            <p className="text-xl font-bold text-foreground">{stats.today}</p>
-            <p className="text-[10px] text-muted-foreground">Today</p>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        <Card className="bg-primary/10 border-0">
+          <CardContent className="p-2 text-center">
+            <p className="text-lg font-bold">{stats.today}</p>
+            <p className="text-[9px] text-muted-foreground">Today</p>
           </CardContent>
         </Card>
-        <Card className="bg-primary/10 border-primary/20">
-          <CardContent className="p-3 text-center">
-            <span className="text-primary font-bold text-lg">₹</span>
-            <p className="text-xl font-bold text-foreground">{stats.earnings}</p>
-            <p className="text-[10px] text-muted-foreground">Earned</p>
+        <Card className="bg-primary/10 border-0">
+          <CardContent className="p-2 text-center">
+            <p className="text-lg font-bold">₹{stats.earnings}</p>
+            <p className="text-[9px] text-muted-foreground">Earned</p>
           </CardContent>
         </Card>
-        <Card className="bg-secondary border-border">
-          <CardContent className="p-3 text-center">
-            <Clock className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-            <p className="text-xl font-bold text-foreground">{stats.pending}</p>
-            <p className="text-[10px] text-muted-foreground">Pending</p>
+        <Card className="bg-secondary border-0">
+          <CardContent className="p-2 text-center">
+            <p className="text-lg font-bold">{stats.pending}</p>
+            <p className="text-[9px] text-muted-foreground">Pending</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs */}
-      <div className="px-4 pb-8">
+      <div className="px-3 pb-6">
         <Tabs defaultValue="new">
-          <TabsList className="w-full grid grid-cols-5 h-10 mb-4 bg-muted">
+          <TabsList className="w-full grid grid-cols-5 h-9 mb-3 bg-muted">
             <TabsTrigger value="new" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              New {newOrders.length > 0 && <Badge className="ml-1 h-4 px-1 text-[8px]">{newOrders.length}</Badge>}
+              New{newOrders.length > 0 && ` (${newOrders.length})`}
             </TabsTrigger>
             <TabsTrigger value="transit" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Transit {inTransit.length > 0 && <Badge className="ml-1 h-4 px-1 text-[8px]">{inTransit.length}</Badge>}
+              Transit{inTransit.length > 0 && ` (${inTransit.length})`}
             </TabsTrigger>
             <TabsTrigger value="await" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Await {awaiting.length > 0 && <Badge className="ml-1 h-4 px-1 text-[8px]">{awaiting.length}</Badge>}
+              Await{awaiting.length > 0 && ` (${awaiting.length})`}
             </TabsTrigger>
-            <TabsTrigger value="done" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Done
-            </TabsTrigger>
-            <TabsTrigger value="rejected" className="text-[10px] data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
-              Reject {rejected.length > 0 && <Badge variant="destructive" className="ml-1 h-4 px-1 text-[8px]">{rejected.length}</Badge>}
-            </TabsTrigger>
+            <TabsTrigger value="done" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Done</TabsTrigger>
+            <TabsTrigger value="rejected" className="text-[10px] data-[state=active]:bg-destructive data-[state=active]:text-white">Reject</TabsTrigger>
           </TabsList>
 
           <TabsContent value="new">
-            {newOrders.length === 0 ? <Empty text="No new orders" /> :
-              newOrders.map(a => <OrderCard key={a.id} a={a} type="new" />)}
+            {newOrders.length === 0 ? <Empty text="No new orders" /> : newOrders.map(a => <OrderCard key={a.id} a={a} type="new" />)}
           </TabsContent>
-
           <TabsContent value="transit">
-            {inTransit.length === 0 ? <Empty text="No orders in transit" /> :
-              inTransit.map(a => <OrderCard key={a.id} a={a} type="transit" />)}
+            {inTransit.length === 0 ? <Empty text="No orders in transit" /> : inTransit.map(a => <OrderCard key={a.id} a={a} type="transit" />)}
           </TabsContent>
-
           <TabsContent value="await">
-            {awaiting.length === 0 ? <Empty text="No pending confirmations" /> :
-              awaiting.map(a => <OrderCard key={a.id} a={a} type="await" />)}
+            {awaiting.length === 0 ? <Empty text="No pending confirmations" /> : awaiting.map(a => <OrderCard key={a.id} a={a} type="await" />)}
           </TabsContent>
-
           <TabsContent value="done">
-            {completed.length === 0 ? <Empty text="No completed deliveries" /> :
-              completed.slice(0, 15).map(a => <OrderCard key={a.id} a={a} type="done" />)}
+            {completed.length === 0 ? <Empty text="No completed deliveries" /> : completed.slice(0, 20).map(a => <OrderCard key={a.id} a={a} type="done" />)}
           </TabsContent>
-
           <TabsContent value="rejected">
-            {rejected.length === 0 ? <Empty text="No rejected orders" /> :
-              rejected.map(a => <OrderCard key={a.id} a={a} type="rejected" />)}
+            {rejected.length === 0 ? <Empty text="No rejected orders" /> : rejected.map(a => <OrderCard key={a.id} a={a} type="rejected" />)}
           </TabsContent>
         </Tabs>
       </div>
