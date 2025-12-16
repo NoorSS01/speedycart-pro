@@ -186,25 +186,23 @@ export default function DeliveryOrderDetail() {
                                     <p className="text-xs">(RLS permission issue)</p>
                                 </div>
                             ) : (
-                                <div className="space-y-2">
-                                    {/* Table Header */}
-                                    <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground pb-2 border-b">
-                                        <div className="col-span-6">Item</div>
-                                        <div className="col-span-2 text-center">Qty</div>
-                                        <div className="col-span-2 text-right">Rate</div>
-                                        <div className="col-span-2 text-right">Amt</div>
-                                    </div>
-
+                                <div className="space-y-0">
                                     {/* Items */}
                                     {items.map((item, index) => (
-                                        <div key={item.id} className="grid grid-cols-12 gap-2 text-sm py-2 border-b border-dashed last:border-0">
-                                            <div className="col-span-6 flex items-center gap-2">
-                                                <span className="text-muted-foreground">{index + 1}.</span>
-                                                <span className="truncate">{item.name}</span>
+                                        <div key={item.id} className="py-3 border-b border-dashed last:border-0">
+                                            {/* Product Name - Full Width */}
+                                            <p className="font-medium text-sm mb-1">
+                                                {index + 1}. {item.name}
+                                            </p>
+                                            {/* Qty x Rate = Amount */}
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="text-muted-foreground">
+                                                    {item.quantity} × ₹{item.price}
+                                                </span>
+                                                <span className="font-bold text-primary">
+                                                    ₹{item.quantity * item.price}
+                                                </span>
                                             </div>
-                                            <div className="col-span-2 text-center">{item.quantity}</div>
-                                            <div className="col-span-2 text-right">₹{item.price}</div>
-                                            <div className="col-span-2 text-right font-medium">₹{item.quantity * item.price}</div>
                                         </div>
                                     ))}
                                 </div>
