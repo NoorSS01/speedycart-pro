@@ -3,48 +3,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-    ArrowLeft,
-    Package,
-    MapPin,
-    Phone,
-    User,
-    Navigation,
-    CheckCircle,
-    Truck
-} from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowLeft, Truck, CheckCircle, MapPin, Navigation, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-
-interface OrderItem {
-    id: string;
-    quantity: number;
-    price: number;
-    product_id: string;
-    product_name: string;
-    product_image: string | null;
-}
-
-interface OrderData {
-    id: string;
-    total_amount: number;
-    delivery_address: string;
-    status: string;
-    created_at: string;
-    user_id: string;
-}
 
 export default function DeliveryOrderDetail() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const { orderId } = useParams<{ orderId: string }>();
-    const [order, setOrder] = useState<OrderData | null>(null);
-    const [items, setItems] = useState<OrderItem[]>([]);
-    const [customer, setCustomer] = useState<{ name: string; phone: string }>({ name: 'Customer', phone: '' });
-    const [assignment, setAssignment] = useState<{ id: string; marked_delivered_at: string | null } | null>(null);
+    const [order, setOrder] = useState<any>(null);
+    const [items, setItems] = useState<any[]>([]);
+    const [assignment, setAssignment] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
 
@@ -54,127 +25,91 @@ export default function DeliveryOrderDetail() {
             navigate('/auth');
             return;
         }
-        if (orderId) fetchOrderData();
-    }, [user, authLoading, orderId, navigate]);
+        if (orderId) fetchData();
+    }, [user, authLoading, orderId]);
 
-    const fetchOrderData = async () => {
+    const fetchData = async () => {
         if (!orderId) return;
         setLoading(true);
 
         try {
-            // 1. Fetch order
-            const { data: orderData, error: orderError } = await supabase
+            // Fetch order
+            const { data: orderData } = await supabase
                 .from('orders')
-                .select('id, total_amount, delivery_address, status, created_at, user_id')
+                .select('*')
                 .eq('id', orderId)
                 .single();
 
-            if (orderError || !orderData) {
-                console.error('Order error:', orderError);
+            if (!orderData) {
                 toast.error('Order not found');
                 navigate('/delivery');
                 return;
             }
             setOrder(orderData);
 
-            // 2. Fetch order items with products
+            // Fetch items - simplified query
             const { data: itemsData, error: itemsError } = await supabase
                 .from('order_items')
-                .select('id, quantity, price, product_id, products(name, image_url)')
+                .select('id, quantity, price, product_id')
                 .eq('order_id', orderId);
 
-            if (!itemsError && itemsData) {
-                const formattedItems = itemsData.map((item: any) => ({
-                    id: item.id,
-                    quantity: item.quantity,
-                    price: item.price,
-                    product_id: item.product_id,
-                    product_name: item.products?.name || 'Unknown Product',
-                    product_image: item.products?.image_url || null
+            console.log('Items data:', itemsData, 'Error:', itemsError);
+
+            if (itemsData && itemsData.length > 0) {
+                // Fetch product names separately
+                const productIds = itemsData.map(i => i.product_id);
+                const { data: products } = await supabase
+                    .from('products')
+                    .select('id, name, image_url')
+                    .in('id', productIds);
+
+                const productMap = new Map((products || []).map(p => [p.id, p]));
+
+                const enrichedItems = itemsData.map(item => ({
+                    ...item,
+                    name: productMap.get(item.product_id)?.name || 'Product',
+                    image: productMap.get(item.product_id)?.image_url || null
                 }));
-                setItems(formattedItems);
+                setItems(enrichedItems);
             }
 
-            // 3. Fetch customer profile
-            const { data: profileData } = await supabase
-                .from('profiles')
-                .select('full_name, phone')
-                .eq('id', orderData.user_id)
-                .single();
-
-            if (profileData) {
-                setCustomer({
-                    name: profileData.full_name || 'Customer',
-                    phone: profileData.phone || ''
-                });
-            }
-
-            // 4. Fetch delivery assignment
+            // Fetch assignment
             const { data: assignmentData } = await supabase
                 .from('delivery_assignments')
                 .select('id, marked_delivered_at')
                 .eq('order_id', orderId)
                 .single();
 
-            if (assignmentData) {
-                setAssignment(assignmentData);
-            }
+            if (assignmentData) setAssignment(assignmentData);
 
         } catch (err) {
-            console.error('Exception:', err);
-            toast.error('Failed to load order');
-            navigate('/delivery');
+            console.error('Error:', err);
         } finally {
             setLoading(false);
         }
     };
 
-    // Pick order
     const pickOrder = async () => {
         if (!order) return;
         setActionLoading(true);
-        const { error } = await supabase
-            .from('orders')
-            .update({ status: 'out_for_delivery' })
-            .eq('id', order.id);
-
-        if (!error) {
-            toast.success('Order picked up!');
-            fetchOrderData();
-        } else {
-            toast.error('Failed');
-        }
+        await supabase.from('orders').update({ status: 'out_for_delivery' }).eq('id', order.id);
+        toast.success('Order picked!');
+        fetchData();
         setActionLoading(false);
     };
 
-    // Mark delivered
-    const markAsDelivered = async () => {
+    const markDelivered = async () => {
         if (!assignment) return;
         setActionLoading(true);
-        const { error } = await supabase
-            .from('delivery_assignments')
-            .update({ marked_delivered_at: new Date().toISOString() })
-            .eq('id', assignment.id);
-
-        if (!error) {
-            toast.success('Marked as delivered!');
-            fetchOrderData();
-        } else {
-            toast.error('Failed');
-        }
+        await supabase.from('delivery_assignments').update({ marked_delivered_at: new Date().toISOString() }).eq('id', assignment.id);
+        toast.success('Marked delivered!');
+        fetchData();
         setActionLoading(false);
     };
 
-    // Open maps
     const openMaps = () => {
-        if (!order) return;
-        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.delivery_address)}`, '_blank');
-    };
-
-    // Call customer
-    const callCustomer = () => {
-        if (customer.phone) {
-            window.location.href = `tel:${customer.phone}`;
+        if (order?.delivery_address) {
+            window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.delivery_address)}`, '_blank');
         }
     };
 
@@ -182,9 +117,7 @@ export default function DeliveryOrderDetail() {
         return (
             <div className="min-h-screen bg-background p-4">
                 <Skeleton className="h-12 w-full mb-4" />
-                <Skeleton className="h-24 w-full mb-4 rounded-xl" />
-                <Skeleton className="h-24 w-full mb-4 rounded-xl" />
-                <Skeleton className="h-48 w-full rounded-xl" />
+                <Skeleton className="h-96 w-full rounded-xl" />
             </div>
         );
     }
@@ -201,134 +134,114 @@ export default function DeliveryOrderDetail() {
     const canDeliver = order.status === 'out_for_delivery' && !assignment?.marked_delivered_at;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-24">
+        <div className="min-h-screen bg-slate-100 dark:bg-slate-900 pb-24">
             {/* Header */}
-            <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+            <header className="sticky top-0 z-50 bg-white dark:bg-slate-800 border-b shadow-sm">
                 <div className="flex items-center gap-3 px-4 py-3">
                     <Button variant="ghost" size="icon" onClick={() => navigate('/delivery')}>
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <div className="flex-1">
-                        <h1 className="font-bold">Order Details</h1>
-                        <p className="text-xs text-muted-foreground">
-                            {format(new Date(order.created_at), 'dd MMM yyyy, hh:mm a')}
-                        </p>
-                    </div>
-                    <Badge className="bg-primary">₹{order.total_amount}</Badge>
+                    <h1 className="font-bold flex-1">Invoice</h1>
                 </div>
             </header>
 
-            <div className="p-4 space-y-4">
-                {/* Customer Info */}
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            Customer
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">{customer.name}</p>
-                                <p className="text-sm text-muted-foreground">{customer.phone || 'No phone'}</p>
-                            </div>
-                            {customer.phone && (
-                                <Button size="sm" variant="outline" className="gap-2" onClick={callCustomer}>
-                                    <Phone className="w-4 h-4" />
-                                    Call
+            {/* Invoice Bill */}
+            <div className="p-4">
+                <Card className="bg-white dark:bg-slate-800 shadow-lg">
+                    <CardContent className="p-0">
+                        {/* Invoice Header */}
+                        <div className="p-4 border-b text-center bg-primary/5">
+                            <h2 className="text-lg font-bold text-primary">DELIVERY INVOICE</h2>
+                            <p className="text-xs text-muted-foreground">
+                                Order #{orderId?.slice(0, 8).toUpperCase()}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {format(new Date(order.created_at), 'dd MMM yyyy, hh:mm a')}
+                            </p>
+                        </div>
+
+                        {/* Address */}
+                        <div className="p-4 border-b">
+                            <div className="flex items-start gap-2">
+                                <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                                <div className="flex-1">
+                                    <p className="text-xs text-muted-foreground">Deliver To:</p>
+                                    <p className="text-sm font-medium">{order.delivery_address}</p>
+                                </div>
+                                <Button size="sm" variant="outline" className="shrink-0" onClick={openMaps}>
+                                    <Navigation className="w-3 h-3 mr-1" />
+                                    Map
                                 </Button>
+                            </div>
+                        </div>
+
+                        {/* Items Table */}
+                        <div className="p-4 border-b">
+                            <p className="text-xs text-muted-foreground mb-3">ITEMS</p>
+
+                            {items.length === 0 ? (
+                                <div className="text-center py-4 text-muted-foreground text-sm">
+                                    <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p>Could not load items</p>
+                                    <p className="text-xs">(RLS permission issue)</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {/* Table Header */}
+                                    <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground pb-2 border-b">
+                                        <div className="col-span-6">Item</div>
+                                        <div className="col-span-2 text-center">Qty</div>
+                                        <div className="col-span-2 text-right">Rate</div>
+                                        <div className="col-span-2 text-right">Amt</div>
+                                    </div>
+
+                                    {/* Items */}
+                                    {items.map((item, index) => (
+                                        <div key={item.id} className="grid grid-cols-12 gap-2 text-sm py-2 border-b border-dashed last:border-0">
+                                            <div className="col-span-6 flex items-center gap-2">
+                                                <span className="text-muted-foreground">{index + 1}.</span>
+                                                <span className="truncate">{item.name}</span>
+                                            </div>
+                                            <div className="col-span-2 text-center">{item.quantity}</div>
+                                            <div className="col-span-2 text-right">₹{item.price}</div>
+                                            <div className="col-span-2 text-right font-medium">₹{item.quantity * item.price}</div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
-                    </CardContent>
-                </Card>
-
-                {/* Delivery Address */}
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            Delivery Address
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm mb-3">{order.delivery_address}</p>
-                        <Button className="w-full" variant="outline" onClick={openMaps}>
-                            <Navigation className="w-4 h-4 mr-2" />
-                            Open in Google Maps
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                {/* Order Items */}
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                            <Package className="w-4 h-4" />
-                            Items ({items.length})
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {items.length === 0 ? (
-                            <p className="text-muted-foreground text-sm text-center py-4">No items found</p>
-                        ) : (
-                            items.map((item) => (
-                                <div key={item.id} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                                    {item.product_image ? (
-                                        <img
-                                            src={item.product_image}
-                                            alt={item.product_name}
-                                            className="w-14 h-14 rounded-lg object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-14 h-14 rounded-lg bg-slate-200 flex items-center justify-center">
-                                            <Package className="w-6 h-6 text-slate-400" />
-                                        </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm">{item.product_name}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            ₹{item.price} × {item.quantity}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <Badge variant="secondary" className="mb-1">×{item.quantity}</Badge>
-                                        <p className="text-sm font-bold text-primary">₹{item.price * item.quantity}</p>
-                                    </div>
-                                </div>
-                            ))
-                        )}
 
                         {/* Total */}
-                        <div className="flex justify-between items-center pt-3 border-t mt-3">
-                            <span className="font-medium">Total Amount</span>
-                            <span className="text-2xl font-bold text-primary">₹{order.total_amount}</span>
+                        <div className="p-4 bg-slate-50 dark:bg-slate-700/50">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Subtotal</span>
+                                <span className="text-sm">₹{order.total_amount}</span>
+                            </div>
+                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-dashed">
+                                <span className="font-bold text-lg">TOTAL</span>
+                                <span className="font-bold text-2xl text-primary">₹{order.total_amount}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground text-center mt-2">
+                                Payment: {order.payment_method === 'cod' ? 'Cash on Delivery' : 'Prepaid'}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Fixed Bottom Action */}
+            {/* Action Button */}
             {(canPick || canDeliver) && (
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-slate-800 border-t">
                     {canPick && (
-                        <Button
-                            className="w-full h-12 bg-primary hover:bg-primary/90"
-                            onClick={pickOrder}
-                            disabled={actionLoading}
-                        >
+                        <Button className="w-full h-12 bg-primary" onClick={pickOrder} disabled={actionLoading}>
                             <Truck className="w-5 h-5 mr-2" />
                             {actionLoading ? 'Picking...' : 'Pick Up Order'}
                         </Button>
                     )}
                     {canDeliver && (
-                        <Button
-                            className="w-full h-12 bg-primary hover:bg-primary/90"
-                            onClick={markAsDelivered}
-                            disabled={actionLoading}
-                        >
+                        <Button className="w-full h-12 bg-primary" onClick={markDelivered} disabled={actionLoading}>
                             <CheckCircle className="w-5 h-5 mr-2" />
-                            {actionLoading ? 'Marking...' : 'Mark as Delivered'}
+                            {actionLoading ? 'Marking...' : 'Mark Delivered'}
                         </Button>
                     )}
                 </div>
