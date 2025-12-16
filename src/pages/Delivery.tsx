@@ -87,15 +87,31 @@ export default function Delivery() {
   }, [user, userRole, authLoading, navigate]);
 
   const fetchAssignments = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-    const { data, error } = await supabase
-      .from('delivery_assignments')
-      .select(`*, orders!inner (id, total_amount, delivery_address, status, created_at, user_id)`)
-      .eq('delivery_person_id', user.id)
-      .order('assigned_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('delivery_assignments')
+        .select(`*, orders!inner (id, total_amount, delivery_address, status, created_at, user_id)`)
+        .eq('delivery_person_id', user.id)
+        .order('assigned_at', { ascending: false });
 
-    if (!error && data) {
+      if (error) {
+        console.error('Error fetching assignments:', error);
+        setAssignments([]);
+        setLoading(false);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setAssignments([]);
+        setLoading(false);
+        return;
+      }
+
       // Fetch profiles and items
       const ordersWithDetails = await Promise.all(
         data.map(async (assignment) => {
@@ -121,8 +137,12 @@ export default function Delivery() {
         })
       );
       setAssignments(ordersWithDetails as DeliveryOrder[]);
+    } catch (err) {
+      console.error('Exception in fetchAssignments:', err);
+      setAssignments([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Pick up order from store
