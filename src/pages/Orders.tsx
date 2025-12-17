@@ -366,8 +366,8 @@ export default function Orders() {
                         <div className="mt-3 p-3 bg-warning/10 rounded-lg">
                           <p className="text-sm font-medium mb-2">Did you receive your order?</p>
                           <div className="flex gap-2">
-                            <Button size="sm" className="flex-1" onClick={() => setConfirmDialog({ open: true, orderId: order.id, assignmentId: assignment.id, deliveryPersonId: assignment.delivery_person_id })}>Yes</Button>
-                            <Button size="sm" variant="destructive" className="flex-1" onClick={() => setConfirmDialog({ open: true, orderId: order.id, assignmentId: assignment.id, deliveryPersonId: assignment.delivery_person_id })}>No</Button>
+                            <Button size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); setConfirmDialog({ open: true, orderId: order.id, assignmentId: assignment.id, deliveryPersonId: assignment.delivery_person_id }); }}>Yes</Button>
+                            <Button size="sm" variant="destructive" className="flex-1" onClick={(e) => { e.stopPropagation(); setConfirmDialog({ open: true, orderId: order.id, assignmentId: assignment.id, deliveryPersonId: assignment.delivery_person_id }); }}>No</Button>
                           </div>
                         </div>
                       )}

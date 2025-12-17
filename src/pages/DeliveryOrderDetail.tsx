@@ -45,6 +45,20 @@ export default function DeliveryOrderDetail() {
                 navigate('/delivery');
                 return;
             }
+            // Calculate order number (platform-wide daily number)
+            const orderDate = new Date(orderData.created_at);
+            const dayStart = new Date(orderDate);
+            dayStart.setHours(0, 0, 0, 0);
+
+            const { data: dayOrders } = await supabase
+                .from('orders')
+                .select('id, created_at')
+                .gte('created_at', dayStart.toISOString())
+                .order('created_at', { ascending: true });
+
+            const orderIndex = (dayOrders || []).findIndex(o => o.id === orderId);
+            (orderData as any).orderNumber = orderIndex >= 0 ? orderIndex + 1 : 1;
+
             setOrder(orderData);
 
             // Fetch items with variant_id
@@ -55,16 +69,16 @@ export default function DeliveryOrderDetail() {
 
             console.log('Items data:', itemsData, 'Error:', itemsError);
 
-            if (itemsData && itemsData.length > 0) {
+            if (itemsData && (itemsData as any[]).length > 0) {
                 // Fetch product names, images, and units
-                const productIds = itemsData.map(i => i.product_id);
+                const productIds = (itemsData as any[]).map(i => i.product_id);
                 const { data: products } = await supabase
                     .from('products')
                     .select('id, name, image_url, unit')
                     .in('id', productIds);
 
                 // Fetch variants if any
-                const variantIds = itemsData.map(i => i.variant_id).filter(Boolean);
+                const variantIds = (itemsData as any[]).map(i => i.variant_id).filter(Boolean);
                 let variantMap = new Map();
                 if (variantIds.length > 0) {
                     const { data: variants } = await supabase
@@ -76,14 +90,32 @@ export default function DeliveryOrderDetail() {
 
                 const productMap = new Map((products || []).map(p => [p.id, p]));
 
-                const enrichedItems = itemsData.map(item => {
+                const enrichedItems = (itemsData as any[]).map(item => {
                     const variant = variantMap.get(item.variant_id);
+                    // Calculate total quantity for display
+                    let calculatedQty = '';
+                    if (variant) {
+                        // Variant: calculate total (e.g., 2 × 250g = 500g)
+                        const totalValue = item.quantity * variant.variant_value;
+                        // Format nicely (e.g., 500g, 1kg)
+                        if (variant.variant_unit === 'g' && totalValue >= 1000) {
+                            calculatedQty = `${(totalValue / 1000).toFixed(1).replace('.0', '')} kg`;
+                        } else if (variant.variant_unit === 'ml' && totalValue >= 1000) {
+                            calculatedQty = `${(totalValue / 1000).toFixed(1).replace('.0', '')} L`;
+                        } else {
+                            calculatedQty = `${totalValue} ${variant.variant_unit}`;
+                        }
+                    } else {
+                        // No variant - show quantity with product unit
+                        calculatedQty = `${item.quantity} ${productMap.get(item.product_id)?.unit || 'pcs'}`;
+                    }
+
                     return {
                         ...item,
                         name: productMap.get(item.product_id)?.name || 'Product',
                         image: productMap.get(item.product_id)?.image_url || null,
-                        // Use variant unit if available, else product unit
-                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs')
+                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs'),
+                        calculatedQty
                     };
                 });
                 setItems(enrichedItems);
@@ -168,8 +200,8 @@ export default function DeliveryOrderDetail() {
                         {/* Invoice Header */}
                         <div className="p-4 border-b text-center bg-primary/5">
                             <h2 className="text-lg font-bold text-primary">DELIVERY INVOICE</h2>
-                            <p className="text-xs text-muted-foreground">
-                                Order #{orderId?.slice(0, 8).toUpperCase()}
+                            <p className="text-sm font-medium">
+                                Order #{order.orderNumber || '—'}
                             </p>
                             <p className="text-xs text-muted-foreground">
                                 {format(new Date(order.created_at), 'dd MMM yyyy, hh:mm a')}
@@ -204,23 +236,25 @@ export default function DeliveryOrderDetail() {
                             ) : (
                                 <div className="divide-y">
                                     {/* Items */}
-                                    {items.map((item, index) => (
-                                        <div key={item.id} className="py-4">
-                                            {/* Product Name - Full Width, Larger */}
-                                            <p className="font-semibold text-base leading-snug mb-2">
-                                                {index + 1}. {item.name}
-                                            </p>
-                                            {/* Price Details Row */}
-                                            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
-                                                <div className="text-sm text-muted-foreground">
-                                                    <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit}
+                                    {items.map((item, index) => {
+                                        // Calculate total quantity for display
+                                        const calcQty = item.calculatedQty || `${item.quantity} ${item.unit}`;
+                                        return (
+                                            <div key={item.id} className="py-4">
+                                                {/* Product Name - Full Width, Larger */}
+                                                <p className="font-semibold text-base leading-snug mb-2">
+                                                    {index + 1}. {item.name}
+                                                </p>
+                                                {/* Quantity and Price Row */}
+                                                <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
+                                                    <span className="text-sm font-medium text-foreground">{calcQty}</span>
+                                                    <span className="text-lg font-bold text-primary">
+                                                        ₹{item.quantity * item.price}
+                                                    </span>
                                                 </div>
-                                                <span className="text-lg font-bold text-primary">
-                                                    ₹{item.quantity * item.price}
-                                                </span>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
