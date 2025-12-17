@@ -247,7 +247,7 @@ export default function DeliveryOrderDetail() {
                                                 </p>
                                                 {/* Quantity and Price Row */}
                                                 <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
-                                                    <span className="text-sm font-medium text-foreground">{calcQty}</span>
+                                                    <span className="text-sm font-medium text-foreground">{calcQty} @ ₹{item.price}</span>
                                                     <span className="text-lg font-bold text-primary">
                                                         ₹{item.quantity * item.price}
                                                     </span>
