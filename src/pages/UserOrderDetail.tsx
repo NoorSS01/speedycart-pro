@@ -258,7 +258,7 @@ export default function UserOrderDetail() {
                                 )}
                                 <div className="flex-1">
                                     <p className="font-medium text-sm">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">{item.quantity} × {item.unit}</p>
+                                    <p className="text-xs text-muted-foreground">{item.quantity} × {item.unit} @ ₹{item.price}</p>
                                 </div>
                                 <p className="font-bold text-primary">₹{item.quantity * item.price}</p>
                             </div>

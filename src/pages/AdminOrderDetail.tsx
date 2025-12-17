@@ -298,7 +298,7 @@ export default function AdminOrderDetail() {
                                 <p className="font-semibold text-base mb-1">{index + 1}. {item.name}</p>
                                 <div className="flex justify-between items-center bg-muted rounded-lg px-3 py-2">
                                     <span className="text-sm text-muted-foreground">
-                                        <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit}
+                                        <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit} @ ₹{item.price}
                                     </span>
                                     <span className="text-lg font-bold text-primary">₹{item.quantity * item.price}</span>
                                 </div>
