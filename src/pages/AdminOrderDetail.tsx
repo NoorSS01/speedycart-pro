@@ -64,10 +64,10 @@ export default function AdminOrderDetail() {
             }
             setOrder(orderData);
 
-            // Fetch items
+            // Fetch items with variant_id
             const { data: itemsData } = await supabase
                 .from('order_items')
-                .select('id, quantity, price, product_id')
+                .select('id, quantity, price, product_id, variant_id')
                 .eq('order_id', orderId);
 
             if (itemsData && itemsData.length > 0) {
@@ -77,12 +77,26 @@ export default function AdminOrderDetail() {
                     .select('id, name, image_url, unit')
                     .in('id', productIds);
 
+                // Fetch variants if any
+                const variantIds = itemsData.map(i => i.variant_id).filter(Boolean);
+                let variantMap = new Map();
+                if (variantIds.length > 0) {
+                    const { data: variants } = await supabase
+                        .from('product_variants')
+                        .select('id, variant_value, variant_unit')
+                        .in('id', variantIds);
+                    variantMap = new Map((variants || []).map(v => [v.id, v]));
+                }
+
                 const productMap = new Map((products || []).map(p => [p.id, p]));
-                setItems(itemsData.map(item => ({
-                    ...item,
-                    name: productMap.get(item.product_id)?.name || 'Product',
-                    unit: productMap.get(item.product_id)?.unit || 'pcs'
-                })));
+                setItems(itemsData.map(item => {
+                    const variant = variantMap.get(item.variant_id);
+                    return {
+                        ...item,
+                        name: productMap.get(item.product_id)?.name || 'Product',
+                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs')
+                    };
+                }));
             }
 
             // Fetch customer
@@ -284,7 +298,7 @@ export default function AdminOrderDetail() {
                                 <p className="font-semibold text-base mb-1">{index + 1}. {item.name}</p>
                                 <div className="flex justify-between items-center bg-muted rounded-lg px-3 py-2">
                                     <span className="text-sm text-muted-foreground">
-                                        <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit} @ ₹{item.price}
+                                        <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit}
                                     </span>
                                     <span className="text-lg font-bold text-primary">₹{item.quantity * item.price}</span>
                                 </div>

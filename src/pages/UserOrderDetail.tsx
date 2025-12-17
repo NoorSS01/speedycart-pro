@@ -58,10 +58,10 @@ export default function UserOrderDetail() {
             }
             setOrder(orderData);
 
-            // Fetch items
+            // Fetch items with variant_id
             const { data: itemsData } = await supabase
                 .from('order_items')
-                .select('id, quantity, price, product_id')
+                .select('id, quantity, price, product_id, variant_id')
                 .eq('order_id', orderId);
 
             if (itemsData && itemsData.length > 0) {
@@ -71,13 +71,27 @@ export default function UserOrderDetail() {
                     .select('id, name, image_url, unit')
                     .in('id', productIds);
 
+                // Fetch variants if any
+                const variantIds = itemsData.map(i => i.variant_id).filter(Boolean);
+                let variantMap = new Map();
+                if (variantIds.length > 0) {
+                    const { data: variants } = await supabase
+                        .from('product_variants')
+                        .select('id, variant_value, variant_unit')
+                        .in('id', variantIds);
+                    variantMap = new Map((variants || []).map(v => [v.id, v]));
+                }
+
                 const productMap = new Map((products || []).map(p => [p.id, p]));
-                setItems(itemsData.map(item => ({
-                    ...item,
-                    name: productMap.get(item.product_id)?.name || 'Product',
-                    image: productMap.get(item.product_id)?.image_url || null,
-                    unit: productMap.get(item.product_id)?.unit || 'pcs'
-                })));
+                setItems(itemsData.map(item => {
+                    const variant = variantMap.get(item.variant_id);
+                    return {
+                        ...item,
+                        name: productMap.get(item.product_id)?.name || 'Product',
+                        image: productMap.get(item.product_id)?.image_url || null,
+                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs')
+                    };
+                }));
             }
 
             // Fetch assignment
@@ -244,7 +258,7 @@ export default function UserOrderDetail() {
                                 )}
                                 <div className="flex-1">
                                     <p className="font-medium text-sm">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">{item.quantity} × {item.unit} @ ₹{item.price}</p>
+                                    <p className="text-xs text-muted-foreground">{item.quantity} × {item.unit}</p>
                                 </div>
                                 <p className="font-bold text-primary">₹{item.quantity * item.price}</p>
                             </div>

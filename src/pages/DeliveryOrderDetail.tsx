@@ -47,30 +47,45 @@ export default function DeliveryOrderDetail() {
             }
             setOrder(orderData);
 
-            // Fetch items - simplified query
+            // Fetch items with variant_id
             const { data: itemsData, error: itemsError } = await supabase
                 .from('order_items')
-                .select('id, quantity, price, product_id')
+                .select('id, quantity, price, product_id, variant_id')
                 .eq('order_id', orderId);
 
             console.log('Items data:', itemsData, 'Error:', itemsError);
 
             if (itemsData && itemsData.length > 0) {
-                // Fetch product names, images, and units separately
+                // Fetch product names, images, and units
                 const productIds = itemsData.map(i => i.product_id);
                 const { data: products } = await supabase
                     .from('products')
                     .select('id, name, image_url, unit')
                     .in('id', productIds);
 
+                // Fetch variants if any
+                const variantIds = itemsData.map(i => i.variant_id).filter(Boolean);
+                let variantMap = new Map();
+                if (variantIds.length > 0) {
+                    const { data: variants } = await supabase
+                        .from('product_variants')
+                        .select('id, variant_value, variant_unit')
+                        .in('id', variantIds);
+                    variantMap = new Map((variants || []).map(v => [v.id, v]));
+                }
+
                 const productMap = new Map((products || []).map(p => [p.id, p]));
 
-                const enrichedItems = itemsData.map(item => ({
-                    ...item,
-                    name: productMap.get(item.product_id)?.name || 'Product',
-                    image: productMap.get(item.product_id)?.image_url || null,
-                    unit: productMap.get(item.product_id)?.unit || 'pcs'
-                }));
+                const enrichedItems = itemsData.map(item => {
+                    const variant = variantMap.get(item.variant_id);
+                    return {
+                        ...item,
+                        name: productMap.get(item.product_id)?.name || 'Product',
+                        image: productMap.get(item.product_id)?.image_url || null,
+                        // Use variant unit if available, else product unit
+                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs')
+                    };
+                });
                 setItems(enrichedItems);
             }
 
@@ -198,7 +213,7 @@ export default function DeliveryOrderDetail() {
                                             {/* Price Details Row */}
                                             <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
                                                 <div className="text-sm text-muted-foreground">
-                                                    <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit} @ ₹{item.price}
+                                                    <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit}
                                                 </div>
                                                 <span className="text-lg font-bold text-primary">
                                                     ₹{item.quantity * item.price}

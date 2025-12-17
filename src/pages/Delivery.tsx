@@ -383,63 +383,48 @@ export default function Delivery() {
           </Button>
         </div>
       </header>
-
-      {/* Delivered & Earnings Section */}
-      <div className="p-3 space-y-3">
-        {/* Delivered Today Card */}
-        <Card className="bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <PackageCheck className="w-5 h-5 text-emerald-600" />
-                <span className="text-sm font-medium">Delivered Today</span>
-              </div>
-              <span className="text-2xl font-bold text-emerald-600">{stats.today}</span>
-            </div>
+      {/* Stats Row - 4 Compact Cards */}
+      <div className="grid grid-cols-4 gap-2 p-3">
+        <Card className="border-0 bg-primary/10">
+          <CardContent className="p-2 text-center">
+            <p className="text-lg font-bold">{stats.pending}</p>
+            <p className="text-[9px] text-muted-foreground">Pending</p>
           </CardContent>
         </Card>
-
-        {/* Earnings Card with Filters */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Earnings</span>
-              </div>
-              <span className="text-2xl font-bold text-primary">₹{stats.earnings}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-2">{stats.earningsCount} deliveries × ₹5</p>
-            <div className="flex gap-1.5">
-              {(['today', 'week', 'month', 'all'] as const).map((filter) => (
-                <Button
-                  key={filter}
-                  size="sm"
-                  variant={earningsFilter === filter ? 'default' : 'outline'}
-                  className="flex-1 h-7 text-[10px]"
-                  onClick={() => setEarningsFilter(filter)}
-                >
-                  {filter === 'today' ? 'Today' : filter === 'week' ? 'Week' : filter === 'month' ? 'Month' : 'All'}
-                </Button>
-              ))}
-            </div>
+        <Card className="border-0 bg-primary/10">
+          <CardContent className="p-2 text-center">
+            <p className="text-lg font-bold text-primary">₹{stats.earnings}</p>
+            <p className="text-[9px] text-muted-foreground">Earned</p>
           </CardContent>
         </Card>
+        <Card className="border-0 bg-primary/10">
+          <CardContent className="p-2 text-center">
+            <p className="text-lg font-bold">{stats.today}</p>
+            <p className="text-[9px] text-muted-foreground">Delivered</p>
+          </CardContent>
+        </Card>
+        <Card className="border-0 bg-secondary">
+          <CardContent className="p-2 text-center">
+            <p className="text-lg font-bold">{stats.delivered}</p>
+            <p className="text-[9px] text-muted-foreground">Orders</p>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Pending Stat */}
-        <div className="grid grid-cols-2 gap-2">
-          <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-            <CardContent className="p-2 text-center">
-              <p className="text-lg font-bold text-amber-600">{stats.pending}</p>
-              <p className="text-[9px] text-muted-foreground">Pending</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
-            <CardContent className="p-2 text-center">
-              <p className="text-lg font-bold text-purple-600">{stats.delivered}</p>
-              <p className="text-[9px] text-muted-foreground">Total Delivered</p>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Earnings Filter Dropdown */}
+      <div className="px-3 pb-2 flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Earnings period:</span>
+        <select
+          value={earningsFilter}
+          onChange={(e) => setEarningsFilter(e.target.value as any)}
+          className="text-xs rounded-md border border-border bg-background px-2 py-1"
+        >
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+          <option value="all">All Time</option>
+        </select>
+        <span className="text-xs text-muted-foreground ml-auto">{stats.earningsCount} × ₹5</span>
       </div>
 
       {/* Tabs */}

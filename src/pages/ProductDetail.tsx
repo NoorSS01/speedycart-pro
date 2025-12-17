@@ -367,7 +367,8 @@ export default function ProductDetail() {
             order_id: order.id,
             product_id: product.id,
             quantity,
-            price: product.price
+            price: selectedVariant?.price || product.price,
+            variant_id: selectedVariant?.id || null
         });
 
         // Update stock

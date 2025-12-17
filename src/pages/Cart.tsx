@@ -332,7 +332,8 @@ export default function Cart() {
                     order_id: orderData.id,
                     product_id: item.product_id,
                     quantity: item.quantity,
-                    price: item.products.price,
+                    price: item.product_variants?.price || item.products.price,
+                    variant_id: item.variant_id
                 });
 
                 await supabase
