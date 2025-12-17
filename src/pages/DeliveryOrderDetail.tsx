@@ -97,13 +97,22 @@ export default function DeliveryOrderDetail() {
                     if (variant) {
                         // Variant: calculate total (e.g., 2 × 250g = 500g)
                         const totalValue = item.quantity * variant.variant_value;
-                        // Format nicely (e.g., 500g, 1kg)
-                        if (variant.variant_unit === 'g' && totalValue >= 1000) {
-                            calculatedQty = `${(totalValue / 1000).toFixed(1).replace('.0', '')} kg`;
-                        } else if (variant.variant_unit === 'ml' && totalValue >= 1000) {
-                            calculatedQty = `${(totalValue / 1000).toFixed(1).replace('.0', '')} L`;
+                        const unit = variant.variant_unit;
+
+                        // Handle kg/L - convert to g/ml for display if less than 1
+                        if (unit === 'kg') {
+                            const grams = totalValue * 1000;
+                            calculatedQty = grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(grams)} g`;
+                        } else if (unit === 'L') {
+                            const ml = totalValue * 1000;
+                            calculatedQty = ml >= 1000 ? `${(ml / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(ml)} ml`;
+                        } else if (unit === 'g') {
+                            calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(totalValue)} g`;
+                        } else if (unit === 'ml') {
+                            calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(totalValue)} ml`;
                         } else {
-                            calculatedQty = `${totalValue} ${variant.variant_unit}`;
+                            // For other units (pcs, dozen, etc.)
+                            calculatedQty = `${totalValue} ${unit}`;
                         }
                     } else {
                         // No variant - show quantity with product unit
