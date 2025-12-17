@@ -49,6 +49,7 @@ export default function Delivery() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [earningsFilter, setEarningsFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
 
   const deliveryTimeMinutes = parseInt(localStorage.getItem('delivery_time_minutes') || String(DEFAULT_DELIVERY_TIME));
 
@@ -208,13 +209,41 @@ export default function Delivery() {
   const completed = assignments.filter(a => a.user_confirmed_at);
   const rejected = assignments.filter(a => a.is_rejected);
 
-  // Stats
+  // Stats with filter
   const stats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayDone = completed.filter(a => a.user_confirmed_at && new Date(a.user_confirmed_at) >= today).length;
-    return { today: todayDone, earnings: completed.length * 5, pending: newOrders.length + inTransit.length };
-  }, [completed, newOrders, inTransit]);
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - 7);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const monthStart = new Date(now);
+    monthStart.setMonth(monthStart.getMonth() - 1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    // Today's deliveries
+    const todayDone = completed.filter(a => a.user_confirmed_at && new Date(a.user_confirmed_at) >= todayStart).length;
+
+    // Filtered earnings (₹5 per delivery)
+    let filteredCompleted = completed;
+    if (earningsFilter === 'today') {
+      filteredCompleted = completed.filter(a => a.user_confirmed_at && new Date(a.user_confirmed_at) >= todayStart);
+    } else if (earningsFilter === 'week') {
+      filteredCompleted = completed.filter(a => a.user_confirmed_at && new Date(a.user_confirmed_at) >= weekStart);
+    } else if (earningsFilter === 'month') {
+      filteredCompleted = completed.filter(a => a.user_confirmed_at && new Date(a.user_confirmed_at) >= monthStart);
+    }
+
+    return {
+      today: todayDone,
+      delivered: completed.length,
+      earnings: filteredCompleted.length * 5,
+      earningsCount: filteredCompleted.length,
+      pending: newOrders.length + inTransit.length
+    };
+  }, [completed, newOrders, inTransit, earningsFilter]);
 
   // Timer Badge
   const TimerBadge = ({ createdAt }: { createdAt: string }) => {
@@ -355,32 +384,68 @@ export default function Delivery() {
         </div>
       </header>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 p-3">
-        <Card className="bg-primary/10 border-0">
-          <CardContent className="p-2 text-center">
-            <p className="text-lg font-bold">{stats.today}</p>
-            <p className="text-[9px] text-muted-foreground">Today</p>
+      {/* Delivered & Earnings Section */}
+      <div className="p-3 space-y-3">
+        {/* Delivered Today Card */}
+        <Card className="bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <PackageCheck className="w-5 h-5 text-emerald-600" />
+                <span className="text-sm font-medium">Delivered Today</span>
+              </div>
+              <span className="text-2xl font-bold text-emerald-600">{stats.today}</span>
+            </div>
           </CardContent>
         </Card>
-        <Card className="bg-primary/10 border-0">
-          <CardContent className="p-2 text-center">
-            <p className="text-lg font-bold">₹{stats.earnings}</p>
-            <p className="text-[9px] text-muted-foreground">Earned</p>
+
+        {/* Earnings Card with Filters */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Earnings</span>
+              </div>
+              <span className="text-2xl font-bold text-primary">₹{stats.earnings}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">{stats.earningsCount} deliveries × ₹5</p>
+            <div className="flex gap-1.5">
+              {(['today', 'week', 'month', 'all'] as const).map((filter) => (
+                <Button
+                  key={filter}
+                  size="sm"
+                  variant={earningsFilter === filter ? 'default' : 'outline'}
+                  className="flex-1 h-7 text-[10px]"
+                  onClick={() => setEarningsFilter(filter)}
+                >
+                  {filter === 'today' ? 'Today' : filter === 'week' ? 'Week' : filter === 'month' ? 'Month' : 'All'}
+                </Button>
+              ))}
+            </div>
           </CardContent>
         </Card>
-        <Card className="bg-secondary border-0">
-          <CardContent className="p-2 text-center">
-            <p className="text-lg font-bold">{stats.pending}</p>
-            <p className="text-[9px] text-muted-foreground">Pending</p>
-          </CardContent>
-        </Card>
+
+        {/* Pending Stat */}
+        <div className="grid grid-cols-2 gap-2">
+          <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+            <CardContent className="p-2 text-center">
+              <p className="text-lg font-bold text-amber-600">{stats.pending}</p>
+              <p className="text-[9px] text-muted-foreground">Pending</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+            <CardContent className="p-2 text-center">
+              <p className="text-lg font-bold text-purple-600">{stats.delivered}</p>
+              <p className="text-[9px] text-muted-foreground">Total Delivered</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="px-3 pb-6">
         <Tabs defaultValue="new">
-          <TabsList className="w-full grid grid-cols-5 h-9 mb-3 bg-muted">
+          <TabsList className="w-full grid grid-cols-4 h-9 mb-3 bg-muted">
             <TabsTrigger value="new" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               New{newOrders.length > 0 && ` (${newOrders.length})`}
             </TabsTrigger>
@@ -390,7 +455,6 @@ export default function Delivery() {
             <TabsTrigger value="await" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Await{awaiting.length > 0 && ` (${awaiting.length})`}
             </TabsTrigger>
-            <TabsTrigger value="done" className="text-[10px] data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Done</TabsTrigger>
             <TabsTrigger value="rejected" className="text-[10px] data-[state=active]:bg-destructive data-[state=active]:text-white">Reject</TabsTrigger>
           </TabsList>
 
@@ -402,9 +466,6 @@ export default function Delivery() {
           </TabsContent>
           <TabsContent value="await">
             {awaiting.length === 0 ? <Empty text="No pending confirmations" /> : awaiting.map(a => <OrderCard key={a.id} a={a} type="await" />)}
-          </TabsContent>
-          <TabsContent value="done">
-            {completed.length === 0 ? <Empty text="No completed deliveries" /> : completed.slice(0, 20).map(a => <OrderCard key={a.id} a={a} type="done" />)}
           </TabsContent>
           <TabsContent value="rejected">
             {rejected.length === 0 ? <Empty text="No rejected orders" /> : rejected.map(a => <OrderCard key={a.id} a={a} type="rejected" />)}

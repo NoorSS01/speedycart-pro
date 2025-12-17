@@ -56,11 +56,11 @@ export default function DeliveryOrderDetail() {
             console.log('Items data:', itemsData, 'Error:', itemsError);
 
             if (itemsData && itemsData.length > 0) {
-                // Fetch product names separately
+                // Fetch product names, images, and units separately
                 const productIds = itemsData.map(i => i.product_id);
                 const { data: products } = await supabase
                     .from('products')
-                    .select('id, name, image_url')
+                    .select('id, name, image_url, unit')
                     .in('id', productIds);
 
                 const productMap = new Map((products || []).map(p => [p.id, p]));
@@ -68,7 +68,8 @@ export default function DeliveryOrderDetail() {
                 const enrichedItems = itemsData.map(item => ({
                     ...item,
                     name: productMap.get(item.product_id)?.name || 'Product',
-                    image: productMap.get(item.product_id)?.image_url || null
+                    image: productMap.get(item.product_id)?.image_url || null,
+                    unit: productMap.get(item.product_id)?.unit || 'pcs'
                 }));
                 setItems(enrichedItems);
             }
@@ -197,7 +198,7 @@ export default function DeliveryOrderDetail() {
                                             {/* Price Details Row */}
                                             <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 rounded-lg px-3 py-2">
                                                 <div className="text-sm text-muted-foreground">
-                                                    <span className="font-medium text-foreground">{item.quantity}</span> × ₹{item.price}
+                                                    <span className="font-medium text-foreground">{item.quantity}</span> × {item.unit} @ ₹{item.price}
                                                 </div>
                                                 <span className="text-lg font-bold text-primary">
                                                     ₹{item.quantity * item.price}

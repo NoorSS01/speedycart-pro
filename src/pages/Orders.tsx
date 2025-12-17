@@ -320,7 +320,11 @@ export default function Orders() {
               const isDelivered = order.status === 'delivered';
 
               return (
-                <Card key={order.id}>
+                <Card
+                  key={order.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate(`/orders/${order.id}`)}
+                >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">

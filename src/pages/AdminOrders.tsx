@@ -208,7 +208,11 @@ export default function AdminOrders() {
                     </Card>
                 ) : (
                     filteredOrders.map((order) => (
-                        <Card key={order.id} className={order.status === 'pending' ? 'border-amber-200' : ''}>
+                        <Card
+                            key={order.id}
+                            className={`cursor-pointer hover:shadow-md transition-shadow ${order.status === 'pending' ? 'border-amber-200' : ''}`}
+                            onClick={() => navigate(`/admin/order/${order.id}`)}
+                        >
                             <CardContent className="p-4">
                                 <div className="flex items-start justify-between mb-2">
                                     <div>
