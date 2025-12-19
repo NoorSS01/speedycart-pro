@@ -14,6 +14,7 @@ import Orders from "./pages/Orders";
 import Profile from "./pages/Profile";
 import Delivery from "./pages/Delivery";
 import DeliveryOrderDetail from "./pages/DeliveryOrderDetail";
+import DeliveryProfile from "./pages/DeliveryProfile";
 import Admin from "./pages/Admin";
 import AdminStock from "./pages/AdminStock";
 import AdminToPay from "./pages/AdminToPay";
@@ -23,6 +24,7 @@ import AdminSecurity from "./pages/AdminSecurity";
 import AdminUsers from "./pages/AdminUsers";
 import AdminOrders from "./pages/AdminOrders";
 import AdminOrderDetail from "./pages/AdminOrderDetail";
+import AdminProfile from "./pages/AdminProfile";
 import UserOrderDetail from "./pages/UserOrderDetail";
 import SuperAdmin from "./pages/SuperAdmin";
 import DeliveryApplication from "./pages/DeliveryApplication";
@@ -61,6 +63,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/delivery" element={<Delivery />} />
               <Route path="/delivery/order/:orderId" element={<DeliveryOrderDetail />} />
+              <Route path="/delivery/profile" element={<DeliveryProfile />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/stock" element={<AdminStock />} />
               <Route path="/admin/to-pay" element={<AdminToPay />} />
@@ -70,6 +73,7 @@ const App = () => (
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/orders" element={<AdminOrders />} />
               <Route path="/admin/order/:orderId" element={<AdminOrderDetail />} />
+              <Route path="/admin/profile" element={<AdminProfile />} />
               <Route path="/super-admin" element={<SuperAdmin />} />
               <Route path="/delivery-application" element={<DeliveryApplication />} />
               <Route path="/admin/add-product" element={<AddProduct />} />
