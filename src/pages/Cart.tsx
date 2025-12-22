@@ -373,12 +373,14 @@ export default function Cart() {
                 .delete()
                 .eq('user_id', user.id);
 
-            // Save address if new
-            if (addressOption === 'new' && newAddress) {
+            // Save address if new (save the complete built address)
+            if (addressOption === 'new' && deliveryAddress) {
                 await supabase
                     .from('profiles')
-                    .update({ address: newAddress })
+                    .update({ address: deliveryAddress })
                     .eq('id', user.id);
+                // Update local saved address so it appears in saved option
+                setSavedAddress(deliveryAddress);
             }
 
             // Mark coupon as used if applied (try-catch since table might not exist)
@@ -488,25 +490,12 @@ export default function Cart() {
                     </div>
                 </header>
 
-                {/* Savings Banner - Shows all savings combined */}
+                {/* Savings Banner - Simple total only */}
                 {cartItems.length > 0 && totalSavings > 0 && (
-                    <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 text-white py-2.5 px-4 shadow-md">
-                        <div className="container mx-auto flex items-center justify-center gap-3 flex-wrap">
-                            <p className="text-sm font-bold">
-                                🎉 You save ₹{totalSavings.toFixed(0)}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs opacity-90">
-                                {productSavings > 0 && (
-                                    <span className="bg-white/20 px-2 py-0.5 rounded-full">Product: ₹{productSavings.toFixed(0)}</span>
-                                )}
-                                {couponSavings > 0 && (
-                                    <span className="bg-white/20 px-2 py-0.5 rounded-full">Coupon: ₹{couponSavings.toFixed(0)}</span>
-                                )}
-                                {deliverySavings > 0 && (
-                                    <span className="bg-white/20 px-2 py-0.5 rounded-full">Delivery: ₹{deliverySavings.toFixed(0)}</span>
-                                )}
-                            </div>
-                        </div>
+                    <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 text-white py-2.5 text-center shadow-md">
+                        <p className="text-sm font-bold">
+                            🎉 You save ₹{totalSavings.toFixed(0)}
+                        </p>
                     </div>
                 )}
             </div>
