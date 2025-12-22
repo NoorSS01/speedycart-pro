@@ -91,11 +91,16 @@ export default function Cart() {
     const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
     const [newAddress, setNewAddress] = useState('');
     const [placingOrder, setPlacingOrder] = useState(false);
+    // Enhanced address fields
+    const [selectedApartment, setSelectedApartment] = useState<string>('');
+    const [blockNumber, setBlockNumber] = useState('');
+    const [roomNumber, setRoomNumber] = useState('');
 
     // Coupon state
     const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
     const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
     const [discountAmount, setDiscountAmount] = useState(0);
+    const [usedCouponIds, setUsedCouponIds] = useState<string[]>([]);
 
     useEffect(() => {
         if (authLoading) return;
@@ -288,7 +293,25 @@ export default function Cart() {
     const confirmOrder = async () => {
         if (!user) return;
 
-        const deliveryAddress = addressOption === 'saved' ? savedAddress : newAddress;
+        // Build delivery address from form fields
+        let deliveryAddress = '';
+        if (addressOption === 'saved') {
+            deliveryAddress = savedAddress;
+        } else {
+            if (selectedApartment && selectedApartment !== 'Other') {
+                // Build structured address
+                const parts = [];
+                if (blockNumber) parts.push(`Block ${blockNumber}`);
+                if (roomNumber) parts.push(`Room ${roomNumber}`);
+                parts.push(selectedApartment);
+                parts.push('Chandapura-Anekal Road, Bangalore - 562106');
+                deliveryAddress = parts.join(', ');
+            } else {
+                // Use custom address for "Other"
+                deliveryAddress = newAddress;
+            }
+        }
+
         if (!deliveryAddress.trim()) {
             toast.error('Please enter a delivery address');
             return;
@@ -858,13 +881,71 @@ export default function Cart() {
                                     New Address
                                 </Label>
                                 {addressOption === 'new' && (
-                                    <Textarea
-                                        className="mt-2"
-                                        placeholder="Enter your delivery address"
-                                        value={newAddress}
-                                        onChange={(e) => setNewAddress(e.target.value)}
-                                        rows={3}
-                                    />
+                                    <div className="space-y-3 mt-3">
+                                        {/* Apartment Dropdown */}
+                                        <div>
+                                            <Label className="text-sm">Apartment Complex</Label>
+                                            <select
+                                                value={selectedApartment}
+                                                onChange={(e) => setSelectedApartment(e.target.value)}
+                                                className="w-full mt-1.5 p-2.5 border rounded-md bg-background text-sm"
+                                            >
+                                                <option value="">Select your apartment...</option>
+                                                <option value="VBHC Vaibhava">VBHC Vaibhava</option>
+                                                <option value="Symphony">Symphony</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                            {selectedApartment && selectedApartment !== 'Other' && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    📍 {selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Block and Room */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label className="text-sm">Block/Tower</Label>
+                                                <Input
+                                                    placeholder="e.g., 51"
+                                                    value={blockNumber}
+                                                    onChange={(e) => setBlockNumber(e.target.value)}
+                                                    className="mt-1.5"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm">Room Number</Label>
+                                                <Input
+                                                    placeholder="e.g., 603"
+                                                    value={roomNumber}
+                                                    onChange={(e) => setRoomNumber(e.target.value)}
+                                                    className="mt-1.5"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Additional Address for Other */}
+                                        {selectedApartment === 'Other' && (
+                                            <Textarea
+                                                placeholder="Enter your complete delivery address"
+                                                value={newAddress}
+                                                onChange={(e) => setNewAddress(e.target.value)}
+                                                rows={2}
+                                            />
+                                        )}
+
+                                        {/* Preview */}
+                                        {(selectedApartment && selectedApartment !== 'Other' && (blockNumber || roomNumber)) && (
+                                            <div className="p-2 bg-muted/50 rounded-lg text-sm">
+                                                <p className="font-medium">Delivery to:</p>
+                                                <p className="text-muted-foreground">
+                                                    {blockNumber && `Block ${blockNumber}`}{roomNumber && `, Room ${roomNumber}`}
+                                                    <br />
+                                                    {selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>

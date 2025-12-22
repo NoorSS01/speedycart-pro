@@ -41,6 +41,7 @@ import ShippingPolicy from "./pages/ShippingPolicy";
 import ContactUs from "./pages/ContactUs";
 import PaymentTerms from "./pages/PaymentTerms";
 import GrievancePolicy from "./pages/GrievancePolicy";
+import Settings from "./pages/Settings";
 
 
 const queryClient = new QueryClient();
@@ -94,6 +95,7 @@ const App = () => (
               <Route path="/contact" element={<ContactUs />} />
               <Route path="/payment-terms" element={<PaymentTerms />} />
               <Route path="/grievance" element={<GrievancePolicy />} />
+              <Route path="/settings" element={<Settings />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
