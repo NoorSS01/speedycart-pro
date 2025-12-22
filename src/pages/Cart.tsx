@@ -430,13 +430,14 @@ export default function Cart() {
     const originalTotal = cartItems.reduce((sum, item) => sum + getItemMrp(item) * item.quantity, 0);
     const subtotal = cartItems.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
     const productSavings = originalTotal - subtotal; // Savings from MRP vs selling price
-    const discount = promoApplied ? (subtotal * promoDiscount / 100) : 0;
-    const couponSavings = discountAmount; // From applied coupon
+    // Coupon savings is the ONLY discount from coupons (discountAmount is set when coupon is applied)
+    const couponSavings = discountAmount;
     const baseDeliveryFee = 35; // Default delivery fee
     const deliveryFee = subtotal > 200 ? 0 : baseDeliveryFee;
     const deliverySavings = subtotal > 200 ? baseDeliveryFee : 0; // Free delivery savings
-    const totalSavings = productSavings + couponSavings + deliverySavings; // All savings combined
-    const finalTotal = subtotal - discount - couponSavings + deliveryFee;
+    // Total savings = product discounts + coupon + free delivery
+    const totalSavings = productSavings + couponSavings + deliverySavings;
+    const finalTotal = subtotal - couponSavings + deliveryFee;
 
     // Loading state
     if (loading) {
@@ -773,12 +774,6 @@ export default function Cart() {
                                     <span>-₹{couponSavings.toFixed(0)}</span>
                                 </div>
                             )}
-                            {promoApplied && discount > 0 && (
-                                <div className="flex justify-between text-sm text-green-600">
-                                    <span>Promo ({promoDiscount}%)</span>
-                                    <span>-₹{discount.toFixed(0)}</span>
-                                </div>
-                            )}
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Delivery</span>
                                 {deliveryFee === 0 ? (
@@ -834,9 +829,9 @@ export default function Cart() {
                             <div>
                                 <p className="text-xs text-muted-foreground">Total Amount</p>
                                 <p className="text-xl font-bold text-primary">₹{finalTotal.toFixed(0)}</p>
-                                {(productSavings > 0 || promoApplied) && (
+                                {totalSavings > 0 && (
                                     <p className="text-xs text-green-600 font-medium">
-                                        You save ₹{(productSavings + discount).toFixed(0)}!
+                                        You save ₹{totalSavings.toFixed(0)}!
                                     </p>
                                 )}
                             </div>

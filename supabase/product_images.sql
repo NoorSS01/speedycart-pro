@@ -20,6 +20,10 @@ ON product_images(product_id) WHERE is_primary = true;
 -- Enable RLS
 ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies first (if they exist)
+DROP POLICY IF EXISTS "Anyone can view product images" ON product_images;
+DROP POLICY IF EXISTS "Admins can manage product images" ON product_images;
+
 -- Policy: Anyone can view product images
 CREATE POLICY "Anyone can view product images" ON product_images
     FOR SELECT USING (true);
@@ -33,3 +37,4 @@ CREATE POLICY "Admins can manage product images" ON product_images
             AND role IN ('admin', 'super_admin')
         )
     );
+

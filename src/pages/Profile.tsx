@@ -30,7 +30,8 @@ import {
   Heart,
   Languages,
   AlertTriangle,
-  ClipboardList
+  ClipboardList,
+  Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
@@ -178,7 +179,10 @@ export default function Profile() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold">My Profile</h1>
+          <h1 className="text-xl font-bold flex-1">My Profile</h1>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
