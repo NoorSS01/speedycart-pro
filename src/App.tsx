@@ -34,6 +34,13 @@ import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
 import Categories from "./pages/Categories";
 import NotFound from "./pages/NotFound";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsConditions from "./pages/TermsConditions";
+import RefundPolicy from "./pages/RefundPolicy";
+import ShippingPolicy from "./pages/ShippingPolicy";
+import ContactUs from "./pages/ContactUs";
+import PaymentTerms from "./pages/PaymentTerms";
+import GrievancePolicy from "./pages/GrievancePolicy";
 
 
 const queryClient = new QueryClient();
@@ -79,6 +86,14 @@ const App = () => (
               <Route path="/admin/add-product" element={<AddProduct />} />
               <Route path="/phone-setup" element={<PhoneSetup />} />
               <Route path="/product/:id" element={<ProductDetail />} />
+              {/* Legal Pages */}
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsConditions />} />
+              <Route path="/refund-policy" element={<RefundPolicy />} />
+              <Route path="/shipping-policy" element={<ShippingPolicy />} />
+              <Route path="/contact" element={<ContactUs />} />
+              <Route path="/payment-terms" element={<PaymentTerms />} />
+              <Route path="/grievance" element={<GrievancePolicy />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
