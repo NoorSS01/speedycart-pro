@@ -27,6 +27,7 @@ import {
   Zap
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import Footer from '@/components/Footer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { Sparkles } from 'lucide-react';
@@ -1023,6 +1024,9 @@ export default function Shop() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Footer */}
+      <Footer />
 
       {/* Bottom Navigation */}
       <BottomNav />
