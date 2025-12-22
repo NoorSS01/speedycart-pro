@@ -22,17 +22,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Phone check for OAuth users - runs after initial auth load
-  const checkPhoneSetup = async (userId: string) => {
+  // Profile check for OAuth users - runs after initial auth load
+  const checkProfileSetup = async (userId: string) => {
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('phone')
+        .select('phone, username')
         .eq('id', userId)
         .single();
 
-      const hasValidPhone = profile?.phone && profile.phone.replace(/\D/g, '').length >= 10;
-      if (!hasValidPhone && window.location.pathname !== '/phone-setup' && window.location.pathname !== '/auth') {
+      const profileData = profile as any;
+      const hasValidPhone = profileData?.phone && profileData.phone.replace(/\D/g, '').length >= 10;
+      const hasUsername = profileData?.username && profileData.username.length >= 3;
+
+      if ((!hasValidPhone || !hasUsername) && window.location.pathname !== '/phone-setup' && window.location.pathname !== '/auth') {
         navigate('/phone-setup');
       }
     } catch (e) {
@@ -54,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Check phone setup only on fresh sign-in (OAuth)
           if (event === 'SIGNED_IN') {
             setTimeout(() => {
-              checkPhoneSetup(session.user.id);
+              checkProfileSetup(session.user.id);
             }, 100);
           }
         } else {

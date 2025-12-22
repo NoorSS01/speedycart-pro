@@ -7,14 +7,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Package, Phone, Loader2 } from 'lucide-react';
+import { Package, Phone, Loader2, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PhoneSetup() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -28,16 +30,27 @@ export default function PhoneSetup() {
     const fetchProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('phone')
+        .select('phone, username')
         .eq('id', user.id)
         .single();
 
-      // Check if phone already exists and is valid (10+ digits)
-      if (!error && data?.phone) {
-        const digitsOnly = data.phone.replace(/\D/g, '');
-        if (digitsOnly.length >= 10) {
+      // Check if phone and username already exist and are valid
+      if (!error && data) {
+        const hasValidPhone = data.phone && data.phone.replace(/\D/g, '').length >= 10;
+        const hasUsername = data.username && data.username.length >= 3;
+
+        if (hasValidPhone && hasUsername) {
           navigate('/shop');
           return;
+        }
+
+        // Pre-fill existing data
+        if (data.phone) {
+          const digitsOnly = data.phone.replace(/\D/g, '');
+          setPhone(digitsOnly.slice(-10));
+        }
+        if (data.username) {
+          setUsername(data.username);
         }
       }
       setLoading(false);
@@ -56,6 +69,23 @@ export default function PhoneSetup() {
     return true;
   };
 
+  const validateUsername = (value: string): boolean => {
+    if (value.length < 3) {
+      setUsernameError('Username must be at least 3 characters');
+      return false;
+    }
+    if (value.length > 20) {
+      setUsernameError('Username cannot exceed 20 characters');
+      return false;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+      setUsernameError('Only letters, numbers, and underscores allowed');
+      return false;
+    }
+    setUsernameError('');
+    return true;
+  };
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value.replace(/\D/g, '').slice(0, 10);
     setPhone(input);
@@ -70,28 +100,57 @@ export default function PhoneSetup() {
     }
   };
 
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20);
+    setUsername(value);
+
+    if (value.length > 0 && value.length < 3) {
+      setUsernameError(`${3 - value.length} more characters needed`);
+    } else {
+      setUsernameError('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    if (!validatePhone(phone)) {
+    if (!validatePhone(phone) || !validateUsername(username)) {
+      return;
+    }
+
+    setSaving(true);
+
+    // Check if username is already taken
+    const { data: existingUsername } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('username', username)
+      .neq('id', user.id)
+      .maybeSingle();
+
+    if (existingUsername) {
+      toast.error('This username is already taken');
+      setSaving(false);
       return;
     }
 
     const normalizedPhone = `+91${phone}`;
 
-    setSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ phone: normalizedPhone })
+      .update({
+        phone: normalizedPhone,
+        username: username.toLowerCase()
+      })
       .eq('id', user.id);
 
     setSaving(false);
 
     if (error) {
-      toast.error('Failed to save phone number');
+      toast.error('Failed to save your details');
     } else {
-      toast.success('Phone number saved successfully!');
+      toast.success('Account setup complete!');
       navigate('/shop');
     }
   };
@@ -127,11 +186,41 @@ export default function PhoneSetup() {
           </div>
           <CardTitle className="text-2xl font-bold">Almost there!</CardTitle>
           <CardDescription>
-            Please add your phone number to complete your account setup
+            Complete your profile to start shopping
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Username Field */}
+            <div className="space-y-2">
+              <Label htmlFor="username" className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                Username *
+              </Label>
+              <div className="flex">
+                <div className="flex items-center justify-center px-3 bg-muted border border-r-0 rounded-l-md text-sm font-medium text-muted-foreground">
+                  @
+                </div>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="johndoe_123"
+                  value={username}
+                  onChange={handleUsernameChange}
+                  className={`rounded-l-none ${usernameError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                  maxLength={20}
+                  required
+                />
+              </div>
+              {usernameError && (
+                <p className="text-sm text-destructive">{usernameError}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Letters, numbers, and underscores only (3-20 chars)
+              </p>
+            </div>
+
+            {/* Phone Field */}
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground" />
@@ -160,7 +249,12 @@ export default function PhoneSetup() {
                 We'll use this number for order updates and delivery coordination
               </p>
             </div>
-            <Button type="submit" className="w-full" disabled={saving || phone.length !== 10}>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={saving || phone.length !== 10 || username.length < 3}
+            >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue to Shop
             </Button>
