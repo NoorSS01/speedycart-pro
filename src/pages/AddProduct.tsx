@@ -64,6 +64,8 @@ export default function AddProduct() {
         image_url: ''
     });
     const [variants, setVariants] = useState<ProductVariant[]>([]);
+    const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+    const [newImageUrl, setNewImageUrl] = useState('');
 
     useEffect(() => {
         if (loading) return;
@@ -418,28 +420,88 @@ export default function AddProduct() {
                             </div>
                         </div>
 
-                        {/* Image URL */}
-                        <div className="space-y-2">
-                            <Label htmlFor="image" className="text-sm font-medium flex items-center gap-2">
+                        {/* Image URLs - Multi-image support */}
+                        <div className="space-y-3">
+                            <Label className="text-sm font-medium flex items-center gap-2">
                                 <ImagePlus className="h-4 w-4" />
-                                Image URL
+                                Product Images
                             </Label>
-                            <Input
-                                id="image"
-                                value={productForm.image_url}
-                                onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
-                                placeholder="https://example.com/image.jpg"
-                                className="h-12"
-                            />
-                            {productForm.image_url && (
-                                <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted/50">
-                                    <img
-                                        src={productForm.image_url}
-                                        alt="Preview"
-                                        className="w-full h-40 object-cover"
-                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+
+                            {/* Primary Image */}
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Primary Image (Main display)</Label>
+                                <Input
+                                    id="image"
+                                    value={productForm.image_url}
+                                    onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+                                    placeholder="https://example.com/primary-image.jpg"
+                                    className="h-12"
+                                />
+                            </div>
+
+                            {/* Additional Images */}
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Additional Images (Gallery)</Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={newImageUrl}
+                                        onChange={(e) => setNewImageUrl(e.target.value)}
+                                        placeholder="https://example.com/additional-image.jpg"
+                                        className="h-12 flex-1"
                                     />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-12"
+                                        onClick={() => {
+                                            if (newImageUrl.trim()) {
+                                                setAdditionalImages([...additionalImages, newImageUrl.trim()]);
+                                                setNewImageUrl('');
+                                            }
+                                        }}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
                                 </div>
+                            </div>
+
+                            {/* Image Preview Grid */}
+                            <div className="grid grid-cols-3 gap-2 mt-3">
+                                {productForm.image_url && (
+                                    <div className="relative aspect-square rounded-lg overflow-hidden border-2 border-primary">
+                                        <img
+                                            src={productForm.image_url}
+                                            alt="Primary"
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                        />
+                                        <span className="absolute top-1 left-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded">
+                                            Primary
+                                        </span>
+                                    </div>
+                                )}
+                                {additionalImages.map((url, index) => (
+                                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden border group">
+                                        <img
+                                            src={url}
+                                            alt={`Image ${index + 2}`}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setAdditionalImages(additionalImages.filter((_, i) => i !== index))}
+                                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            {(productForm.image_url || additionalImages.length > 0) && (
+                                <p className="text-xs text-muted-foreground">
+                                    {1 + additionalImages.length} image(s) added
+                                </p>
                             )}
                         </div>
 
