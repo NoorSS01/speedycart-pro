@@ -109,37 +109,10 @@ export default function Profile() {
   const saveProfile = async () => {
     if (!user) return;
 
-    // Validate phone format (if provided)
-    if (profile.phone && profile.phone.length > 0) {
-      const digitsOnly = profile.phone.replace(/\D/g, '');
-      if (digitsOnly.length !== 10 && !profile.phone.startsWith('+91')) {
-        toast.error('Please enter a valid 10-digit phone number');
-        return;
-      }
-
-      // Check if phone number is already used by another account
-      const { data: existingUser, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', profile.phone)
-        .neq('id', user.id)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Phone check error:', checkError);
-      }
-
-      if (existingUser) {
-        toast.error('This phone number is already registered with another account');
-        return;
-      }
-    }
-
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
       .update({
-        phone: profile.phone,
         full_name: profile.full_name,
         address: profile.address,
         username: profile.username?.toLowerCase() || null
@@ -243,6 +216,26 @@ export default function Profile() {
               <Input id="email" type="email" value={user?.email || ''} disabled className="bg-muted/50" />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="username" className="flex items-center gap-2 text-sm">
+                Username
+              </Label>
+              <div className="flex">
+                <div className="flex items-center justify-center px-3 bg-muted border border-r-0 rounded-l-md text-sm font-medium text-muted-foreground">
+                  @
+                </div>
+                <Input
+                  id="username"
+                  type="text"
+                  value={profile.username || ''}
+                  onChange={(e) => setProfile({ ...profile, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) })}
+                  className="rounded-l-none"
+                  placeholder="your_username"
+                  maxLength={20}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Letters, numbers, underscores (3-20 chars)</p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2 text-sm">
                 <Phone className="h-4 w-4 text-muted-foreground" />
                 Phone Number
@@ -254,17 +247,12 @@ export default function Profile() {
                 <Input
                   id="phone"
                   type="tel"
-                  inputMode="numeric"
                   value={profile.phone.replace('+91', '')}
-                  onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    setProfile({ ...profile, phone: `+91${digits}` });
-                  }}
-                  className="rounded-l-none"
-                  placeholder="9876543210"
-                  maxLength={10}
+                  disabled
+                  className="rounded-l-none bg-muted/50"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">Contact support to change phone number</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
