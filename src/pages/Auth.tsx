@@ -18,11 +18,42 @@ export default function Auth() {
     email: '',
     password: '',
     phone: '',
-    fullName: ''
+    fullName: '',
+    username: ''
   });
   const [phoneError, setPhoneError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+
+  // Validate username (3-20 chars, alphanumeric + underscores)
+  const validateUsername = (username: string): boolean => {
+    if (username.length < 3) {
+      setUsernameError('Username must be at least 3 characters');
+      return false;
+    }
+    if (username.length > 20) {
+      setUsernameError('Username cannot exceed 20 characters');
+      return false;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setUsernameError('Only letters, numbers, and underscores allowed');
+      return false;
+    }
+    setUsernameError('');
+    return true;
+  };
+
+  // Handle username input
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20);
+    setFormData({ ...formData, username: value });
+    if (value.length > 0 && value.length < 3) {
+      setUsernameError(`${3 - value.length} more characters needed`);
+    } else {
+      setUsernameError('');
+    }
+  };
 
   // Validate phone number (exactly 10 digits)
   const validatePhone = (phone: string): boolean => {
@@ -82,8 +113,13 @@ export default function Auth() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password || !formData.phone) {
+    if (!formData.email || !formData.password || !formData.phone || !formData.username) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Validate username
+    if (!validateUsername(formData.username)) {
       return;
     }
 
@@ -97,7 +133,20 @@ export default function Auth() {
 
     setIsLoading(true);
     try {
-      const { error } = await signUp(formData.email, formData.password, normalizedPhone, formData.fullName);
+      // Check if username is already taken
+      const { data: existingUsername } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', formData.username)
+        .maybeSingle();
+
+      if (existingUsername) {
+        toast.error('This username is already taken. Please choose another.');
+        setIsLoading(false);
+        return;
+      }
+
+      const { error } = await signUp(formData.email, formData.password, normalizedPhone, formData.fullName, formData.username);
 
       if (error) {
         // User-friendly error messages
@@ -263,6 +312,28 @@ export default function Auth() {
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username">Username *</Label>
+                  <div className="flex">
+                    <div className="flex items-center justify-center px-3 bg-muted border border-r-0 rounded-l-md text-sm font-medium text-muted-foreground">
+                      @
+                    </div>
+                    <Input
+                      id="signup-username"
+                      type="text"
+                      placeholder="johndoe_123"
+                      value={formData.username}
+                      onChange={handleUsernameChange}
+                      className={`rounded-l-none ${usernameError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                      maxLength={20}
+                      required
+                    />
+                  </div>
+                  {usernameError && (
+                    <p className="text-sm text-destructive">{usernameError}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only (3-20 chars)</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-phone">Phone Number *</Label>

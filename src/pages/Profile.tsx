@@ -42,6 +42,7 @@ interface Profile {
   full_name: string | null;
   address: string | null;
   avatar_url?: string | null;
+  username?: string | null;
 }
 
 interface SavedAddress {
@@ -60,7 +61,8 @@ export default function Profile() {
     phone: '',
     full_name: '',
     address: '',
-    avatar_url: null
+    avatar_url: null,
+    username: null
   });
 
   // Saved addresses
@@ -97,7 +99,8 @@ export default function Profile() {
         phone: profileData.phone || '',
         full_name: profileData.full_name || '',
         address: profileData.address || '',
-        avatar_url: profileData.avatar_url || null
+        avatar_url: profileData.avatar_url || null,
+        username: profileData.username || null
       });
     }
     setLoading(false);
@@ -138,7 +141,8 @@ export default function Profile() {
       .update({
         phone: profile.phone,
         full_name: profile.full_name,
-        address: profile.address
+        address: profile.address,
+        username: profile.username?.toLowerCase() || null
       })
       .eq('id', user.id);
 
