@@ -612,29 +612,61 @@ export default function ProductDetail() {
 
                             {/* Price per 100g for weighted items */}
                             {(() => {
-                                const variantUnit = selectedVariant?.variant_unit ?? product.unit;
-                                const variantValue = selectedVariant?.variant_value ?? 1;
-                                const variantPrice = selectedVariant?.price ?? product.price;
+                                let grams = 0;
+                                let priceToUse = 0;
 
-                                // Calculate price per 100g for kg/g items
-                                if (['kg', 'g'].includes(variantUnit)) {
-                                    const grams = variantUnit === 'kg' ? variantValue * 1000 : variantValue;
-                                    const pricePer100g = (variantPrice / grams) * 100;
+                                if (selectedVariant) {
+                                    // Variant: variant_value is numeric, variant_unit is 'g', 'kg', etc.
+                                    priceToUse = selectedVariant.price;
+                                    const variantUnit = selectedVariant.variant_unit.toLowerCase();
+                                    const variantValue = selectedVariant.variant_value;
+
+                                    if (variantUnit === 'kg') {
+                                        grams = variantValue * 1000;
+                                    } else if (variantUnit === 'g') {
+                                        grams = variantValue;
+                                    }
+                                } else {
+                                    // Product: unit is like '500g', '1kg', '250gm' - parse it
+                                    priceToUse = product.price;
+                                    const unitStr = product.unit.toLowerCase();
+                                    const match = unitStr.match(/^(\d*\.?\d+)\s*(kg|g|gm|gram|grams)?$/);
+
+                                    if (match) {
+                                        const value = parseFloat(match[1]);
+                                        const unit = match[2] || 'piece';
+
+                                        if (unit === 'kg') {
+                                            grams = value * 1000;
+                                        } else if (['g', 'gm', 'gram', 'grams'].includes(unit)) {
+                                            grams = value;
+                                        }
+                                    }
+                                }
+
+                                // Show per 100g price if we have valid grams
+                                if (grams > 0) {
+                                    const pricePer100g = (priceToUse / grams) * 100;
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
                                             ₹{pricePer100g.toFixed(2)} per 100g
                                         </p>
                                     );
                                 }
-                                // Calculate price per unit for dozen/pack items
-                                if (['dozen', 'pack', 'box'].includes(variantUnit) && variantValue > 1) {
-                                    const pricePerUnit = variantPrice / variantValue;
-                                    return (
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            ₹{pricePerUnit.toFixed(2)} per piece
-                                        </p>
-                                    );
+
+                                // For dozen/pack items with variant
+                                if (selectedVariant) {
+                                    const variantUnit = selectedVariant.variant_unit.toLowerCase();
+                                    if (['dozen', 'pack', 'box', 'pcs', 'pieces'].includes(variantUnit) && selectedVariant.variant_value > 1) {
+                                        const pricePerUnit = selectedVariant.price / selectedVariant.variant_value;
+                                        return (
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                ₹{pricePerUnit.toFixed(2)} per piece
+                                            </p>
+                                        );
+                                    }
                                 }
+
                                 return null;
                             })()}
                         </div>

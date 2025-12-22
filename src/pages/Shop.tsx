@@ -90,6 +90,11 @@ export default function Shop() {
   const [savedAddress, setSavedAddress] = useState<string>('');
   const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
   const [newAddress, setNewAddress] = useState('');
+  // Enhanced address fields
+  const [selectedApartment, setSelectedApartment] = useState<string>('');
+  const [blockNumber, setBlockNumber] = useState('');
+  const [roomNumber, setRoomNumber] = useState('');
+  const [phoneForAddress, setPhoneForAddress] = useState('');
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [buyNowProduct, setBuyNowProduct] = useState<Product | null>(null);
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
@@ -922,7 +927,7 @@ export default function Shop() {
 
       {/* Address Dialog */}
       <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Select Delivery Address</DialogTitle>
           </DialogHeader>
@@ -946,13 +951,63 @@ export default function Shop() {
                     Enter New Address
                   </Label>
                   {addressOption === 'new' && (
-                    <Textarea
-                      placeholder="Enter your complete delivery address..."
-                      className="mt-3"
-                      rows={4}
-                      value={newAddress}
-                      onChange={(e) => setNewAddress(e.target.value)}
-                    />
+                    <div className="space-y-4 mt-3">
+                      {/* Apartment Dropdown */}
+                      <div>
+                        <Label className="text-sm">Apartment Complex</Label>
+                        <select
+                          value={selectedApartment}
+                          onChange={(e) => setSelectedApartment(e.target.value)}
+                          className="w-full mt-1.5 p-2 border rounded-md bg-background text-sm"
+                        >
+                          <option value="">Select your apartment...</option>
+                          <option value="VBHC Vaibhava" title="VBHC Vaibhava, Chandapura-Anekal Road, Bangalore - 562106">
+                            VBHC Vaibhava
+                          </option>
+                          <option value="Symphony" title="Symphony, Chandapura-Anekal Road, Bangalore - 562106">
+                            Symphony
+                          </option>
+                          <option value="Other">Other</option>
+                        </select>
+                        {selectedApartment && selectedApartment !== 'Other' && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            📍 {selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Block and Room */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-sm">Block/Tower</Label>
+                          <Input
+                            placeholder="e.g., 51"
+                            value={blockNumber}
+                            onChange={(e) => setBlockNumber(e.target.value)}
+                            className="mt-1.5"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm">Room Number</Label>
+                          <Input
+                            placeholder="e.g., 603"
+                            value={roomNumber}
+                            onChange={(e) => setRoomNumber(e.target.value)}
+                            className="mt-1.5"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Additional Address */}
+                      {selectedApartment === 'Other' && (
+                        <Textarea
+                          placeholder="Enter your complete delivery address..."
+                          rows={2}
+                          value={newAddress}
+                          onChange={(e) => setNewAddress(e.target.value)}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
