@@ -33,6 +33,7 @@ interface Profile {
     phone: string;
     full_name: string | null;
     email?: string | null;
+    username?: string | null;
 }
 
 interface EarningsStats {
@@ -53,7 +54,8 @@ export default function DeliveryProfile() {
     const [profile, setProfile] = useState<Profile>({
         phone: '',
         full_name: '',
-        email: ''
+        email: '',
+        username: null
     });
     const [stats, setStats] = useState<EarningsStats>({
         today: 0,
@@ -83,15 +85,17 @@ export default function DeliveryProfile() {
             // Fetch profile
             const { data: profileData } = await supabase
                 .from('profiles')
-                .select('phone, full_name')
+                .select('phone, full_name, username')
                 .eq('id', user.id)
                 .single();
 
             if (profileData) {
+                const pData = profileData as any;
                 setProfile({
-                    phone: profileData.phone || '',
-                    full_name: profileData.full_name || '',
-                    email: user.email || ''
+                    phone: pData.phone || '',
+                    full_name: pData.full_name || '',
+                    email: user.email || '',
+                    username: pData.username || null
                 });
             }
 
@@ -153,7 +157,7 @@ export default function DeliveryProfile() {
                 .from('profiles')
                 .update({
                     full_name: profile.full_name,
-                    phone: profile.phone
+                    username: profile.username?.toLowerCase() || null
                 })
                 .eq('id', user.id);
 
@@ -302,12 +306,29 @@ export default function DeliveryProfile() {
                             />
                         </div>
                         <div>
+                            <Label>Username</Label>
+                            <div className="flex">
+                                <div className="flex items-center justify-center px-3 bg-muted border border-r-0 rounded-l-md text-sm font-medium text-muted-foreground">
+                                    @
+                                </div>
+                                <Input
+                                    value={profile.username || ''}
+                                    onChange={(e) => setProfile({ ...profile, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) })}
+                                    placeholder="your_username"
+                                    className="rounded-l-none"
+                                    maxLength={20}
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">Letters, numbers, underscores (3-20 chars)</p>
+                        </div>
+                        <div>
                             <Label>Phone Number</Label>
                             <Input
                                 value={profile.phone}
-                                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                                placeholder="+91 XXXXX XXXXX"
+                                disabled
+                                className="bg-muted"
                             />
+                            <p className="text-xs text-muted-foreground mt-1">Contact support to change phone number</p>
                         </div>
                         <Button onClick={saveProfile} disabled={saving} className="w-full">
                             {saving ? 'Saving...' : 'Save Changes'}
