@@ -82,7 +82,9 @@ export default function Shop() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
   const [products, setProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  // Initialize search from URL if coming from product page search
+  const initialSearch = searchParams.get('search') || '';
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [loading, setLoading] = useState(true);
   const [showAddressDialog, setShowAddressDialog] = useState(false);
   const [savedAddress, setSavedAddress] = useState<string>('');

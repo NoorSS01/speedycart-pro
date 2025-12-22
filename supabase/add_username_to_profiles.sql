@@ -9,7 +9,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique
 ON profiles (LOWER(username)) 
 WHERE username IS NOT NULL;
 
--- Add constraint for username format (alphanumeric, underscores, 3-20 chars)
+-- Drop existing constraint if it exists, then add it
+ALTER TABLE profiles 
+DROP CONSTRAINT IF EXISTS check_username_format;
+
 ALTER TABLE profiles 
 ADD CONSTRAINT check_username_format 
 CHECK (
