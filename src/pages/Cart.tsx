@@ -408,8 +408,12 @@ export default function Cart() {
     const subtotal = cartItems.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
     const productSavings = originalTotal - subtotal; // Savings from MRP vs selling price
     const discount = promoApplied ? (subtotal * promoDiscount / 100) : 0;
-    const deliveryFee = subtotal > 200 ? 0 : 25;
-    const finalTotal = subtotal - discount + deliveryFee;
+    const couponSavings = discountAmount; // From applied coupon
+    const baseDeliveryFee = 35; // Default delivery fee
+    const deliveryFee = subtotal > 200 ? 0 : baseDeliveryFee;
+    const deliverySavings = subtotal > 200 ? baseDeliveryFee : 0; // Free delivery savings
+    const totalSavings = productSavings + couponSavings + deliverySavings; // All savings combined
+    const finalTotal = subtotal - discount - couponSavings + deliveryFee;
 
     // Loading state
     if (loading) {
@@ -460,12 +464,25 @@ export default function Cart() {
                     </div>
                 </header>
 
-                {/* Savings Banner - Green theme matching website */}
-                {cartItems.length > 0 && productSavings > 0 && (
-                    <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 text-white py-2 text-center shadow-md">
-                        <p className="text-sm font-medium">
-                            You save <span className="font-bold">₹{productSavings.toFixed(0)}</span>
-                        </p>
+                {/* Savings Banner - Shows all savings combined */}
+                {cartItems.length > 0 && totalSavings > 0 && (
+                    <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 text-white py-2.5 px-4 shadow-md">
+                        <div className="container mx-auto flex items-center justify-center gap-3 flex-wrap">
+                            <p className="text-sm font-bold">
+                                🎉 You save ₹{totalSavings.toFixed(0)}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs opacity-90">
+                                {productSavings > 0 && (
+                                    <span className="bg-white/20 px-2 py-0.5 rounded-full">Product: ₹{productSavings.toFixed(0)}</span>
+                                )}
+                                {couponSavings > 0 && (
+                                    <span className="bg-white/20 px-2 py-0.5 rounded-full">Coupon: ₹{couponSavings.toFixed(0)}</span>
+                                )}
+                                {deliverySavings > 0 && (
+                                    <span className="bg-white/20 px-2 py-0.5 rounded-full">Delivery: ₹{deliverySavings.toFixed(0)}</span>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -718,7 +735,7 @@ export default function Cart() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Subtotal</span>
+                                <span className="text-muted-foreground">Subtotal (MRP)</span>
                                 <span>₹{originalTotal.toFixed(0)}</span>
                             </div>
                             {productSavings > 0 && (
@@ -727,19 +744,42 @@ export default function Cart() {
                                     <span>-₹{productSavings.toFixed(0)}</span>
                                 </div>
                             )}
-                            {promoApplied && (
+                            {couponSavings > 0 && (
                                 <div className="flex justify-between text-sm text-green-600">
-                                    <span>Discount ({promoDiscount}%)</span>
+                                    <span>🎟️ Coupon Discount</span>
+                                    <span>-₹{couponSavings.toFixed(0)}</span>
+                                </div>
+                            )}
+                            {promoApplied && discount > 0 && (
+                                <div className="flex justify-between text-sm text-green-600">
+                                    <span>Promo ({promoDiscount}%)</span>
                                     <span>-₹{discount.toFixed(0)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Delivery</span>
-                                <span className={deliveryFee === 0 ? 'text-green-600' : ''}>
-                                    {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
-                                </span>
+                                {deliveryFee === 0 ? (
+                                    <div className="flex items-center gap-1">
+                                        <span className="line-through text-muted-foreground">₹{baseDeliveryFee}</span>
+                                        <span className="text-green-600 font-semibold">FREE</span>
+                                    </div>
+                                ) : (
+                                    <span>₹{deliveryFee}</span>
+                                )}
                             </div>
+                            {deliverySavings > 0 && (
+                                <div className="flex justify-between text-xs text-green-600">
+                                    <span>🚚 Free delivery on orders over ₹200</span>
+                                    <span>-₹{deliverySavings.toFixed(0)}</span>
+                                </div>
+                            )}
                             <Separator />
+                            {totalSavings > 0 && (
+                                <div className="flex justify-between text-sm font-semibold text-green-600 bg-green-50 dark:bg-green-950/30 p-2 rounded-lg">
+                                    <span>💰 Total Savings</span>
+                                    <span>₹{totalSavings.toFixed(0)}</span>
+                                </div>
+                            )}
                             <div className="flex justify-between font-bold text-lg">
                                 <span>Total</span>
                                 <span className="text-primary">₹{finalTotal.toFixed(0)}</span>
