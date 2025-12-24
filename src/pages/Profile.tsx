@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
+import Footer from '@/components/Footer';
 import NotificationSettings from '@/components/NotificationSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -352,6 +353,7 @@ export default function Profile() {
         </div>
       </div>
 
+      <Footer />
       <BottomNav />
     </div>
   );
