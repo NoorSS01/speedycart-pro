@@ -819,25 +819,21 @@ export default function ProductDetail() {
                                 let unit = '';
 
                                 if (selectedVariant) {
-                                    // Use variant data - always available
-                                    quantity = selectedVariant.variant_value;
-                                    unit = selectedVariant.variant_unit?.toLowerCase() || '';
+                                    // Parse from variant_name (display name like "500g", "1kg", "200ml")
+                                    // This is more reliable than variant_value + variant_unit which may be incorrectly set
+                                    const variantStr = (selectedVariant.variant_name || '').toLowerCase().trim();
+                                    const variantMatch = variantStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)$/);
+                                    if (variantMatch) {
+                                        quantity = parseFloat(variantMatch[1]);
+                                        unit = variantMatch[2];
+                                    }
                                 } else {
-                                    // Parse from product.unit - try multiple patterns
+                                    // Parse from product.unit string
                                     const unitStr = (product.unit || '').toLowerCase().trim();
-
-                                    // Try: "500g", "1kg", "200ml", "1 ltr", "500 gm"
-                                    const match = unitStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|ml|piece|pieces|pack|dozen|pcs)$/);
+                                    const match = unitStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)$/);
                                     if (match) {
                                         quantity = parseFloat(match[1]);
                                         unit = match[2];
-                                    } else {
-                                        // Fallback: just "kg", "g", "ml" - assume quantity = 1
-                                        const unitOnly = unitStr.match(/^(kg|g|gm|ltr|l|ml)$/);
-                                        if (unitOnly) {
-                                            quantity = 1;
-                                            unit = unitOnly[1];
-                                        }
                                     }
                                 }
 
@@ -876,6 +872,12 @@ export default function ProductDetail() {
                                 // Calculate per 100 units for weight/volume
                                 if (displayUnit && baseQuantity > 0) {
                                     const pricePer100 = (price / baseQuantity) * 100;
+
+                                    // Sanity check: if price per 100 is more than 5x product price, something is wrong
+                                    if (pricePer100 > price * 5) {
+                                        return null; // Don't show unreasonable values
+                                    }
+
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
                                             ₹{pricePer100.toFixed(2)} per {displayUnit}
