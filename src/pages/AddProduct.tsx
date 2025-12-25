@@ -141,6 +141,21 @@ export default function AddProduct() {
             })));
         }
 
+        // Fetch additional images
+        try {
+            const { data: imagesData } = await (supabase as any)
+                .from('product_images')
+                .select('image_url')
+                .eq('product_id', productId)
+                .order('display_order');
+
+            if (imagesData && imagesData.length > 0) {
+                setAdditionalImages(imagesData.map((img: any) => img.image_url));
+            }
+        } catch (e) {
+            console.log('Product images table may not exist yet');
+        }
+
         setLoadingProduct(false);
     };
 
@@ -211,8 +226,13 @@ export default function AddProduct() {
 
         // Save additional images to product_images table
         if (productId && additionalImages.length > 0) {
+            console.log('Saving additional images:', additionalImages.length, 'images for product:', productId);
+
             // Delete existing additional images for this product
-            await (supabase as any).from('product_images').delete().eq('product_id', productId);
+            const { error: deleteError } = await (supabase as any).from('product_images').delete().eq('product_id', productId);
+            if (deleteError) {
+                console.error('Error deleting existing images:', deleteError);
+            }
 
             // Insert new additional images
             const imagesToInsert = additionalImages.map((url, index) => ({
@@ -222,11 +242,16 @@ export default function AddProduct() {
                 is_primary: false
             }));
 
-            const { error: imageError } = await (supabase as any).from('product_images').insert(imagesToInsert);
+            console.log('Inserting images:', imagesToInsert);
+            const { error: imageError, data: insertedImages } = await (supabase as any).from('product_images').insert(imagesToInsert).select();
             if (imageError) {
-                console.error('Image error:', imageError);
-                toast.error('Product saved but some images failed');
+                console.error('Image insert error:', imageError);
+                toast.error('Product saved but some images failed: ' + imageError.message);
+            } else {
+                console.log('Images saved successfully:', insertedImages);
             }
+        } else {
+            console.log('No additional images to save. additionalImages:', additionalImages);
         }
 
         toast.success(isEditing ? 'Product updated successfully!' : 'Product created successfully!');
