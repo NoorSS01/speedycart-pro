@@ -232,6 +232,14 @@ export default function Shop() {
       return;
     }
 
+    // Fetch default variant for this product (if exists)
+    const { data: defaultVariant } = await supabase
+      .from('product_variants')
+      .select('id')
+      .eq('product_id', productId)
+      .eq('is_default', true)
+      .single();
+
     const existingItem = cartItems.find(item => item.product_id === productId);
     const currentCartQty = existingItem ? existingItem.quantity : 0;
     const requestedQty = currentCartQty + 1;
@@ -262,9 +270,20 @@ export default function Shop() {
         toast.success('Cart updated');
       }
     } else {
+      // Include variant_id if default variant exists
+      const cartData: any = {
+        user_id: user.id,
+        product_id: productId,
+        quantity: 1
+      };
+
+      if (defaultVariant?.id) {
+        cartData.variant_id = defaultVariant.id;
+      }
+
       const { error } = await supabase
         .from('cart_items')
-        .insert({ user_id: user.id, product_id: productId, quantity: 1 });
+        .insert(cartData);
 
       if (error) {
         toast.error('Failed to add to cart');

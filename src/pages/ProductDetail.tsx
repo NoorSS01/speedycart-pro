@@ -28,6 +28,8 @@ import {
     Star,
     ChevronDown,
     ChevronUp,
+    ChevronLeft,
+    ChevronRight,
     MapPin,
     User,
     Search,
@@ -91,6 +93,7 @@ export default function ProductDetail() {
     const [showInfo, setShowInfo] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchSuggestions, setSearchSuggestions] = useState<Product[]>([]);
     const [variants, setVariants] = useState<ProductVariant[]>([]);
     const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
     const [productImages, setProductImages] = useState<string[]>([]);
@@ -114,6 +117,30 @@ export default function ProductDetail() {
             fetchSavedAddress();
         }
     }, [user]);
+
+    // Live search suggestions
+    useEffect(() => {
+        const searchProducts = async () => {
+            if (searchQuery.trim().length < 2) {
+                setSearchSuggestions([]);
+                return;
+            }
+
+            const { data } = await supabase
+                .from('products')
+                .select('*')
+                .ilike('name', `%${searchQuery.trim()}%`)
+                .gt('stock_quantity', 0)
+                .limit(5);
+
+            if (data) {
+                setSearchSuggestions(data);
+            }
+        };
+
+        const timeoutId = setTimeout(searchProducts, 300); // Debounce
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
 
     const fetchProduct = async () => {
         if (!id) return;
@@ -493,22 +520,67 @@ export default function ProductDetail() {
             <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
                 <div className="container mx-auto px-4 py-3">
                     {showSearch ? (
-                        <div className="flex items-center gap-2">
-                            <Input
-                                placeholder="Search products..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && searchQuery.trim()) {
-                                        navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
-                                    }
-                                }}
-                            />
-                            <Button variant="ghost" size="icon" onClick={() => { setShowSearch(false); setSearchQuery(''); }}>
-                                <X className="h-5 w-5" />
-                            </Button>
+                        <div className="relative">
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    placeholder="Search products..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="flex-1"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && searchQuery.trim()) {
+                                            navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+                                        }
+                                    }}
+                                />
+                                <Button variant="ghost" size="icon" onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchSuggestions([]); }}>
+                                    <X className="h-5 w-5" />
+                                </Button>
+                            </div>
+
+                            {/* Search Suggestions Dropdown */}
+                            {searchSuggestions.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-50 overflow-hidden">
+                                    {searchSuggestions.map((item) => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => {
+                                                navigate(`/product/${item.id}`);
+                                                setShowSearch(false);
+                                                setSearchQuery('');
+                                                setSearchSuggestions([]);
+                                            }}
+                                            className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
+                                        >
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                                                {item.image_url ? (
+                                                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <Package className="h-6 w-6 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium truncate">{item.name}</p>
+                                                <p className="text-sm text-primary font-semibold">₹{item.price}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                    <button
+                                        onClick={() => {
+                                            navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+                                            setShowSearch(false);
+                                            setSearchQuery('');
+                                            setSearchSuggestions([]);
+                                        }}
+                                        className="w-full p-3 border-t text-sm text-primary font-medium hover:bg-muted transition-colors"
+                                    >
+                                        See all results for "{searchQuery}"
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="flex items-center justify-between">
@@ -533,8 +605,31 @@ export default function ProductDetail() {
 
             {/* Product Image Gallery */}
             <div className="w-full">
-                {/* Main Image */}
-                <div className="aspect-square bg-muted relative">
+                {/* Main Image with Touch Swipe */}
+                <div
+                    className="aspect-square bg-muted relative overflow-hidden"
+                    onTouchStart={(e) => {
+                        const touch = e.touches[0];
+                        (e.currentTarget as any).touchStartX = touch.clientX;
+                    }}
+                    onTouchEnd={(e) => {
+                        const touchEndX = e.changedTouches[0].clientX;
+                        const touchStartX = (e.currentTarget as any).touchStartX || 0;
+                        const diff = touchStartX - touchEndX;
+
+                        const allImages = [product.image_url, ...productImages].filter(Boolean);
+
+                        if (Math.abs(diff) > 50) { // Minimum swipe distance
+                            if (diff > 0 && selectedImageIndex < allImages.length - 1) {
+                                // Swipe left - next image
+                                setSelectedImageIndex(selectedImageIndex + 1);
+                            } else if (diff < 0 && selectedImageIndex > 0) {
+                                // Swipe right - previous image
+                                setSelectedImageIndex(selectedImageIndex - 1);
+                            }
+                        }
+                    }}
+                >
                     {(() => {
                         // Build all images array: main image first, then additional images
                         const allImages = [
@@ -548,7 +643,7 @@ export default function ProductDetail() {
                             <img
                                 src={currentImage}
                                 alt={product.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover transition-opacity duration-300"
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center">
@@ -556,6 +651,45 @@ export default function ProductDetail() {
                             </div>
                         );
                     })()}
+
+                    {/* Navigation Arrows */}
+                    {(() => {
+                        const allImages = [product.image_url, ...productImages].filter(Boolean);
+                        return allImages.length > 1 ? (
+                            <>
+                                {selectedImageIndex > 0 && (
+                                    <button
+                                        onClick={() => setSelectedImageIndex(selectedImageIndex - 1)}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/30 text-white flex items-center justify-center hover:bg-black/50 transition-colors"
+                                    >
+                                        <ChevronLeft className="h-6 w-6" />
+                                    </button>
+                                )}
+                                {selectedImageIndex < allImages.length - 1 && (
+                                    <button
+                                        onClick={() => setSelectedImageIndex(selectedImageIndex + 1)}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/30 text-white flex items-center justify-center hover:bg-black/50 transition-colors"
+                                    >
+                                        <ChevronRight className="h-6 w-6" />
+                                    </button>
+                                )}
+                                {/* Dots Indicator */}
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                                    {allImages.map((_, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setSelectedImageIndex(index)}
+                                            className={`w-2.5 h-2.5 rounded-full transition-all ${selectedImageIndex === index
+                                                ? 'bg-white scale-110'
+                                                : 'bg-white/50 hover:bg-white/70'
+                                                }`}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        ) : null;
+                    })()}
+
                     {/* Discount Badge - Top Left */}
                     {(() => {
                         const displayMrp = selectedVariant?.mrp ?? product.mrp;
@@ -594,8 +728,8 @@ export default function ProductDetail() {
                                     key={index}
                                     onClick={() => setSelectedImageIndex(index)}
                                     className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${selectedImageIndex === index
-                                            ? 'border-primary ring-2 ring-primary/20'
-                                            : 'border-transparent opacity-70 hover:opacity-100'
+                                        ? 'border-primary ring-2 ring-primary/20'
+                                        : 'border-transparent opacity-70 hover:opacity-100'
                                         }`}
                                 >
                                     <img
@@ -677,61 +811,96 @@ export default function ProductDetail() {
                                 })()}
                             </div>
 
-                            {/* Price per 100g for weighted items */}
+                            {/* Price per 100g/100ml for weighted/volume items */}
                             {(() => {
-                                let grams = 0;
+                                let baseUnits = 0; // grams or ml
                                 let priceToUse = 0;
+                                let unitType: 'weight' | 'volume' | 'count' | null = null;
 
                                 if (selectedVariant) {
-                                    // Variant: variant_value is numeric, variant_unit is 'g', 'kg', etc.
+                                    // Variant: variant_value is numeric, variant_unit is 'g', 'kg', 'ml', 'L', etc.
                                     priceToUse = selectedVariant.price;
                                     const variantUnit = selectedVariant.variant_unit.toLowerCase();
                                     const variantValue = selectedVariant.variant_value;
 
+                                    // Weight units
                                     if (variantUnit === 'kg') {
-                                        grams = variantValue * 1000;
-                                    } else if (variantUnit === 'g') {
-                                        grams = variantValue;
+                                        baseUnits = variantValue * 1000;
+                                        unitType = 'weight';
+                                    } else if (['g', 'gm', 'gram', 'grams'].includes(variantUnit)) {
+                                        baseUnits = variantValue;
+                                        unitType = 'weight';
+                                    }
+                                    // Volume units
+                                    else if (variantUnit === 'l' || variantUnit === 'ltr' || variantUnit === 'litre' || variantUnit === 'liter') {
+                                        baseUnits = variantValue * 1000;
+                                        unitType = 'volume';
+                                    } else if (['ml', 'millilitre', 'milliliter'].includes(variantUnit)) {
+                                        baseUnits = variantValue;
+                                        unitType = 'volume';
+                                    }
+                                    // Count units
+                                    else if (['dozen', 'pack', 'box', 'pcs', 'pieces', 'piece'].includes(variantUnit) && variantValue > 1) {
+                                        baseUnits = variantValue;
+                                        unitType = 'count';
                                     }
                                 } else {
-                                    // Product: unit is like '500g', '1kg', '250gm' - parse it
+                                    // Product: unit is like '500g', '1kg', '250ml', '1L' - parse it
                                     priceToUse = product.price;
                                     const unitStr = product.unit.toLowerCase();
-                                    const match = unitStr.match(/^(\d*\.?\d+)\s*(kg|g|gm|gram|grams)?$/);
+                                    const match = unitStr.match(/^(\d*\.?\d+)\s*(kg|g|gm|gram|grams|l|ltr|litre|liter|ml|millilitre|milliliter)?$/);
 
                                     if (match) {
                                         const value = parseFloat(match[1]);
-                                        const unit = match[2] || 'piece';
+                                        const unit = match[2] || '';
 
+                                        // Weight units
                                         if (unit === 'kg') {
-                                            grams = value * 1000;
+                                            baseUnits = value * 1000;
+                                            unitType = 'weight';
                                         } else if (['g', 'gm', 'gram', 'grams'].includes(unit)) {
-                                            grams = value;
+                                            baseUnits = value;
+                                            unitType = 'weight';
+                                        }
+                                        // Volume units
+                                        else if (['l', 'ltr', 'litre', 'liter'].includes(unit)) {
+                                            baseUnits = value * 1000;
+                                            unitType = 'volume';
+                                        } else if (['ml', 'millilitre', 'milliliter'].includes(unit)) {
+                                            baseUnits = value;
+                                            unitType = 'volume';
                                         }
                                     }
                                 }
 
-                                // Show per 100g price if we have valid grams
-                                if (grams > 0) {
-                                    const pricePer100g = (priceToUse / grams) * 100;
+                                // Show per 100g price for weight
+                                if (unitType === 'weight' && baseUnits > 0) {
+                                    const pricePer100 = (priceToUse / baseUnits) * 100;
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            ₹{pricePer100g.toFixed(2)} per 100g
+                                            ₹{pricePer100.toFixed(2)} per 100g
                                         </p>
                                     );
                                 }
 
-                                // For dozen/pack items with variant
-                                if (selectedVariant) {
-                                    const variantUnit = selectedVariant.variant_unit.toLowerCase();
-                                    if (['dozen', 'pack', 'box', 'pcs', 'pieces'].includes(variantUnit) && selectedVariant.variant_value > 1) {
-                                        const pricePerUnit = selectedVariant.price / selectedVariant.variant_value;
-                                        return (
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                                ₹{pricePerUnit.toFixed(2)} per piece
-                                            </p>
-                                        );
-                                    }
+                                // Show per 100ml price for volume
+                                if (unitType === 'volume' && baseUnits > 0) {
+                                    const pricePer100 = (priceToUse / baseUnits) * 100;
+                                    return (
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            ₹{pricePer100.toFixed(2)} per 100ml
+                                        </p>
+                                    );
+                                }
+
+                                // Show per piece price for count units
+                                if (unitType === 'count' && baseUnits > 1) {
+                                    const pricePerUnit = priceToUse / baseUnits;
+                                    return (
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            ₹{pricePerUnit.toFixed(2)} per piece
+                                        </p>
+                                    );
                                 }
 
                                 return null;
