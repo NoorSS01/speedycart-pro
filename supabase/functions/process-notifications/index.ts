@@ -104,7 +104,7 @@ serve(async (req) => {
                             user_ids: [sub.user_id],
                             title: `☀️ Good ${timeOfDay}!`,
                             body: `Time to check your shop! ${count || 0} pending orders waiting.`,
-                            url: "/dist/admin",
+                            url: "/admin",
                             notification_type: "daily_reminder",
                         },
                     });
@@ -147,7 +147,7 @@ serve(async (req) => {
                         body: {
                             title: "💰 Daily Profit Summary",
                             body: `Today: ₹${revenue.toFixed(0)} revenue, ₹${profit.toFixed(0)} profit from ${orderCount} orders!`,
-                            url: "/dist/admin",
+                            url: "/admin",
                             notification_type: "profit_summary",
                             send_to_admins: true,
                             preference_filter: "profit_alerts",
@@ -210,7 +210,7 @@ serve(async (req) => {
     } catch (error) {
         console.error("Error processing notifications:", error);
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: (error as Error).message }),
             {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
                 status: 500,

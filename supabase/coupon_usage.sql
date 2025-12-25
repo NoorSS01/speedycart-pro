@@ -17,6 +17,11 @@ CREATE INDEX IF NOT EXISTS idx_coupon_usage_coupon ON coupon_usage(coupon_id);
 -- Enable RLS
 ALTER TABLE coupon_usage ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies first (if they exist)
+DROP POLICY IF EXISTS "Users can view own coupon usage" ON coupon_usage;
+DROP POLICY IF EXISTS "Users can record own coupon usage" ON coupon_usage;
+DROP POLICY IF EXISTS "Admins can view all coupon usage" ON coupon_usage;
+
 -- Policy: Users can view their own coupon usage
 CREATE POLICY "Users can view own coupon usage" ON coupon_usage
     FOR SELECT USING (auth.uid() = user_id);
@@ -34,3 +39,4 @@ CREATE POLICY "Admins can view all coupon usage" ON coupon_usage
             AND role IN ('admin', 'super_admin')
         )
     );
+

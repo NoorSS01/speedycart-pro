@@ -301,7 +301,7 @@ serve(async (req) => {
             title,
             body,
             icon: icon || 'bell',
-            url: url || '/dist/',
+            url: url || '/',
             image: image_url,
             type: notification_type,
             data: data || {},
@@ -362,7 +362,7 @@ serve(async (req) => {
                         image_url,
                         notification_type: notification_type || 'general',
                         status: 'failed',
-                        error_message: error.message,
+                        error_message: (error as Error).message,
                         broadcast_id,
                     });
 
@@ -371,7 +371,7 @@ serve(async (req) => {
                         await supabase.from('push_subscriptions').delete().eq('id', sub.id);
                     }
 
-                    return { success: false, user_id: sub.user_id, error: error.message };
+                    return { success: false, user_id: sub.user_id, error: (error as Error).message };
                 }
             })
         );
@@ -408,7 +408,7 @@ serve(async (req) => {
     } catch (error) {
         console.error("Error sending push notification:", error);
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: (error as Error).message }),
             {
                 headers: { ...corsHeaders, "Content-Type": "application/json" },
                 status: 500,
