@@ -819,18 +819,21 @@ export default function ProductDetail() {
                                 let unit = '';
 
                                 if (selectedVariant) {
-                                    // Parse from variant_name (display name like "500g", "1kg", "200ml")
-                                    // This is more reliable than variant_value + variant_unit which may be incorrectly set
+                                    // First try to parse from variant_name (like "500g", "1kg", "200ml")
                                     const variantStr = (selectedVariant.variant_name || '').toLowerCase().trim();
-                                    const variantMatch = variantStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)$/);
+                                    const variantMatch = variantStr.match(/(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)/);
                                     if (variantMatch) {
                                         quantity = parseFloat(variantMatch[1]);
                                         unit = variantMatch[2];
+                                    } else {
+                                        // Fallback: use variant_value and variant_unit directly
+                                        quantity = selectedVariant.variant_value || 0;
+                                        unit = (selectedVariant.variant_unit || '').toLowerCase();
                                     }
                                 } else {
-                                    // Parse from product.unit string
+                                    // Parse from product.unit string (like "500g", "1kg")
                                     const unitStr = (product.unit || '').toLowerCase().trim();
-                                    const match = unitStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)$/);
+                                    const match = unitStr.match(/(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)/);
                                     if (match) {
                                         quantity = parseFloat(match[1]);
                                         unit = match[2];
@@ -872,12 +875,6 @@ export default function ProductDetail() {
                                 // Calculate per 100 units for weight/volume
                                 if (displayUnit && baseQuantity > 0) {
                                     const pricePer100 = (price / baseQuantity) * 100;
-
-                                    // Sanity check: if price per 100 is more than 5x product price, something is wrong
-                                    if (pricePer100 > price * 5) {
-                                        return null; // Don't show unreasonable values
-                                    }
-
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
                                             ₹{pricePer100.toFixed(2)} per {displayUnit}
