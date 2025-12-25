@@ -819,16 +819,24 @@ export default function ProductDetail() {
                                 let unit = '';
 
                                 if (selectedVariant) {
-                                    // First try to parse from variant_name (like "500g", "1kg", "200ml")
                                     const variantStr = (selectedVariant.variant_name || '').toLowerCase().trim();
-                                    const variantMatch = variantStr.match(/(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)/);
-                                    if (variantMatch) {
-                                        quantity = parseFloat(variantMatch[1]);
-                                        unit = variantMatch[2];
-                                    } else {
-                                        // Fallback: use variant_value and variant_unit directly
-                                        quantity = selectedVariant.variant_value || 0;
-                                        unit = (selectedVariant.variant_unit || '').toLowerCase();
+                                    const variantUnit = (selectedVariant.variant_unit || '').toLowerCase();
+
+                                    // Try 1: Parse "500g", "1kg", "200ml" from variant_name
+                                    const fullMatch = variantStr.match(/(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)/);
+                                    if (fullMatch) {
+                                        quantity = parseFloat(fullMatch[1]);
+                                        unit = fullMatch[2];
+                                    }
+                                    // Try 2: variant_name is just a number like "250", "500" - use variant_unit
+                                    else if (/^\d+\.?\d*$/.test(variantStr) && variantUnit) {
+                                        quantity = parseFloat(variantStr);
+                                        unit = variantUnit;
+                                    }
+                                    // Try 3: Use variant_value and variant_unit directly
+                                    else if (selectedVariant.variant_value > 0 && variantUnit) {
+                                        quantity = selectedVariant.variant_value;
+                                        unit = variantUnit;
                                     }
                                 } else {
                                     // Parse from product.unit string (like "500g", "1kg")
