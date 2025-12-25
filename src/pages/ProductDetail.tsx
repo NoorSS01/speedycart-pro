@@ -93,6 +93,8 @@ export default function ProductDetail() {
     const [searchQuery, setSearchQuery] = useState('');
     const [variants, setVariants] = useState<ProductVariant[]>([]);
     const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+    const [productImages, setProductImages] = useState<string[]>([]);
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
     const [lastOrderId, setLastOrderId] = useState('');
     const { trackView } = useRecommendations();
@@ -103,6 +105,7 @@ export default function ProductDetail() {
             fetchProduct();
             fetchReviews();
             fetchVariants();
+            fetchProductImages();
         }
     }, [id]);
 
@@ -155,6 +158,24 @@ export default function ProductDetail() {
             }
         } catch (e) {
             console.log('Product reviews table may not exist yet');
+        }
+    };
+
+    const fetchProductImages = async () => {
+        if (!id) return;
+
+        try {
+            const { data, error } = await (supabase as any)
+                .from('product_images')
+                .select('image_url, display_order')
+                .eq('product_id', id)
+                .order('display_order', { ascending: true });
+
+            if (data && !error) {
+                setProductImages(data.map((img: any) => img.image_url));
+            }
+        } catch (e) {
+            console.log('Product images table may not exist yet');
         }
     };
 
@@ -510,37 +531,83 @@ export default function ProductDetail() {
                 </div>
             </header>
 
-            {/* Product Image */}
-            <div className="w-full aspect-square bg-muted relative">
-                {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <Package className="h-24 w-24 text-muted-foreground" />
-                    </div>
-                )}
-                {/* Discount Badge - Top Left */}
-                {(() => {
-                    const displayMrp = selectedVariant?.mrp ?? product.mrp;
-                    const displayPrice = selectedVariant?.price ?? product.price;
-                    const discount = displayMrp && displayMrp > displayPrice
-                        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
-                        : 0;
+            {/* Product Image Gallery */}
+            <div className="w-full">
+                {/* Main Image */}
+                <div className="aspect-square bg-muted relative">
+                    {(() => {
+                        // Build all images array: main image first, then additional images
+                        const allImages = [
+                            product.image_url,
+                            ...productImages
+                        ].filter(Boolean) as string[];
 
-                    return discount > 0 ? (
-                        <div className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg">
-                            {discount}% OFF
+                        const currentImage = allImages[selectedImageIndex] || product.image_url;
+
+                        return currentImage ? (
+                            <img
+                                src={currentImage}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                                <Package className="h-24 w-24 text-muted-foreground" />
+                            </div>
+                        );
+                    })()}
+                    {/* Discount Badge - Top Left */}
+                    {(() => {
+                        const displayMrp = selectedVariant?.mrp ?? product.mrp;
+                        const displayPrice = selectedVariant?.price ?? product.price;
+                        const discount = displayMrp && displayMrp > displayPrice
+                            ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
+                            : 0;
+
+                        return discount > 0 ? (
+                            <div className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg">
+                                {discount}% OFF
+                            </div>
+                        ) : null;
+                    })()}
+                    {isLowStock && (
+                        <Badge className="absolute top-4 right-4 bg-red-500 text-white">Only {product.stock_quantity} left!</Badge>
+                    )}
+                    {isOutOfStock && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Badge variant="destructive" className="text-lg px-4 py-2">Out of Stock</Badge>
+                        </div>
+                    )}
+                </div>
+
+                {/* Image Thumbnails - Only show if multiple images */}
+                {(() => {
+                    const allImages = [
+                        product.image_url,
+                        ...productImages
+                    ].filter(Boolean) as string[];
+
+                    return allImages.length > 1 ? (
+                        <div className="flex gap-2 p-3 overflow-x-auto bg-muted/50">
+                            {allImages.map((img, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => setSelectedImageIndex(index)}
+                                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${selectedImageIndex === index
+                                            ? 'border-primary ring-2 ring-primary/20'
+                                            : 'border-transparent opacity-70 hover:opacity-100'
+                                        }`}
+                                >
+                                    <img
+                                        src={img}
+                                        alt={`Product ${index + 1}`}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </button>
+                            ))}
                         </div>
                     ) : null;
                 })()}
-                {isLowStock && (
-                    <Badge className="absolute top-4 right-4 bg-red-500 text-white">Only {product.stock_quantity} left!</Badge>
-                )}
-                {isOutOfStock && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Badge variant="destructive" className="text-lg px-4 py-2">Out of Stock</Badge>
-                    </div>
-                )}
             </div>
 
             {/* Product Info */}

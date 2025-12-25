@@ -36,6 +36,7 @@ import {
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
+import AddressInput from '@/components/AddressInput';
 import NotificationSettings from '@/components/NotificationSettings';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -285,12 +286,10 @@ export default function Profile() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4 space-y-3">
-            <Textarea
+            <AddressInput
               value={profile.address || ''}
-              onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-              placeholder="Enter your delivery address"
-              rows={3}
-              className="resize-none"
+              onChange={(address) => setProfile({ ...profile, address })}
+              showSavedOption={false}
             />
             <p className="text-xs text-muted-foreground">
               This address will be used as default for your orders

@@ -209,6 +209,26 @@ export default function AddProduct() {
             }
         }
 
+        // Save additional images to product_images table
+        if (productId && additionalImages.length > 0) {
+            // Delete existing additional images for this product
+            await (supabase as any).from('product_images').delete().eq('product_id', productId);
+
+            // Insert new additional images
+            const imagesToInsert = additionalImages.map((url, index) => ({
+                product_id: productId,
+                image_url: url,
+                display_order: index + 1,
+                is_primary: false
+            }));
+
+            const { error: imageError } = await (supabase as any).from('product_images').insert(imagesToInsert);
+            if (imageError) {
+                console.error('Image error:', imageError);
+                toast.error('Product saved but some images failed');
+            }
+        }
+
         toast.success(isEditing ? 'Product updated successfully!' : 'Product created successfully!');
         navigate('/admin');
         setSaving(false);
