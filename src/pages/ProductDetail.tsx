@@ -813,79 +813,109 @@ export default function ProductDetail() {
 
                             {/* Price per unit calculation */}
                             {(() => {
-                                // Get the current price and unit info
+                                // Get current price
                                 const price = selectedVariant?.price ?? product.price;
-                                let quantity = 0;
-                                let unit = '';
+                                let quantityInBaseUnit = 0; // in grams or ml
+                                let unitType: 'weight' | 'volume' | 'count' | null = null;
 
-                                if (selectedVariant) {
-                                    const variantStr = (selectedVariant.variant_name || '').toLowerCase().trim();
-                                    const variantUnit = (selectedVariant.variant_unit || '').toLowerCase();
+                                // Helper function to parse quantity and unit from a string
+                                const parseQuantityUnit = (str: string): { qty: number; unit: string } | null => {
+                                    if (!str) return null;
+                                    str = str.toLowerCase().trim();
 
-                                    // Try 1: Parse "500g", "1kg", "200ml" from variant_name
-                                    const fullMatch = variantStr.match(/(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)/);
-                                    if (fullMatch) {
-                                        quantity = parseFloat(fullMatch[1]);
-                                        unit = fullMatch[2];
-                                    }
-                                    // Try 2: variant_name is just a number like "250", "500" - use variant_unit
-                                    else if (/^\d+\.?\d*$/.test(variantStr) && variantUnit) {
-                                        quantity = parseFloat(variantStr);
-                                        unit = variantUnit;
-                                    }
-                                    // Try 3: Use variant_value and variant_unit directly
-                                    else if (selectedVariant.variant_value > 0 && variantUnit) {
-                                        quantity = selectedVariant.variant_value;
-                                        unit = variantUnit;
-                                    }
-                                } else {
-                                    // Parse from product.unit string (like "500g", "1kg")
-                                    const unitStr = (product.unit || '').toLowerCase().trim();
-                                    const match = unitStr.match(/(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|liter|ml)/);
+                                    // Match patterns: "500g", "1kg", "200ml", "1ltr", "1 kg", etc.
+                                    const match = str.match(/(\d+\.?\d*)\s*(kg|g|gm|gram|grams|ltr|l|litre|liter|ml|dozen|pack|pcs|pieces)/);
                                     if (match) {
-                                        quantity = parseFloat(match[1]);
-                                        unit = match[2];
+                                        return { qty: parseFloat(match[1]), unit: match[2] };
+                                    }
+                                    return null;
+                                };
+
+                                // Helper to convert to base units
+                                const convertToBase = (qty: number, unit: string): { base: number; type: 'weight' | 'volume' | 'count' } | null => {
+                                    unit = unit.toLowerCase();
+
+                                    // Weight -> grams
+                                    if (unit === 'kg') return { base: qty * 1000, type: 'weight' };
+                                    if (['g', 'gm', 'gram', 'grams'].includes(unit)) return { base: qty, type: 'weight' };
+
+                                    // Volume -> ml
+                                    if (['l', 'ltr', 'litre', 'liter'].includes(unit)) return { base: qty * 1000, type: 'volume' };
+                                    if (unit === 'ml') return { base: qty, type: 'volume' };
+
+                                    // Count
+                                    if (['dozen', 'pack', 'pcs', 'pieces'].includes(unit)) return { base: qty, type: 'count' };
+
+                                    return null;
+                                };
+
+                                // PRIORITY 1: If variant is selected, use variant data
+                                if (selectedVariant) {
+                                    const variantName = selectedVariant.variant_name || '';
+                                    const variantUnit = (selectedVariant.variant_unit || '').toLowerCase();
+                                    const variantValue = selectedVariant.variant_value || 0;
+
+                                    // Try parsing variant_name first (e.g., "500g", "1kg")
+                                    let parsed = parseQuantityUnit(variantName);
+
+                                    // If variant_name is just a number (e.g., "250", "500"), combine with variant_unit
+                                    if (!parsed && /^\d+\.?\d*$/.test(variantName.trim()) && variantUnit) {
+                                        parsed = { qty: parseFloat(variantName.trim()), unit: variantUnit };
+                                    }
+
+                                    // If still no luck, use variant_value and variant_unit
+                                    if (!parsed && variantValue > 0 && variantUnit) {
+                                        parsed = { qty: variantValue, unit: variantUnit };
+                                    }
+
+                                    if (parsed) {
+                                        const converted = convertToBase(parsed.qty, parsed.unit);
+                                        if (converted) {
+                                            quantityInBaseUnit = converted.base;
+                                            unitType = converted.type;
+                                        }
                                     }
                                 }
 
-                                if (!quantity || quantity <= 0 || !unit) return null;
-
-                                // Convert to base units (grams or ml)
-                                let baseQuantity = quantity;
-                                let displayUnit = '';
-
-                                // Weight: convert to grams
-                                if (unit === 'kg') {
-                                    baseQuantity = quantity * 1000;
-                                    displayUnit = '100g';
-                                } else if (['g', 'gm', 'gram', 'grams'].includes(unit)) {
-                                    baseQuantity = quantity;
-                                    displayUnit = '100g';
+                                // PRIORITY 2: If no variant or variant didn't work, try product.unit
+                                if (!quantityInBaseUnit && product.unit) {
+                                    const parsed = parseQuantityUnit(product.unit);
+                                    if (parsed) {
+                                        const converted = convertToBase(parsed.qty, parsed.unit);
+                                        if (converted) {
+                                            quantityInBaseUnit = converted.base;
+                                            unitType = converted.type;
+                                        }
+                                    }
                                 }
-                                // Volume: convert to ml
-                                else if (['l', 'ltr', 'litre', 'liter'].includes(unit)) {
-                                    baseQuantity = quantity * 1000;
-                                    displayUnit = '100ml';
-                                } else if (['ml', 'millilitre', 'milliliter'].includes(unit)) {
-                                    baseQuantity = quantity;
-                                    displayUnit = '100ml';
-                                }
-                                // Count: per piece
-                                else if (['dozen', 'pack', 'pieces', 'pcs'].includes(unit) && quantity > 1) {
-                                    const perPiece = price / quantity;
+
+                                // Only show if we have valid data
+                                if (!quantityInBaseUnit || quantityInBaseUnit <= 0 || !unitType) return null;
+
+                                // Calculate and display
+                                if (unitType === 'weight') {
+                                    const pricePer100g = (price / quantityInBaseUnit) * 100;
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            ₹{perPiece.toFixed(2)} per piece
+                                            ₹{pricePer100g.toFixed(2)} per 100g
                                         </p>
                                     );
                                 }
 
-                                // Calculate per 100 units for weight/volume
-                                if (displayUnit && baseQuantity > 0) {
-                                    const pricePer100 = (price / baseQuantity) * 100;
+                                if (unitType === 'volume') {
+                                    const pricePer100ml = (price / quantityInBaseUnit) * 100;
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            ₹{pricePer100.toFixed(2)} per {displayUnit}
+                                            ₹{pricePer100ml.toFixed(2)} per 100ml
+                                        </p>
+                                    );
+                                }
+
+                                if (unitType === 'count' && quantityInBaseUnit > 1) {
+                                    const pricePerPiece = price / quantityInBaseUnit;
+                                    return (
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            ₹{pricePerPiece.toFixed(2)} per piece
                                         </p>
                                     );
                                 }
