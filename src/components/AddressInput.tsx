@@ -19,7 +19,10 @@ interface AddressInputProps {
 }
 
 export default function AddressInput({ value, onChange, savedAddress, showSavedOption = true }: AddressInputProps) {
-    const [addressOption, setAddressOption] = useState<'saved' | 'new'>(savedAddress ? 'saved' : 'new');
+    // Force 'new' when showSavedOption is false, otherwise use saved if available
+    const [addressOption, setAddressOption] = useState<'saved' | 'new'>(
+        showSavedOption && savedAddress ? 'saved' : 'new'
+    );
     const [apartment, setApartment] = useState('');
     const [block, setBlock] = useState('');
     const [room, setRoom] = useState('');
@@ -93,8 +96,8 @@ export default function AddressInput({ value, onChange, savedAddress, showSavedO
                 </div>
             )}
 
-            {/* New Address Form */}
-            {(addressOption === 'new' || !savedAddress) && (
+            {/* New Address Form - Show when: no saved address, or user chose 'new', or showSavedOption is false */}
+            {(addressOption === 'new' || !savedAddress || !showSavedOption) && (
                 <div className="space-y-3">
                     {/* Apartment Selection */}
                     <div className="space-y-2">

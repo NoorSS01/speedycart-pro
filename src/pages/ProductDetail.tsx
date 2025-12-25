@@ -811,94 +811,65 @@ export default function ProductDetail() {
                                 })()}
                             </div>
 
-                            {/* Price per 100g/100ml for weighted/volume items */}
+                            {/* Price per unit calculation */}
                             {(() => {
-                                let baseUnits = 0; // grams or ml
-                                let priceToUse = 0;
-                                let unitType: 'weight' | 'volume' | 'count' | null = null;
+                                // Get the current price and unit info
+                                const price = selectedVariant?.price ?? product.price;
+                                let quantity = 0;
+                                let unit = '';
 
                                 if (selectedVariant) {
-                                    // Variant: variant_value is numeric, variant_unit is 'g', 'kg', 'ml', 'L', etc.
-                                    priceToUse = selectedVariant.price;
-                                    const variantUnit = selectedVariant.variant_unit.toLowerCase();
-                                    const variantValue = selectedVariant.variant_value;
-
-                                    // Weight units
-                                    if (variantUnit === 'kg') {
-                                        baseUnits = variantValue * 1000;
-                                        unitType = 'weight';
-                                    } else if (['g', 'gm', 'gram', 'grams'].includes(variantUnit)) {
-                                        baseUnits = variantValue;
-                                        unitType = 'weight';
-                                    }
-                                    // Volume units
-                                    else if (variantUnit === 'l' || variantUnit === 'ltr' || variantUnit === 'litre' || variantUnit === 'liter') {
-                                        baseUnits = variantValue * 1000;
-                                        unitType = 'volume';
-                                    } else if (['ml', 'millilitre', 'milliliter'].includes(variantUnit)) {
-                                        baseUnits = variantValue;
-                                        unitType = 'volume';
-                                    }
-                                    // Count units
-                                    else if (['dozen', 'pack', 'box', 'pcs', 'pieces', 'piece'].includes(variantUnit) && variantValue > 1) {
-                                        baseUnits = variantValue;
-                                        unitType = 'count';
-                                    }
+                                    // Use variant data
+                                    quantity = selectedVariant.variant_value;
+                                    unit = selectedVariant.variant_unit.toLowerCase();
                                 } else {
-                                    // Product: unit is like '500g', '1kg', '250ml', '1L' - parse it
-                                    priceToUse = product.price;
-                                    const unitStr = product.unit.toLowerCase();
-                                    const match = unitStr.match(/^(\d*\.?\d+)\s*(kg|g|gm|gram|grams|l|ltr|litre|liter|ml|millilitre|milliliter)?$/);
-
+                                    // Parse from product.unit string like "500g", "1kg", "200ml", "1ltr"
+                                    const unitStr = product.unit.toLowerCase().trim();
+                                    const match = unitStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|ltr|l|ml|piece|pieces|pack|dozen)$/);
                                     if (match) {
-                                        const value = parseFloat(match[1]);
-                                        const unit = match[2] || '';
-
-                                        // Weight units
-                                        if (unit === 'kg') {
-                                            baseUnits = value * 1000;
-                                            unitType = 'weight';
-                                        } else if (['g', 'gm', 'gram', 'grams'].includes(unit)) {
-                                            baseUnits = value;
-                                            unitType = 'weight';
-                                        }
-                                        // Volume units
-                                        else if (['l', 'ltr', 'litre', 'liter'].includes(unit)) {
-                                            baseUnits = value * 1000;
-                                            unitType = 'volume';
-                                        } else if (['ml', 'millilitre', 'milliliter'].includes(unit)) {
-                                            baseUnits = value;
-                                            unitType = 'volume';
-                                        }
+                                        quantity = parseFloat(match[1]);
+                                        unit = match[2];
                                     }
                                 }
 
-                                // Show per 100g price for weight
-                                if (unitType === 'weight' && baseUnits > 0) {
-                                    const pricePer100 = (priceToUse / baseUnits) * 100;
+                                if (!quantity || quantity <= 0 || !unit) return null;
+
+                                // Convert to base units (grams or ml)
+                                let baseQuantity = quantity;
+                                let displayUnit = '';
+
+                                // Weight: convert to grams
+                                if (unit === 'kg') {
+                                    baseQuantity = quantity * 1000;
+                                    displayUnit = '100g';
+                                } else if (['g', 'gm', 'gram', 'grams'].includes(unit)) {
+                                    baseQuantity = quantity;
+                                    displayUnit = '100g';
+                                }
+                                // Volume: convert to ml
+                                else if (['l', 'ltr', 'litre', 'liter'].includes(unit)) {
+                                    baseQuantity = quantity * 1000;
+                                    displayUnit = '100ml';
+                                } else if (['ml', 'millilitre', 'milliliter'].includes(unit)) {
+                                    baseQuantity = quantity;
+                                    displayUnit = '100ml';
+                                }
+                                // Count: per piece
+                                else if (['dozen', 'pack', 'pieces'].includes(unit) && quantity > 1) {
+                                    const perPiece = price / quantity;
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            ₹{pricePer100.toFixed(2)} per 100g
+                                            ₹{perPiece.toFixed(2)} per piece
                                         </p>
                                     );
                                 }
 
-                                // Show per 100ml price for volume
-                                if (unitType === 'volume' && baseUnits > 0) {
-                                    const pricePer100 = (priceToUse / baseUnits) * 100;
+                                // Calculate per 100 units for weight/volume
+                                if (displayUnit && baseQuantity > 0) {
+                                    const pricePer100 = (price / baseQuantity) * 100;
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            ₹{pricePer100.toFixed(2)} per 100ml
-                                        </p>
-                                    );
-                                }
-
-                                // Show per piece price for count units
-                                if (unitType === 'count' && baseUnits > 1) {
-                                    const pricePerUnit = priceToUse / baseUnits;
-                                    return (
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            ₹{pricePerUnit.toFixed(2)} per piece
+                                            ₹{pricePer100.toFixed(2)} per {displayUnit}
                                         </p>
                                     );
                                 }
