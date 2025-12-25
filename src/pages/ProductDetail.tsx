@@ -105,6 +105,15 @@ export default function ProductDetail() {
 
     useEffect(() => {
         if (id) {
+            // Reset state when switching to a different product
+            setVariants([]);
+            setSelectedVariant(null);
+            setProductImages([]);
+            setSelectedImageIndex(0);
+            setProduct(null);
+            setLoading(true);
+
+            // Fetch new product data
             fetchProduct();
             fetchReviews();
             fetchVariants();
