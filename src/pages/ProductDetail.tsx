@@ -819,16 +819,25 @@ export default function ProductDetail() {
                                 let unit = '';
 
                                 if (selectedVariant) {
-                                    // Use variant data
+                                    // Use variant data - always available
                                     quantity = selectedVariant.variant_value;
-                                    unit = selectedVariant.variant_unit.toLowerCase();
+                                    unit = selectedVariant.variant_unit?.toLowerCase() || '';
                                 } else {
-                                    // Parse from product.unit string like "500g", "1kg", "200ml", "1ltr"
-                                    const unitStr = product.unit.toLowerCase().trim();
-                                    const match = unitStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|ltr|l|ml|piece|pieces|pack|dozen)$/);
+                                    // Parse from product.unit - try multiple patterns
+                                    const unitStr = (product.unit || '').toLowerCase().trim();
+
+                                    // Try: "500g", "1kg", "200ml", "1 ltr", "500 gm"
+                                    const match = unitStr.match(/^(\d+\.?\d*)\s*(kg|g|gm|gram|ltr|l|litre|ml|piece|pieces|pack|dozen|pcs)$/);
                                     if (match) {
                                         quantity = parseFloat(match[1]);
                                         unit = match[2];
+                                    } else {
+                                        // Fallback: just "kg", "g", "ml" - assume quantity = 1
+                                        const unitOnly = unitStr.match(/^(kg|g|gm|ltr|l|ml)$/);
+                                        if (unitOnly) {
+                                            quantity = 1;
+                                            unit = unitOnly[1];
+                                        }
                                     }
                                 }
 
@@ -855,7 +864,7 @@ export default function ProductDetail() {
                                     displayUnit = '100ml';
                                 }
                                 // Count: per piece
-                                else if (['dozen', 'pack', 'pieces'].includes(unit) && quantity > 1) {
+                                else if (['dozen', 'pack', 'pieces', 'pcs'].includes(unit) && quantity > 1) {
                                     const perPiece = price / quantity;
                                     return (
                                         <p className="text-sm text-muted-foreground mt-1">
