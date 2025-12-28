@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { formatVariantDisplay } from '@/lib/formatUnit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -564,17 +565,16 @@ export default function Cart() {
                                                         >
                                                             {item.products.name}
                                                         </p>
-                                                        {/* Show variant name if exists */}
                                                         {item.product_variants && (
                                                             <span className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                                                                {item.product_variants.variant_name}
+                                                                {formatVariantDisplay(item.product_variants)}
                                                             </span>
                                                         )}
                                                         {(() => {
                                                             const price = getItemPrice(item);
                                                             const mrp = getItemMrp(item);
                                                             const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
-                                                            const unitName = item.product_variants?.variant_name ?? item.products.unit;
+                                                            const unitName = item.product_variants ? formatVariantDisplay(item.product_variants) : item.products.unit;
 
                                                             return discount > 0 ? (
                                                                 <div className="flex items-center gap-1.5">

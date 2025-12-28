@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
+import { formatVariantDisplay } from '@/lib/formatUnit';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -75,32 +76,7 @@ interface ProductReview {
     } | null;
 }
 
-// Helper function to format variant display with proper unit
-// If variant_name already has unit (like "500g"), use it as-is
-// If variant_name is just a number (like "500"), append the variant_unit
-const formatVariantDisplay = (variant: ProductVariant): string => {
-    const name = variant.variant_name || '';
-    const unit = variant.variant_unit || '';
-
-    // Check if variant_name already contains a unit (g, kg, ml, L, ltr, etc.)
-    const hasUnit = /\d+\s*(g|gm|gram|kg|ml|l|ltr|litre|liter|pcs|pieces|pack|dozen)\s*$/i.test(name);
-
-    if (hasUnit) {
-        return name; // Already has unit, use as-is
-    }
-
-    // If it's just a number, append the unit
-    if (/^\d+\.?\d*$/.test(name.trim()) && unit) {
-        return `${name}${unit}`;
-    }
-
-    // Fallback: combine variant_value and unit if name is empty or problematic
-    if (variant.variant_value && unit) {
-        return `${variant.variant_value}${unit}`;
-    }
-
-    return name || `${variant.variant_value || ''}${unit}`;
-};
+// formatVariantDisplay is now imported from @/lib/formatUnit
 
 export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { formatOrderQuantity } from '@/lib/formatUnit';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -91,55 +92,14 @@ export default function AdminOrderDetail() {
                 const productMap = new Map((products || []).map(p => [p.id, p]));
                 setItems(itemsData.map(item => {
                     const variant = variantMap.get(item.variant_id);
+                    const productUnit = productMap.get(item.product_id)?.unit;
 
-                    // Calculate total quantity for display
-                    let calculatedQty = '';
-                    if (variant) {
-                        // Smart parsing: if variant_value is 1 or looks wrong, try to parse from variant_name
-                        let effectiveValue = variant.variant_value || 1;
-                        let effectiveUnit = (variant.variant_unit || '').toLowerCase();
-
-                        // Parse variant_name if it contains quantity info (e.g., "500g", "500", "1kg")
-                        const variantName = (variant.variant_name || '').toLowerCase().trim();
-                        const nameMatch = variantName.match(/^(\d+\.?\d*)\s*(g|gm|gram|kg|ml|l|ltr|litre|liter|pcs|pieces)?$/i);
-
-                        if (nameMatch) {
-                            const parsedValue = parseFloat(nameMatch[1]);
-                            const parsedUnit = nameMatch[2]?.toLowerCase() || effectiveUnit;
-
-                            // Use parsed values if they seem more reasonable
-                            if (parsedValue > 1 || effectiveValue <= 1) {
-                                effectiveValue = parsedValue;
-                                if (parsedUnit) effectiveUnit = parsedUnit;
-                            }
-                        }
-
-                        const totalValue = item.quantity * effectiveValue;
-
-                        // Handle kg/L - convert to g/ml for display if less than 1kg/L
-                        if (effectiveUnit === 'kg') {
-                            const grams = totalValue * 1000;
-                            calculatedQty = grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(grams)} g`;
-                        } else if (effectiveUnit === 'l' || effectiveUnit === 'ltr' || effectiveUnit === 'litre' || effectiveUnit === 'liter') {
-                            const ml = totalValue * 1000;
-                            calculatedQty = ml >= 1000 ? `${(ml / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(ml)} ml`;
-                        } else if (effectiveUnit === 'g' || effectiveUnit === 'gm' || effectiveUnit === 'gram') {
-                            calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(totalValue)} g`;
-                        } else if (effectiveUnit === 'ml') {
-                            calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(totalValue)} ml`;
-                        } else {
-                            // For other units (pcs, dozen, etc.)
-                            calculatedQty = `${totalValue} ${effectiveUnit || 'pcs'}`;
-                        }
-                    } else {
-                        // No variant - show quantity with product unit
-                        calculatedQty = `${item.quantity} ${productMap.get(item.product_id)?.unit || 'pcs'}`;
-                    }
+                    // Use the universal formatting utility
+                    const calculatedQty = formatOrderQuantity(item.quantity, variant || null, productUnit);
 
                     return {
                         ...item,
                         name: productMap.get(item.product_id)?.name || 'Product',
-                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs'),
                         calculatedQty
                     };
                 }));
