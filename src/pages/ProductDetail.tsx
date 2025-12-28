@@ -75,6 +75,33 @@ interface ProductReview {
     } | null;
 }
 
+// Helper function to format variant display with proper unit
+// If variant_name already has unit (like "500g"), use it as-is
+// If variant_name is just a number (like "500"), append the variant_unit
+const formatVariantDisplay = (variant: ProductVariant): string => {
+    const name = variant.variant_name || '';
+    const unit = variant.variant_unit || '';
+
+    // Check if variant_name already contains a unit (g, kg, ml, L, ltr, etc.)
+    const hasUnit = /\d+\s*(g|gm|gram|kg|ml|l|ltr|litre|liter|pcs|pieces|pack|dozen)\s*$/i.test(name);
+
+    if (hasUnit) {
+        return name; // Already has unit, use as-is
+    }
+
+    // If it's just a number, append the unit
+    if (/^\d+\.?\d*$/.test(name.trim()) && unit) {
+        return `${name}${unit}`;
+    }
+
+    // Fallback: combine variant_value and unit if name is empty or problematic
+    if (variant.variant_value && unit) {
+        return `${variant.variant_value}${unit}`;
+    }
+
+    return name || `${variant.variant_value || ''}${unit}`;
+};
+
 export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -780,7 +807,7 @@ export default function ProductDetail() {
                                                     {variantDiscount}% OFF
                                                 </span>
                                             )}
-                                            <p className="font-semibold text-sm">{variant.variant_name}</p>
+                                            <p className="font-semibold text-sm">{formatVariantDisplay(variant)}</p>
                                             <p className="text-primary font-bold">₹{variant.price}</p>
                                             {variant.mrp && variant.mrp > variant.price && (
                                                 <p className="text-xs text-muted-foreground line-through">₹{variant.mrp}</p>
@@ -800,7 +827,7 @@ export default function ProductDetail() {
                                     // Use selected variant price if available, otherwise use product price
                                     const displayPrice = selectedVariant?.price ?? product.price;
                                     const displayMrp = selectedVariant?.mrp ?? product.mrp;
-                                    const displayUnit = selectedVariant?.variant_name ?? product.unit;
+                                    const displayUnit = selectedVariant ? formatVariantDisplay(selectedVariant) : product.unit;
                                     const discount = displayMrp ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100) : 0;
 
                                     return (

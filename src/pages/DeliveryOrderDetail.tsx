@@ -95,24 +95,41 @@ export default function DeliveryOrderDetail() {
                     // Calculate total quantity for display
                     let calculatedQty = '';
                     if (variant) {
-                        // Variant: calculate total (e.g., 2 × 250g = 500g)
-                        const totalValue = item.quantity * variant.variant_value;
-                        const unit = variant.variant_unit?.toLowerCase() || '';
+                        // Smart parsing: if variant_value is 1 or looks wrong, try to parse from variant_name
+                        let effectiveValue = variant.variant_value || 1;
+                        let effectiveUnit = (variant.variant_unit || '').toLowerCase();
+
+                        // Parse variant_name if it contains quantity info (e.g., "500g", "500", "1kg")
+                        const variantName = (variant.variant_name || '').toLowerCase().trim();
+                        const nameMatch = variantName.match(/^(\d+\.?\d*)\s*(g|gm|gram|kg|ml|l|ltr|litre|liter|pcs|pieces)?$/i);
+
+                        if (nameMatch) {
+                            const parsedValue = parseFloat(nameMatch[1]);
+                            const parsedUnit = nameMatch[2]?.toLowerCase() || effectiveUnit;
+
+                            // Use parsed values if they seem more reasonable
+                            if (parsedValue > 1 || effectiveValue <= 1) {
+                                effectiveValue = parsedValue;
+                                if (parsedUnit) effectiveUnit = parsedUnit;
+                            }
+                        }
+
+                        const totalValue = item.quantity * effectiveValue;
 
                         // Handle kg/L - convert to g/ml for display if less than 1
-                        if (unit === 'kg') {
+                        if (effectiveUnit === 'kg') {
                             const grams = totalValue * 1000;
                             calculatedQty = grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(grams)} g`;
-                        } else if (unit === 'l' || unit === 'ltr' || unit === 'litre' || unit === 'liter') {
+                        } else if (effectiveUnit === 'l' || effectiveUnit === 'ltr' || effectiveUnit === 'litre' || effectiveUnit === 'liter') {
                             const ml = totalValue * 1000;
                             calculatedQty = ml >= 1000 ? `${(ml / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(ml)} ml`;
-                        } else if (unit === 'g' || unit === 'gm' || unit === 'gram') {
+                        } else if (effectiveUnit === 'g' || effectiveUnit === 'gm' || effectiveUnit === 'gram') {
                             calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(totalValue)} g`;
-                        } else if (unit === 'ml') {
+                        } else if (effectiveUnit === 'ml') {
                             calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(totalValue)} ml`;
                         } else {
                             // For other units (pcs, dozen, etc.)
-                            calculatedQty = `${totalValue} ${unit}`;
+                            calculatedQty = `${totalValue} ${effectiveUnit || 'pcs'}`;
                         }
                     } else {
                         // No variant - show quantity with product unit

@@ -18,22 +18,23 @@ CREATE INDEX IF NOT EXISTS idx_delivery_ratings_user ON delivery_ratings(user_id
 -- Enable RLS
 ALTER TABLE delivery_ratings ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies
+-- RLS Policies (drop first to make idempotent)
 
--- Users can insert their own ratings
+DROP POLICY IF EXISTS "Users can insert own ratings" ON delivery_ratings;
 CREATE POLICY "Users can insert own ratings" ON delivery_ratings
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Users can view their own ratings
+DROP POLICY IF EXISTS "Users can view own ratings" ON delivery_ratings;
 CREATE POLICY "Users can view own ratings" ON delivery_ratings
     FOR SELECT USING (auth.uid() = user_id);
 
--- Delivery partners can view ratings they received
+DROP POLICY IF EXISTS "Delivery partners can view their ratings" ON delivery_ratings;
 CREATE POLICY "Delivery partners can view their ratings" ON delivery_ratings
     FOR SELECT USING (auth.uid() = delivery_person_id);
 
--- Admins can view all ratings (using existing has_role function)
+DROP POLICY IF EXISTS "Admins can view all ratings" ON delivery_ratings;
 CREATE POLICY "Admins can view all ratings" ON delivery_ratings
     FOR SELECT USING (
         has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role)
     );
+
