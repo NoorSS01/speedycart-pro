@@ -32,12 +32,8 @@ CREATE POLICY "Users can view own ratings" ON delivery_ratings
 CREATE POLICY "Delivery partners can view their ratings" ON delivery_ratings
     FOR SELECT USING (auth.uid() = delivery_person_id);
 
--- Admins can view all ratings
+-- Admins can view all ratings (using existing has_role function)
 CREATE POLICY "Admins can view all ratings" ON delivery_ratings
     FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM profiles
-            WHERE profiles.id = auth.uid()
-            AND profiles.role IN ('admin', 'super_admin')
-        )
+        has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role)
     );
