@@ -19,7 +19,7 @@ export default function AdminOrderDetail() {
     const [order, setOrder] = useState<any>(null);
     const [items, setItems] = useState<any[]>([]);
     const [customer, setCustomer] = useState<{ name: string; phone: string }>({ name: 'Customer', phone: '' });
-    const [deliveryPerson, setDeliveryPerson] = useState<{ name: string; phone: string } | null>(null);
+    const [deliveryPerson, setDeliveryPerson] = useState<{ name: string; phone: string; rating: number } | null>(null);
     const [assignment, setAssignment] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -129,7 +129,21 @@ export default function AdminOrderDetail() {
                         .single();
 
                     if (dpData) {
-                        setDeliveryPerson({ name: dpData.full_name || 'Delivery Partner', phone: dpData.phone || '' });
+                        // Fetch average rating for this delivery partner
+                        const { data: ratingsData } = await supabase
+                            .from('delivery_ratings' as any)
+                            .select('rating')
+                            .eq('delivery_person_id', assignmentData.delivery_person_id);
+
+                        const avgRating = ratingsData && ratingsData.length > 0
+                            ? Math.round((ratingsData.reduce((sum: number, r: any) => sum + r.rating, 0) / ratingsData.length) * 10) / 10
+                            : 0;
+
+                        setDeliveryPerson({
+                            name: dpData.full_name || 'Delivery Partner',
+                            phone: dpData.phone || '',
+                            rating: avgRating
+                        });
                     }
                 }
             }
@@ -251,8 +265,18 @@ export default function AdminOrderDetail() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="font-medium">{deliveryPerson.name}</p>
-                            <p className="text-sm text-muted-foreground">{deliveryPerson.phone || 'No phone'}</p>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-medium">{deliveryPerson.name}</p>
+                                    <p className="text-sm text-muted-foreground">{deliveryPerson.phone || 'No phone'}</p>
+                                </div>
+                                {deliveryPerson.rating > 0 && (
+                                    <div className="flex items-center gap-1 text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-lg">
+                                        <span className="text-lg">⭐</span>
+                                        <span className="font-bold">{deliveryPerson.rating}</span>
+                                    </div>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
                 )}

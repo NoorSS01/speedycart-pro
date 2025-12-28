@@ -158,7 +158,7 @@ export default function Orders() {
       orderId: confirmDialog.orderId,
       deliveryPersonId: confirmDialog.deliveryPersonId
     });
-    setDeliveryRating(5);
+    setDeliveryRating(0); // Start with empty stars - user must select
   };
 
   const rejectDelivery = async () => {
