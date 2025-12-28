@@ -209,6 +209,7 @@ export type Database = {
           price: number
           product_id: string
           quantity: number
+          variant_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -217,6 +218,7 @@ export type Database = {
           price: number
           product_id: string
           quantity: number
+          variant_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -225,6 +227,7 @@ export type Database = {
           price?: number
           product_id?: string
           quantity?: number
+          variant_id?: string | null
         }
         Relationships: [
           {

@@ -85,11 +85,39 @@ export default function UserOrderDetail() {
                 const productMap = new Map((products || []).map(p => [p.id, p]));
                 setItems(itemsData.map(item => {
                     const variant = variantMap.get(item.variant_id);
+
+                    // Calculate total quantity for display (same logic as DeliveryOrderDetail)
+                    let calculatedQty = '';
+                    if (variant) {
+                        const totalValue = item.quantity * variant.variant_value;
+                        const unit = variant.variant_unit?.toLowerCase() || '';
+
+                        // Handle kg/L - convert to g/ml for display if less than 1kg/L
+                        if (unit === 'kg') {
+                            const grams = totalValue * 1000;
+                            calculatedQty = grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(grams)} g`;
+                        } else if (unit === 'l' || unit === 'ltr' || unit === 'litre' || unit === 'liter') {
+                            const ml = totalValue * 1000;
+                            calculatedQty = ml >= 1000 ? `${(ml / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(ml)} ml`;
+                        } else if (unit === 'g' || unit === 'gm' || unit === 'gram') {
+                            calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(totalValue)} g`;
+                        } else if (unit === 'ml') {
+                            calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(totalValue)} ml`;
+                        } else {
+                            // For other units (pcs, dozen, etc.)
+                            calculatedQty = `${totalValue} ${unit}`;
+                        }
+                    } else {
+                        // No variant - show quantity with product unit
+                        calculatedQty = `${item.quantity} ${productMap.get(item.product_id)?.unit || 'pcs'}`;
+                    }
+
                     return {
                         ...item,
                         name: productMap.get(item.product_id)?.name || 'Product',
                         image: productMap.get(item.product_id)?.image_url || null,
-                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs')
+                        unit: variant ? `${variant.variant_value}${variant.variant_unit}` : (productMap.get(item.product_id)?.unit || 'pcs'),
+                        calculatedQty
                     };
                 }));
             }
@@ -258,7 +286,7 @@ export default function UserOrderDetail() {
                                 )}
                                 <div className="flex-1">
                                     <p className="font-medium text-sm">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">{item.quantity} × {item.unit} @ ₹{item.price}</p>
+                                    <p className="text-xs text-muted-foreground">{item.calculatedQty || `${item.quantity} ${item.unit}`} @ ₹{item.price}</p>
                                 </div>
                                 <p className="font-bold text-primary">₹{item.quantity * item.price}</p>
                             </div>

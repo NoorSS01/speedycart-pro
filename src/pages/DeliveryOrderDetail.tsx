@@ -97,16 +97,16 @@ export default function DeliveryOrderDetail() {
                     if (variant) {
                         // Variant: calculate total (e.g., 2 × 250g = 500g)
                         const totalValue = item.quantity * variant.variant_value;
-                        const unit = variant.variant_unit;
+                        const unit = variant.variant_unit?.toLowerCase() || '';
 
                         // Handle kg/L - convert to g/ml for display if less than 1
                         if (unit === 'kg') {
                             const grams = totalValue * 1000;
                             calculatedQty = grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(grams)} g`;
-                        } else if (unit === 'L') {
+                        } else if (unit === 'l' || unit === 'ltr' || unit === 'litre' || unit === 'liter') {
                             const ml = totalValue * 1000;
                             calculatedQty = ml >= 1000 ? `${(ml / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(ml)} ml`;
-                        } else if (unit === 'g') {
+                        } else if (unit === 'g' || unit === 'gm' || unit === 'gram') {
                             calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} kg` : `${Math.round(totalValue)} g`;
                         } else if (unit === 'ml') {
                             calculatedQty = totalValue >= 1000 ? `${(totalValue / 1000).toFixed(1).replace('.0', '')} L` : `${Math.round(totalValue)} ml`;
