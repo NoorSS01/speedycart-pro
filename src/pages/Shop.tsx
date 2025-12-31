@@ -727,14 +727,13 @@ export default function Shop() {
       )}
       */}
 
-      {/* Circular Category Grid - temporarily disabled
+      {/* Circular Category Grid */}
       {!searchQuery && !selectedCategory && (
         <CategoryGrid
           categories={categories}
           onCategorySelect={setSelectedCategory}
         />
       )}
-      */}
 
       {/* Buy Again Section - temporarily disabled
       {!searchQuery && !selectedCategory && (
