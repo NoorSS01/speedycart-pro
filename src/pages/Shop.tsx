@@ -721,23 +721,26 @@ export default function Shop() {
         </div>
       </div>
 
-      {/* Promotional Banners */}
+      {/* Promotional Banners - temporarily disabled
       {!searchQuery && !selectedCategory && (
         <PromotionalBanners />
       )}
+      */}
 
-      {/* Circular Category Grid - when no search/filter active */}
+      {/* Circular Category Grid - temporarily disabled
       {!searchQuery && !selectedCategory && (
         <CategoryGrid
           categories={categories}
           onCategorySelect={setSelectedCategory}
         />
       )}
+      */}
 
-      {/* Buy Again Section */}
+      {/* Buy Again Section - temporarily disabled
       {!searchQuery && !selectedCategory && (
         <BuyAgain onAddToCart={addToCart} />
       )}
+      */}
 
       {/* For You - AI Recommendations */}
       {user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
