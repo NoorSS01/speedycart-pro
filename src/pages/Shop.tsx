@@ -726,19 +726,6 @@ export default function Shop() {
         <PromotionalBanners />
       )}
 
-      {/* Circular Category Grid */}
-      {!searchQuery && !selectedCategory && (
-        <CategoryGrid
-          categories={categories}
-          onCategorySelect={setSelectedCategory}
-        />
-      )}
-
-      {/* Buy Again Section */}
-      {!searchQuery && !selectedCategory && (
-        <BuyAgain onAddToCart={addToCart} />
-      )}
-
       {/* For You - AI Recommendations */}
       {user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
         <div className="container mx-auto px-4 pb-6">
@@ -975,6 +962,21 @@ export default function Shop() {
           </div>
         )}
       </div>
+
+      {/* Shop by Category - below products */}
+      {!searchQuery && !selectedCategory && (
+        <div className="container mx-auto px-4 py-6">
+          <CategoryGrid
+            categories={categories}
+            onCategorySelect={setSelectedCategory}
+          />
+        </div>
+      )}
+
+      {/* Buy Again Section - below categories */}
+      {!searchQuery && !selectedCategory && (
+        <BuyAgain onAddToCart={addToCart} />
+      )}
 
       {/* Address Dialog */}
       <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>

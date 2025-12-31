@@ -23,7 +23,8 @@ import {
   Shield,
   Boxes,
   ChevronRight,
-  User
+  User,
+  Zap
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -357,6 +358,36 @@ export default function Admin() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">Products</p>
                 <p className="text-xs text-muted-foreground truncate">Manage inventory</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Promotional Banners */}
+            <button
+              onClick={() => navigate('/admin/banners')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-orange-50 to-white dark:from-orange-900/20 dark:to-slate-900 border border-orange-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg">
+                <Activity className="w-5 h-5 text-orange-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Banners</p>
+                <p className="text-xs text-muted-foreground truncate">Promotional offers</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Coupon Triggers */}
+            <button
+              onClick={() => navigate('/admin/coupon-triggers')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-900/20 dark:to-slate-900 border border-yellow-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg">
+                <Zap className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Coupon Triggers</p>
+                <p className="text-xs text-muted-foreground truncate">Automatic discounts</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>

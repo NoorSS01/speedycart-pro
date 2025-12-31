@@ -44,9 +44,5 @@ CREATE POLICY "Admins can manage banners" ON promotional_banners
             AND role IN ('admin', 'super_admin')
         )
     );
-
--- Insert some default banners
-INSERT INTO promotional_banners (title, subtitle, background_color, display_order) VALUES
-    ('Free Delivery on Water 💧', 'Order only water products for free delivery!', '#3b82f6', 1),
-    ('Free Delivery over ₹200', 'Shop for ₹200+ and get free delivery', '#22c55e', 2)
-ON CONFLICT DO NOTHING;
+-- Note: Banners should be created manually via the Admin panel at /admin/banners
+-- This avoids duplicate entries when the SQL is run multiple times
