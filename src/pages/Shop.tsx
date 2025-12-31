@@ -721,11 +721,10 @@ export default function Shop() {
         </div>
       </div>
 
-      {/* Promotional Banners - temporarily disabled
+      {/* Promotional Banners */}
       {!searchQuery && !selectedCategory && (
         <PromotionalBanners />
       )}
-      */}
 
       {/* Circular Category Grid */}
       {!searchQuery && !selectedCategory && (
@@ -735,11 +734,10 @@ export default function Shop() {
         />
       )}
 
-      {/* Buy Again Section - temporarily disabled
+      {/* Buy Again Section */}
       {!searchQuery && !selectedCategory && (
         <BuyAgain onAddToCart={addToCart} />
       )}
-      */}
 
       {/* For You - AI Recommendations */}
       {user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
