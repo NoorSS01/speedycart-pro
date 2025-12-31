@@ -17,10 +17,6 @@ export default function PromotionalBanners() {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
 
-    useEffect(() => {
-        fetchBanners();
-    }, []);
-
     const fetchBanners = async () => {
         try {
             const { data, error } = await supabase
@@ -38,15 +34,18 @@ export default function PromotionalBanners() {
         }
     };
 
-    if (banners.length === 0) return null;
-
     const nextSlide = () => {
-        setCurrentIndex((prev) => (prev + 1) % banners.length);
+        setCurrentIndex((prev) => (prev + 1) % Math.max(banners.length, 1));
     };
 
     const prevSlide = () => {
-        setCurrentIndex((prev) => (prev - 1 + banners.length) % banners.length);
+        setCurrentIndex((prev) => (prev - 1 + banners.length) % Math.max(banners.length, 1));
     };
+
+    // HOOKS MUST ALL BE CALLED BEFORE ANY EARLY RETURNS!
+    useEffect(() => {
+        fetchBanners();
+    }, []);
 
     // Auto-slide every 5 seconds
     useEffect(() => {
@@ -54,6 +53,9 @@ export default function PromotionalBanners() {
         const interval = setInterval(nextSlide, 5000);
         return () => clearInterval(interval);
     }, [banners.length]);
+
+    // NOW we can do early return - after all hooks
+    if (banners.length === 0) return null;
 
     return (
         <div className="relative overflow-hidden rounded-xl mx-4 my-4">
