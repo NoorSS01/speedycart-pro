@@ -734,10 +734,11 @@ export default function Shop() {
         />
       )}
 
-      {/* Buy Again Section */}
+      {/* Buy Again Section - TESTING: disabled to isolate error
       {!searchQuery && !selectedCategory && (
         <BuyAgain onAddToCart={addToCart} />
       )}
+      */}
 
       {/* For You - AI Recommendations */}
       {user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
