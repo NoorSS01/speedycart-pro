@@ -29,6 +29,7 @@ import {
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import EmptyState from '@/components/EmptyState';
+import { formatVariantDisplay } from '@/lib/formatUnit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { Sparkles } from 'lucide-react';
@@ -771,7 +772,7 @@ export default function Shop() {
                     <p className="text-sm font-medium truncate">{product.name}</p>
                     {/* Show variant name if has default variant */}
                     {product.default_variant && (
-                      <span className="text-[10px] text-muted-foreground">{product.default_variant.variant_name}</span>
+                      <span className="text-[10px] text-muted-foreground">{formatVariantDisplay(product.default_variant)}</span>
                     )}
                     {(() => {
                       // Use default variant pricing if available
@@ -883,7 +884,7 @@ export default function Shop() {
                       </h3>
                       {/* Show variant name if has default variant */}
                       {product.default_variant && (
-                        <span className="text-[10px] text-muted-foreground block mb-1">{product.default_variant.variant_name}</span>
+                        <span className="text-[10px] text-muted-foreground block mb-1">{formatVariantDisplay(product.default_variant)}</span>
                       )}
                       <div className="flex items-center justify-between">
                         <div>
@@ -892,7 +893,7 @@ export default function Shop() {
                             const variant = product.default_variant;
                             const displayPrice = variant?.price ?? product.price;
                             const displayMrp = variant?.mrp ?? product.mrp;
-                            const displayUnit = variant?.variant_name ?? product.unit;
+                            const displayUnit = variant ? formatVariantDisplay(variant) : product.unit;
 
                             if (displayMrp && displayMrp > displayPrice) {
                               return (

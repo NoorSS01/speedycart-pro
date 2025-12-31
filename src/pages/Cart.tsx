@@ -159,12 +159,12 @@ export default function Cart() {
 
             if (coupons) {
                 // Filter to only show coupons user hasn't redeemed (if not stackable)
-                const { data: userCoupons } = await supabase
-                    .from('user_coupons' as any)
+                const { data: usedCoupons } = await supabase
+                    .from('coupon_usage' as any)
                     .select('coupon_id')
                     .eq('user_id', user.id);
 
-                const redeemedIds = new Set((userCoupons || []).map((uc: any) => uc.coupon_id));
+                const redeemedIds = new Set((usedCoupons || []).map((uc: any) => uc.coupon_id));
 
                 const eligibleCoupons = coupons.filter((c: any) =>
                     !redeemedIds.has(c.id) || c.is_stackable
@@ -386,16 +386,20 @@ export default function Cart() {
                 setSavedAddress(deliveryAddress);
             }
 
-            // Mark coupon as used if applied (try-catch since table might not exist)
+            // Record coupon usage if applied - INSERT to track that this user used this coupon
             if (appliedCoupon) {
                 try {
                     await (supabase as any)
-                        .from('user_coupons')
-                        .update({ used_at: new Date().toISOString() })
-                        .eq('user_id', user.id)
-                        .eq('coupon_id', appliedCoupon.id);
+                        .from('coupon_usage')
+                        .insert({
+                            user_id: user.id,
+                            coupon_id: appliedCoupon.id,
+                            order_id: orderData.id,
+                            used_at: new Date().toISOString()
+                        });
                 } catch (e) {
-                    console.log('Coupon marking skipped:', e);
+                    // Unique constraint will prevent duplicate usage
+                    console.log('Coupon usage tracking:', e);
                 }
             }
 
@@ -432,9 +436,10 @@ export default function Cart() {
     };
 
     // Check if cart contains ONLY water products (free delivery for water-only carts)
+    // Check by product NAME containing "water", not by category
     const isWaterOnlyCart = cartItems.length > 0 && cartItems.every(item => {
-        const categoryName = item.products.categories?.name?.toLowerCase() || '';
-        return categoryName === 'water';
+        const productName = item.products.name?.toLowerCase() || '';
+        return productName.includes('water');
     });
 
     // Calculations - use selling prices (variant price or product price)

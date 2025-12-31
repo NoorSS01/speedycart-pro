@@ -84,7 +84,7 @@ export default function AdminOrderDetail() {
                 if (variantIds.length > 0) {
                     const { data: variants } = await supabase
                         .from('product_variants')
-                        .select('id, variant_value, variant_unit')
+                        .select('id, variant_name, variant_value, variant_unit')
                         .in('id', variantIds);
                     variantMap = new Map((variants || []).map(v => [v.id, v]));
                 }
