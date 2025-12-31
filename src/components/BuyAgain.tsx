@@ -40,18 +40,32 @@ export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
     const fetchBuyAgainProducts = async () => {
         if (!user) return;
 
-        // Get products from user's previous orders
-        const { data: orderItems } = await supabase
-            .from('order_items')
-            .select(`
-                product_id,
-                variant_id,
-                orders!inner(user_id)
-            `)
-            .eq('orders.user_id', user.id)
-            .limit(20);
+        try {
+            // Get user's orders first
+            const { data: userOrders } = await supabase
+                .from('orders')
+                .select('id')
+                .eq('user_id', user.id)
+                .limit(10);
 
-        if (orderItems && orderItems.length > 0) {
+            if (!userOrders || userOrders.length === 0) {
+                setLoading(false);
+                return;
+            }
+
+            const orderIds = userOrders.map(o => o.id);
+
+            // Get order items for those orders
+            const { data: orderItems } = await supabase
+                .from('order_items')
+                .select('product_id')
+                .in('order_id', orderIds);
+
+            if (!orderItems || orderItems.length === 0) {
+                setLoading(false);
+                return;
+            }
+
             // Get unique product IDs
             const productIds = [...new Set(orderItems.map(item => item.product_id))];
 
@@ -65,6 +79,9 @@ export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
             if (productsData) {
                 setProducts(productsData as BuyAgainProduct[]);
             }
+        } catch (error) {
+            console.error('BuyAgain fetch error:', error);
+            // Don't crash - just show nothing
         }
         setLoading(false);
     };

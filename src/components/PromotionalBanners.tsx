@@ -22,14 +22,19 @@ export default function PromotionalBanners() {
     }, []);
 
     const fetchBanners = async () => {
-        const { data } = await supabase
-            .from('promotional_banners' as any)
-            .select('*')
-            .eq('is_active', true)
-            .order('display_order', { ascending: true });
+        try {
+            const { data, error } = await supabase
+                .from('promotional_banners' as any)
+                .select('*')
+                .eq('is_active', true)
+                .order('display_order', { ascending: true });
 
-        if (data) {
-            setBanners(data as unknown as Banner[]);
+            if (data && !error) {
+                setBanners(data as unknown as Banner[]);
+            }
+        } catch (error) {
+            // Table might not exist yet - silently fail
+            console.log('Promotional banners not available:', error);
         }
     };
 
