@@ -24,7 +24,9 @@ import {
   Boxes,
   ChevronRight,
   User,
-  Zap
+  Zap,
+  Image,
+  Layers
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -388,6 +390,51 @@ export default function Admin() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">Coupon Triggers</p>
                 <p className="text-xs text-muted-foreground truncate">Automatic discounts</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Hero Banners */}
+            <button
+              onClick={() => navigate('/admin/hero-banners')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-slate-900 border border-purple-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg">
+                <Image className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Hero Banners</p>
+                <p className="text-xs text-muted-foreground truncate">Large homepage banners</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Offer Sections */}
+            <button
+              onClick={() => navigate('/admin/offer-sections')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-pink-50 to-white dark:from-pink-900/20 dark:to-slate-900 border border-pink-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-pink-100 dark:bg-pink-900/40 rounded-lg">
+                <Layers className="w-5 h-5 text-pink-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Offer Sections</p>
+                <p className="text-xs text-muted-foreground truncate">50% OFF zones, etc.</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Flash Deals */}
+            <button
+              onClick={() => navigate('/admin/flash-deals')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-slate-900 border border-amber-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
+                <Zap className="w-5 h-5 text-amber-600 fill-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Flash Deals</p>
+                <p className="text-xs text-muted-foreground truncate">Time-limited offers</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>

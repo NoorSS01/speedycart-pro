@@ -112,16 +112,16 @@ export default function Categories() {
             <main className="container mx-auto px-4 py-6">
                 <h2 className="text-lg font-semibold mb-4">All Categories</h2>
 
-                {/* Categories Grid - Inspired by Design */}
-                <div className="grid grid-cols-4 gap-3 sm:gap-4">
+                {/* Categories Grid - Circular Icons Style */}
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-4 sm:gap-6">
                     {categories.map((category) => (
                         <button
                             key={category.id}
                             onClick={() => handleCategoryClick(category.id)}
-                            className="flex flex-col items-center gap-2 p-2 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-900/40 dark:hover:to-pink-900/40 transition-all duration-200 border border-purple-100/50 dark:border-purple-800/30 active:scale-95"
+                            className="flex flex-col items-center gap-2 group"
                         >
-                            {/* Category Image */}
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden shadow-sm">
+                            {/* Circular Category Image */}
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-transparent group-hover:border-primary transition-all shadow-sm group-hover:shadow-md">
                                 {category.image_url ? (
                                     <img
                                         src={category.image_url}
@@ -129,12 +129,14 @@ export default function Categories() {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <Package className="h-6 w-6 text-primary/60" />
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10">
+                                        <Package className="h-6 w-6 text-primary/60" />
+                                    </div>
                                 )}
                             </div>
 
                             {/* Category Name */}
-                            <span className="text-xs text-center font-medium text-foreground/80 line-clamp-2 leading-tight">
+                            <span className="text-xs text-center font-medium text-muted-foreground group-hover:text-primary transition-colors line-clamp-2 max-w-[70px]">
                                 {category.name}
                             </span>
                         </button>

@@ -19,6 +19,9 @@ import Admin from "./pages/Admin";
 import AdminStock from "./pages/AdminStock";
 import AdminBanners from "./pages/AdminBanners";
 import AdminCouponTriggers from "./pages/AdminCouponTriggers";
+import AdminHeroBanners from "./pages/AdminHeroBanners";
+import AdminOfferSections from "./pages/AdminOfferSections";
+import AdminFlashDeals from "./pages/AdminFlashDeals";
 import AdminToPay from "./pages/AdminToPay";
 import AdminNotifications from "./pages/AdminNotifications";
 import AdminDeliveryApps from "./pages/AdminDeliveryApps";
@@ -78,6 +81,9 @@ const App = () => (
               <Route path="/admin/stock" element={<AdminStock />} />
               <Route path="/admin/banners" element={<AdminBanners />} />
               <Route path="/admin/coupon-triggers" element={<AdminCouponTriggers />} />
+              <Route path="/admin/hero-banners" element={<AdminHeroBanners />} />
+              <Route path="/admin/offer-sections" element={<AdminOfferSections />} />
+              <Route path="/admin/flash-deals" element={<AdminFlashDeals />} />
               <Route path="/admin/to-pay" element={<AdminToPay />} />
               <Route path="/admin/notifications" element={<AdminNotifications />} />
               <Route path="/admin/delivery-apps" element={<AdminDeliveryApps />} />

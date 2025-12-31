@@ -32,6 +32,10 @@ import EmptyState from '@/components/EmptyState';
 import PromotionalBanners from '@/components/PromotionalBanners';
 import BuyAgain from '@/components/BuyAgain';
 import CategoryGrid from '@/components/CategoryGrid';
+import HeroBannerCarousel from '@/components/HeroBannerCarousel';
+import FlashDeals from '@/components/FlashDeals';
+import OfferSection from '@/components/OfferSection';
+import AnimatedSearchBar from '@/components/AnimatedSearchBar';
 import { formatVariantDisplay } from '@/lib/formatUnit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
@@ -685,20 +689,16 @@ export default function Shop() {
         </SheetContent>
       </Sheet>
 
-      {/* Search */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="relative max-w-md mx-auto">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search products..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+      {/* Animated Search */}
+      <div className="container mx-auto px-4 py-4">
+        <AnimatedSearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          className="max-w-md mx-auto"
+        />
       </div>
 
-      {/* Categories */}
+      {/* Categories Pills */}
       <div className="container mx-auto px-4 pb-4">
         <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
           <Button
@@ -721,7 +721,17 @@ export default function Shop() {
         </div>
       </div>
 
-      {/* Promotional Banners */}
+      {/* Hero Banners - Large Carousel */}
+      {!searchQuery && !selectedCategory && (
+        <HeroBannerCarousel />
+      )}
+
+      {/* Flash Deals with Timer */}
+      {!searchQuery && !selectedCategory && (
+        <FlashDeals onAddToCart={addToCart} />
+      )}
+
+      {/* Promotional Banners (Small) */}
       {!searchQuery && !selectedCategory && (
         <PromotionalBanners />
       )}
