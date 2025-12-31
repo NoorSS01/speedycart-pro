@@ -43,6 +43,8 @@ interface Product {
     stock_quantity: number;
     unit: string;
     discount_percent?: number | null;
+    category_id?: string | null;
+    categories?: { id: string; name: string } | null;
 }
 
 interface ProductVariant {
@@ -121,7 +123,7 @@ export default function Cart() {
             .from('cart_items')
             .select(`
         *,
-        products (*),
+        products (*, categories (id, name)),
         product_variants (*)
       `)
             .eq('user_id', user.id);
@@ -429,6 +431,12 @@ export default function Cart() {
         return item.product_variants?.mrp ?? item.products.mrp ?? item.products.price;
     };
 
+    // Check if cart contains ONLY water products (free delivery for water-only carts)
+    const isWaterOnlyCart = cartItems.length > 0 && cartItems.every(item => {
+        const categoryName = item.products.categories?.name?.toLowerCase() || '';
+        return categoryName === 'water';
+    });
+
     // Calculations - use selling prices (variant price or product price)
     const originalTotal = cartItems.reduce((sum, item) => sum + getItemMrp(item) * item.quantity, 0);
     const subtotal = cartItems.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
@@ -436,8 +444,9 @@ export default function Cart() {
     // Coupon savings is the ONLY discount from coupons (discountAmount is set when coupon is applied)
     const couponSavings = discountAmount;
     const baseDeliveryFee = 35; // Default delivery fee
-    const deliveryFee = subtotal > 200 ? 0 : baseDeliveryFee;
-    const deliverySavings = subtotal > 200 ? baseDeliveryFee : 0; // Free delivery savings
+    // Free delivery if: order > ₹200 OR cart contains only water products
+    const deliveryFee = (subtotal > 200 || isWaterOnlyCart) ? 0 : baseDeliveryFee;
+    const deliverySavings = (subtotal > 200 || isWaterOnlyCart) ? baseDeliveryFee : 0; // Free delivery savings
     // Total savings = product discounts + coupon + free delivery
     const totalSavings = productSavings + couponSavings + deliverySavings;
     const finalTotal = subtotal - couponSavings + deliveryFee;
@@ -776,7 +785,7 @@ export default function Cart() {
                             </div>
                             {deliverySavings > 0 && (
                                 <div className="flex justify-between text-xs text-green-600">
-                                    <span>🚚 Free delivery on orders over ₹200</span>
+                                    <span>🚚 {isWaterOnlyCart ? 'Free delivery on Water' : 'Free delivery on orders over ₹200'}</span>
                                     <span>-₹{deliverySavings.toFixed(0)}</span>
                                 </div>
                             )}

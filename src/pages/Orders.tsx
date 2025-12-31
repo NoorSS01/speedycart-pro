@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -306,10 +307,11 @@ export default function Orders() {
           </div>
         ) : orders.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Package className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No orders yet</p>
-              <Button onClick={() => navigate('/shop')} className="mt-4">Start Shopping</Button>
+            <CardContent className="p-0">
+              <EmptyState
+                type="orders"
+                action={<Button onClick={() => navigate('/shop')}>Start Shopping</Button>}
+              />
             </CardContent>
           </Card>
         ) : (

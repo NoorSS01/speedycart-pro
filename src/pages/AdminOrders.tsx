@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import EmptyState from '@/components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -201,9 +202,8 @@ export default function AdminOrders() {
                     [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)
                 ) : filteredOrders.length === 0 ? (
                     <Card>
-                        <CardContent className="py-12 text-center">
-                            <ShoppingBag className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                            <p className="text-muted-foreground">No orders found</p>
+                        <CardContent className="p-0">
+                            <EmptyState type="orders" title="No orders found" />
                         </CardContent>
                     </Card>
                 ) : (
