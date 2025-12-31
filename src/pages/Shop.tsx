@@ -29,10 +29,13 @@ import {
 import BottomNav from '@/components/BottomNav';
 import Footer from '@/components/Footer';
 import EmptyState from '@/components/EmptyState';
+import PromotionalBanners from '@/components/PromotionalBanners';
+import BuyAgain from '@/components/BuyAgain';
+import CategoryGrid from '@/components/CategoryGrid';
 import { formatVariantDisplay } from '@/lib/formatUnit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, ChevronRight } from 'lucide-react';
 import OrderConfirmation from '@/components/OrderConfirmation';
 
 interface Category {
@@ -717,6 +720,24 @@ export default function Shop() {
           ))}
         </div>
       </div>
+
+      {/* Promotional Banners */}
+      {!searchQuery && !selectedCategory && (
+        <PromotionalBanners />
+      )}
+
+      {/* Circular Category Grid - when no search/filter active */}
+      {!searchQuery && !selectedCategory && (
+        <CategoryGrid
+          categories={categories}
+          onCategorySelect={setSelectedCategory}
+        />
+      )}
+
+      {/* Buy Again Section */}
+      {!searchQuery && !selectedCategory && (
+        <BuyAgain onAddToCart={addToCart} />
+      )}
 
       {/* For You - AI Recommendations */}
       {user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
