@@ -226,6 +226,7 @@ CREATE POLICY "Admins can view all malicious activities" ON malicious_activities
 CREATE POLICY "System can insert malicious activities" ON malicious_activities FOR INSERT WITH CHECK (true);
 
 -- Function to auto-assign a random delivery person when an order is created
+-- Only assigns to delivery partners with approved activation for today
 CREATE OR REPLACE FUNCTION public.auto_assign_delivery_person()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -235,15 +236,19 @@ AS $$
 DECLARE
   v_delivery_person_id uuid;
 BEGIN
-  -- Pick a random delivery user from user_roles
-  SELECT user_id
+  -- Pick a random delivery user who has approved activation for today
+  SELECT ur.user_id
   INTO v_delivery_person_id
-  FROM user_roles
-  WHERE role = 'delivery'
+  FROM user_roles ur
+  INNER JOIN delivery_activations da 
+    ON da.delivery_partner_id = ur.user_id
+    AND da.activation_date = CURRENT_DATE
+    AND da.status = 'approved'
+  WHERE ur.role = 'delivery'
   ORDER BY random()
   LIMIT 1;
 
-  -- If we found a delivery person, create the assignment
+  -- If we found an active delivery person, create the assignment
   IF v_delivery_person_id IS NOT NULL THEN
     INSERT INTO delivery_assignments (order_id, delivery_person_id)
     VALUES (NEW.id, v_delivery_person_id);
@@ -392,12 +397,12 @@ ON public.delivery_applications
 FOR SELECT
 USING (auth.uid() = user_id);
 
--- Admins can view all applications
+-- Admins can view all applications (FIXED: was USING(true) which allowed any authenticated user)
 DROP POLICY IF EXISTS "Admins can view all applications" ON public.delivery_applications;
 CREATE POLICY "Admins can view all applications"
 ON public.delivery_applications
 FOR SELECT
-USING (true);
+USING (has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'super_admin'::app_role));
 
 -- Admins can update all applications
 DROP POLICY IF EXISTS "Admins can update all applications" ON public.delivery_applications;

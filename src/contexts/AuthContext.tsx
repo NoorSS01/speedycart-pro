@@ -72,6 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         fetchUserRole(session.user.id);
+        // Check profile setup on every session restore (catches OAuth users who closed browser mid-setup)
+        checkProfileSetup(session.user.id);
       }
       setLoading(false);
     });

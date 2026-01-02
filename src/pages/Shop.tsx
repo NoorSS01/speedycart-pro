@@ -396,40 +396,6 @@ export default function Shop() {
     }
 
     try {
-      // Items to order - either single buy-now product or all cart items
-      const itemsToOrder = isBuyNow
-        ? [{ product_id: buyNowProduct.id, quantity: 1, price: buyNowProduct.price }]
-        : cartItems.map(item => ({ product_id: item.product_id, quantity: item.quantity, price: item.products.price }));
-
-      // Re-validate stock availability
-      const productIds = itemsToOrder.map(item => item.product_id);
-      const { data: freshProducts, error: stockCheckError } = await supabase
-        .from('products')
-        .select('id, name, stock_quantity')
-        .in('id', productIds);
-
-      if (stockCheckError || !freshProducts) {
-        toast.error('Failed to verify stock. Please try again.');
-        return;
-      }
-
-      const stockMap = new Map(freshProducts.map(p => [p.id, { name: p.name, stock: p.stock_quantity }]));
-
-      // Check if any item exceeds available stock
-      const insufficientStock = itemsToOrder.filter(item => {
-        const productStock = stockMap.get(item.product_id);
-        return productStock && item.quantity > productStock.stock;
-      });
-
-      if (insufficientStock.length > 0) {
-        const messages = insufficientStock.map(item => {
-          const productStock = stockMap.get(item.product_id);
-          return `${productStock?.name}: Only ${productStock?.stock} available`;
-        });
-        toast.error(`Cannot place order: ${messages.join(', ')}`);
-        return;
-      }
-
       // Save new address to profile if using new address
       if (addressOption === 'new' && newAddress.trim()) {
         await supabase
@@ -439,69 +405,53 @@ export default function Shop() {
         setSavedAddress(newAddress.trim());
       }
 
-      const totalAmount = itemsToOrder.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-      );
+      // SECURITY FIX: Use atomic RPC instead of direct database INSERT
+      // Prepare cart items payload for atomic RPC
+      const cartItemsPayload = isBuyNow
+        ? [
+          {
+            product_id: buyNowProduct.id,
+            quantity: 1,
+            variant_id: null, // For buy now, we don't have variant selection
+            price: buyNowProduct.price // Note: Server will validate this
+          }
+        ]
+        : cartItems.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          variant_id: item.variant_id,
+          price: item.product_variants?.price ?? item.products.price // Note: Server will validate this
+        }));
 
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          total_amount: totalAmount,
-          delivery_address: deliveryAddress,
-          status: 'pending'
-        })
-        .select()
-        .single();
+      // Call atomic RPC function
+      const { data, error } = await (supabase as any).rpc('place_order_atomic', {
+        p_user_id: user.id,
+        p_delivery_address: deliveryAddress,
+        p_cart_items: cartItemsPayload,
+        p_coupon_id: null, // Shop page doesn't have coupon support yet
+        p_coupon_discount: 0
+      });
 
-      if (orderError) {
-        console.error('Order creation error:', orderError);
-        toast.error(`Failed to place order: ${orderError.message}`);
+      if (error) {
+        console.error('Order placement error:', error);
+        toast.error('Failed to place order. Please try again.');
         return;
       }
 
-      if (!order) {
-        toast.error('Failed to place order');
+      const result = data as unknown as {
+        success: boolean;
+        order_id?: string;
+        error?: string;
+      };
+
+      if (!result.success) {
+        toast.error(result.error || 'Failed to place order');
         return;
       }
 
-      const orderItems = itemsToOrder.map(item => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.price
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) {
-        console.error('Order items error:', itemsError);
-        toast.error(`Failed to create order items: ${itemsError.message}`);
-        return;
-      }
-
-      // Reduce stock for each product purchased
-      for (const item of itemsToOrder) {
-        const productStock = stockMap.get(item.product_id);
-        if (productStock) {
-          const newStock = Math.max(0, productStock.stock - item.quantity);
-          await supabase
-            .from('products')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.product_id);
-        }
-      }
-
-      // Clear cart only if this was a cart order
+      // Clear cart only if this was a cart order (not buy-now)
       if (!isBuyNow) {
-        await supabase
-          .from('cart_items')
-          .delete()
-          .eq('user_id', user.id);
-        fetchCart();
+        setCartItems([]);
         refreshCart();
       }
 
@@ -513,9 +463,10 @@ export default function Shop() {
       setNewAddress('');
 
       // Show success animation
-      setOrderIdForConfirmation(order.id);
-      setShowOrderConfirmation(true);
-      // toast.success('🎉 Order placed successfully!');
+      if (result.order_id) {
+        setOrderIdForConfirmation(result.order_id);
+        setShowOrderConfirmation(true);
+      }
     } catch (error) {
       console.error('Unexpected error placing order:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -973,7 +924,12 @@ export default function Shop() {
         )}
       </div>
 
-      {/* Shop by Category - below products */}
+      {/* Buy Again Section - below products */}
+      {!searchQuery && !selectedCategory && (
+        <BuyAgain onAddToCart={addToCart} />
+      )}
+
+      {/* Shop by Category - below Buy Again */}
       {!searchQuery && !selectedCategory && (
         <div className="container mx-auto px-4 py-6">
           <CategoryGrid
@@ -981,11 +937,6 @@ export default function Shop() {
             onCategorySelect={setSelectedCategory}
           />
         </div>
-      )}
-
-      {/* Buy Again Section - below categories */}
-      {!searchQuery && !selectedCategory && (
-        <BuyAgain onAddToCart={addToCart} />
       )}
 
       {/* Address Dialog */}

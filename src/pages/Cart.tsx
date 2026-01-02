@@ -173,42 +173,60 @@ export default function Cart() {
                 setAvailableCoupons(eligibleCoupons as unknown as Coupon[]);
             }
         } catch (e) {
-            // Silently fail - coupons table may not exist yet
-            console.log('Coupons fetch:', e);
+            // Log error for debugging - coupons table may not exist yet
+            console.error('Failed to fetch coupons:', e);
         }
     };
 
-    // Apply coupon
-    const applyCoupon = (coupon: Coupon) => {
+    // Apply coupon using server-side validation
+    const applyCoupon = async (coupon: Coupon) => {
+        if (!user) return;
+
         const currentSubtotal = cartItems.reduce((sum, item) => {
             // Calculate price using variant if available, otherwise use product price
             const price = item.product_variants?.price ?? item.products.price;
             return sum + price * item.quantity;
         }, 0);
 
-        // Check minimum order
-        if (coupon.minimum_order > 0 && currentSubtotal < coupon.minimum_order) {
-            toast.error(`Minimum order of ₹${coupon.minimum_order} required`);
-            return;
-        }
+        try {
+            // SERVER-SIDE VALIDATION: Call the RPC function to validate and calculate discount
+            // This ensures the UI shows exactly what the server will apply during checkout
+            const { data, error } = await (supabase as any).rpc('validate_and_apply_coupon', {
+                p_user_id: user.id,
+                p_coupon_code: coupon.code,
+                p_subtotal: currentSubtotal
+            });
 
-        // Calculate discount
-        let discount = 0;
-        if (coupon.discount_type === 'percentage') {
-            discount = (currentSubtotal * coupon.discount_value) / 100;
-            if (coupon.maximum_discount && discount > coupon.maximum_discount) {
-                discount = coupon.maximum_discount;
+            if (error) {
+                console.error('Coupon validation error:', error);
+                toast.error('Failed to validate coupon. Please try again.');
+                return;
             }
-        } else {
-            discount = coupon.discount_value;
-        }
 
-        setAppliedCoupon(coupon);
-        setDiscountAmount(discount);
-        setPromoCode(coupon.code);
-        setPromoApplied(true);
-        setPromoDiscount(coupon.discount_type === 'percentage' ? coupon.discount_value : 0);
-        toast.success(`${coupon.code} applied! You save ₹${discount.toFixed(0)}`);
+            const result = data as unknown as {
+                valid: boolean;
+                coupon_id?: string;
+                code?: string;
+                discount?: number;
+                error?: string;
+            };
+
+            if (!result.valid) {
+                toast.error(result.error || 'Coupon is not valid');
+                return;
+            }
+
+            // Apply server-calculated discount
+            setAppliedCoupon(coupon);
+            setDiscountAmount(result.discount || 0);
+            setPromoCode(result.code || coupon.code);
+            setPromoApplied(true);
+            setPromoDiscount(coupon.discount_type === 'percentage' ? coupon.discount_value : 0);
+            toast.success(`${result.code} applied! You save ₹${(result.discount || 0).toFixed(0)}`);
+        } catch (e) {
+            console.error('Coupon application error:', e);
+            toast.error('Failed to apply coupon. Please try again.');
+        }
     };
 
     // Remove coupon
@@ -260,20 +278,15 @@ export default function Cart() {
     };
 
     const applyPromoCode = () => {
-        // Demo promo codes
-        const promoCodes: Record<string, number> = {
-            'FIRST10': 10,
-            'SAVE20': 20,
-            'PREMASHIP': 15,
-        };
-
+        // All promo codes are now managed via database coupons
+        // Check if the entered code matches an available coupon
         const code = promoCode.toUpperCase().trim();
-        if (promoCodes[code]) {
-            setPromoDiscount(promoCodes[code]);
-            setPromoApplied(true);
-            toast.success(`${promoCodes[code]}% discount applied!`);
+        const matchingCoupon = availableCoupons.find(c => c.code.toUpperCase() === code);
+
+        if (matchingCoupon) {
+            applyCoupon(matchingCoupon);
         } else {
-            toast.error('Invalid promo code');
+            toast.error('Invalid or expired promo code');
         }
     };
 
@@ -323,58 +336,42 @@ export default function Cart() {
         setPlacingOrder(true);
 
         try {
-            // Validate stock again
-            for (const item of cartItems) {
-                const { data: product } = await supabase
-                    .from('products')
-                    .select('stock_quantity')
-                    .eq('id', item.product_id)
-                    .single();
+            // Build cart items array for atomic RPC call
+            const cartItemsPayload = cartItems.map(item => ({
+                product_id: item.product_id,
+                variant_id: item.variant_id || null,
+                quantity: item.quantity,
+                price: item.product_variants?.price || item.products.price
+            }));
 
-                if (!product || product.stock_quantity < item.quantity) {
-                    toast.error(`${item.products.name} is out of stock`);
-                    setPlacingOrder(false);
-                    return;
+            // ATOMIC ORDER PLACEMENT: Single RPC call handles stock validation,
+            // order creation, coupon usage, and cart clearing in one transaction
+            // Note: Cast to any as place_order_atomic is a custom function not in generated types
+            const { data, error } = await (supabase as any).rpc('place_order_atomic', {
+                p_user_id: user.id,
+                p_delivery_address: deliveryAddress,
+                p_cart_items: cartItemsPayload,
+                p_coupon_id: appliedCoupon?.id || null,
+                p_coupon_discount: discountAmount || 0
+            });
+
+            if (error) {
+                console.error('RPC error:', error);
+                toast.error('Failed to place order. Please try again.');
+                return;
+            }
+
+            // Handle response from atomic function
+            const result = data as unknown as { success: boolean; order_id?: string; error?: string; product_id?: string };
+
+            if (!result.success) {
+                toast.error(result.error || 'Failed to place order');
+                // Refresh cart in case stock changed
+                if (result.product_id) {
+                    fetchCart();
                 }
+                return;
             }
-
-            // Create order
-            const { data: orderData, error: orderError } = await supabase
-                .from('orders')
-                .insert({
-                    user_id: user.id,
-                    total_amount: finalTotal,
-                    delivery_address: deliveryAddress,
-                    status: 'pending'
-                })
-                .select()
-                .single();
-
-            if (orderError) throw orderError;
-
-            // Create order items and update stock
-            for (const item of cartItems) {
-                await supabase.from('order_items').insert({
-                    order_id: orderData.id,
-                    product_id: item.product_id,
-                    quantity: item.quantity,
-                    price: item.product_variants?.price || item.products.price,
-                    variant_id: item.variant_id
-                });
-
-                await supabase
-                    .from('products')
-                    .update({
-                        stock_quantity: item.products.stock_quantity - item.quantity
-                    })
-                    .eq('id', item.product_id);
-            }
-
-            // Clear cart
-            await supabase
-                .from('cart_items')
-                .delete()
-                .eq('user_id', user.id);
 
             // Save address if new (save the complete built address)
             if (addressOption === 'new' && deliveryAddress) {
@@ -382,29 +379,11 @@ export default function Cart() {
                     .from('profiles')
                     .update({ address: deliveryAddress })
                     .eq('id', user.id);
-                // Update local saved address so it appears in saved option
                 setSavedAddress(deliveryAddress);
             }
 
-            // Record coupon usage if applied - INSERT to track that this user used this coupon
-            if (appliedCoupon) {
-                try {
-                    await (supabase as any)
-                        .from('coupon_usage')
-                        .insert({
-                            user_id: user.id,
-                            coupon_id: appliedCoupon.id,
-                            order_id: orderData.id,
-                            used_at: new Date().toISOString()
-                        });
-                } catch (e) {
-                    // Unique constraint will prevent duplicate usage
-                    console.log('Coupon usage tracking:', e);
-                }
-            }
-
             // Show success animation
-            setLastOrderId(orderData.id);
+            setLastOrderId(result.order_id || '');
             setShowAddressDialog(false);
             setCartItems([]);
             refreshCart(); // Update global cart count immediately
@@ -414,7 +393,6 @@ export default function Cart() {
             setPromoCode('');
             setShowOrderSuccess(true);
 
-            // Only navigate after animations (handled by OrderConfirmation component)
         } catch (error: any) {
             console.error('Order error:', error);
             toast.error('Failed to place order. Please try again.');

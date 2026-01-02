@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS hero_banners (
     button_bg_color TEXT DEFAULT '#ffffff',
     button_text_color TEXT DEFAULT '#000000',
     
+    -- Click Navigation (what happens when banner is clicked)
+    click_type TEXT DEFAULT 'none' CHECK (click_type IN ('none', 'category', 'product', 'url')),
+    click_target TEXT, -- category_id, product_id, or URL depending on click_type
+    
     -- Layout
     height TEXT DEFAULT '200px', -- CSS height value
     border_radius TEXT DEFAULT '16px',

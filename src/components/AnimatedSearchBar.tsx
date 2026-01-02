@@ -102,8 +102,8 @@ export default function AnimatedSearchBar({ value, onChange, onFocus, className 
                         <div className="overflow-hidden h-6 flex items-center">
                             <div
                                 className={`transition-all duration-300 ease-in-out ${isAnimating
-                                        ? 'transform -translate-y-full opacity-0'
-                                        : 'transform translate-y-0 opacity-100'
+                                    ? 'transform -translate-y-full opacity-0'
+                                    : 'transform translate-y-0 opacity-100'
                                     }`}
                             >
                                 <span className="text-foreground font-medium">

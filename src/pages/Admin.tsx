@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -81,6 +82,9 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('7days');
   const [pendingApplications, setPendingApplications] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockoutMessage, setLockoutMessage] = useState('');
+  const { deliveryTimeMinutes, updateDeliveryTime } = useDeliveryTime();
 
   // Auth Check
   useEffect(() => {
@@ -135,6 +139,23 @@ export default function Admin() {
 
       setPendingApplications(appsData?.length || 0);
 
+      // Check lockout status (PI-004 fix)
+      try {
+        const { data: lockoutData } = await (supabase as any)
+          .from('admin_settings')
+          .select('is_locked, payment_message')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .single();
+
+        if (lockoutData) {
+          setIsLocked(lockoutData.is_locked || false);
+          setLockoutMessage(lockoutData.payment_message || 'Payment required to continue using admin panel.');
+        }
+      } catch (e) {
+        // admin_settings may not exist yet
+        console.log('Lockout check skipped:', e);
+      }
+
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load data');
@@ -186,6 +207,25 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
+      {/* Admin Lockout Overlay - PI-004 fix */}
+      {isLocked && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <Card className="max-w-md w-full border-red-500 shadow-2xl">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <h2 className="text-xl font-bold text-red-600 mb-2">Admin Access Locked</h2>
+              <p className="text-muted-foreground mb-4">{lockoutMessage}</p>
+              <p className="text-sm text-muted-foreground mb-4">Please complete your payment to continue using the admin dashboard.</p>
+              <Button onClick={() => navigate('/admin/to-pay')} className="w-full">
+                <CreditCard className="w-4 h-4 mr-2" />
+                Go to Payments
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
         <div className="container mx-auto px-4 py-4">
@@ -488,10 +528,14 @@ export default function Admin() {
               <div className="flex items-center gap-2">
                 <select
                   className="border rounded-lg px-3 py-2 text-sm bg-background"
-                  defaultValue={localStorage.getItem('delivery_time_minutes') || '30'}
-                  onChange={(e) => {
-                    localStorage.setItem('delivery_time_minutes', e.target.value);
-                    toast.success(`Delivery time set to ${e.target.value} minutes`);
+                  value={deliveryTimeMinutes}
+                  onChange={async (e) => {
+                    const success = await updateDeliveryTime(parseInt(e.target.value));
+                    if (success) {
+                      toast.success(`Delivery time set to ${e.target.value} minutes`);
+                    } else {
+                      toast.error('Failed to update delivery time');
+                    }
                   }}
                 >
                   <option value="15">15 min</option>

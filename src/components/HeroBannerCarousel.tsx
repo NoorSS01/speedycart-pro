@@ -21,6 +21,8 @@ interface HeroBanner {
     button_text_color: string;
     height: string;
     border_radius: string;
+    click_type: string | null;
+    click_target: string | null;
 }
 
 export default function HeroBannerCarousel() {
@@ -95,6 +97,26 @@ export default function HeroBannerCarousel() {
         }
     };
 
+    const handleBannerClick = (banner: HeroBanner) => {
+        if (!banner.click_type || banner.click_type === 'none' || !banner.click_target) return;
+
+        switch (banner.click_type) {
+            case 'category':
+                navigate(`/shop?category=${banner.click_target}`);
+                break;
+            case 'product':
+                navigate(`/product/${banner.click_target}`);
+                break;
+            case 'url':
+                if (banner.click_target.startsWith('http')) {
+                    window.open(banner.click_target, '_blank');
+                } else {
+                    navigate(banner.click_target);
+                }
+                break;
+        }
+    };
+
     return (
         <div className="relative mx-4 my-4 overflow-hidden rounded-2xl">
             <div
@@ -104,13 +126,17 @@ export default function HeroBannerCarousel() {
                 {banners.map((banner) => (
                     <div
                         key={banner.id}
-                        className="min-w-full relative"
+                        className={`min-w-full relative ${banner.click_type && banner.click_type !== 'none' && banner.click_target
+                                ? 'cursor-pointer'
+                                : ''
+                            }`}
                         style={{
                             ...getBackgroundStyle(banner),
                             minHeight: banner.height || '200px',
                             borderRadius: banner.border_radius || '16px',
                             color: banner.text_color || '#ffffff',
                         }}
+                        onClick={() => handleBannerClick(banner)}
                     >
                         <div
                             className={`h-full flex flex-col justify-center p-6 ${banner.image_position === 'right' ? 'pr-24 md:pr-48' : ''
@@ -159,10 +185,10 @@ export default function HeroBannerCarousel() {
                                 src={banner.image_url}
                                 alt=""
                                 className={`absolute ${banner.image_position === 'right'
-                                        ? 'right-2 top-1/2 -translate-y-1/2 h-4/5 max-w-[40%]'
-                                        : banner.image_position === 'left'
-                                            ? 'left-2 top-1/2 -translate-y-1/2 h-4/5 max-w-[40%]'
-                                            : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-4/5'
+                                    ? 'right-2 top-1/2 -translate-y-1/2 h-4/5 max-w-[40%]'
+                                    : banner.image_position === 'left'
+                                        ? 'left-2 top-1/2 -translate-y-1/2 h-4/5 max-w-[40%]'
+                                        : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-4/5'
                                     } object-contain`}
                             />
                         )}
@@ -196,8 +222,8 @@ export default function HeroBannerCarousel() {
                             key={idx}
                             onClick={() => setCurrentIndex(idx)}
                             className={`h-2 rounded-full transition-all ${idx === currentIndex
-                                    ? 'w-6 bg-white'
-                                    : 'w-2 bg-white/50 hover:bg-white/70'
+                                ? 'w-6 bg-white'
+                                : 'w-2 bg-white/50 hover:bg-white/70'
                                 }`}
                         />
                     ))}

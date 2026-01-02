@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, Package, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -128,6 +130,12 @@ export default function Auth() {
       return;
     }
 
+    // Validate ToS acceptance
+    if (!tosAccepted) {
+      toast.error('Please accept the Terms of Service and Privacy Policy');
+      return;
+    }
+
     // Normalize phone to +91XXXXXXXXXX format
     const normalizedPhone = `+91${formData.phone}`;
 
@@ -156,6 +164,9 @@ export default function Auth() {
           toast.error('Password must be at least 6 characters.');
         } else if (error.message.includes('valid email')) {
           toast.error('Please enter a valid email address.');
+        } else if ((error as any).code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
+          // Handle username unique constraint violation (race condition fallback)
+          toast.error('Username already taken. Please choose another.');
         } else {
           toast.error('Something went wrong. Please try again.');
         }
@@ -388,6 +399,20 @@ export default function Auth() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="tos-accept"
+                    checked={tosAccepted}
+                    onCheckedChange={(checked) => setTosAccepted(checked === true)}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="tos-accept" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
+                    I agree to the{' '}
+                    <Link to="/terms" className="text-primary hover:underline" target="_blank">Terms of Service</Link>
+                    {' '}and{' '}
+                    <Link to="/privacy-policy" className="text-primary hover:underline" target="_blank">Privacy Policy</Link>
+                  </Label>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

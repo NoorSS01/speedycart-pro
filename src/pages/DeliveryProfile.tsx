@@ -23,7 +23,10 @@ import {
     Calendar,
     TrendingUp,
     Clock,
-    Package
+    Package,
+    Power,
+    Loader2,
+    XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,6 +70,8 @@ export default function DeliveryProfile() {
         avgRating: 0
     });
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    const [activationStatus, setActivationStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
+    const [requestingActive, setRequestingActive] = useState(false);
 
     useEffect(() => {
         if (authLoading) return;
@@ -75,6 +80,7 @@ export default function DeliveryProfile() {
             return;
         }
         fetchData();
+        fetchActivationStatus();
     }, [user, authLoading, navigate]);
 
     const fetchData = async () => {
@@ -175,6 +181,60 @@ export default function DeliveryProfile() {
         navigate('/auth');
     };
 
+    const fetchActivationStatus = async () => {
+        if (!user) return;
+        const today = new Date().toISOString().split('T')[0];
+
+        try {
+            const { data } = await (supabase as any)
+                .from('delivery_activations')
+                .select('status')
+                .eq('delivery_partner_id', user.id)
+                .eq('activation_date', today)
+                .maybeSingle();
+
+            if (data) {
+                setActivationStatus(data.status);
+            } else {
+                setActivationStatus('none');
+            }
+        } catch (error) {
+            console.log('Activation status not available');
+            setActivationStatus('none');
+        }
+    };
+
+    const requestActivation = async () => {
+        if (!user) return;
+        setRequestingActive(true);
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+
+            const { error } = await (supabase as any)
+                .from('delivery_activations')
+                .insert({
+                    delivery_partner_id: user.id,
+                    activation_date: today,
+                    status: 'pending'
+                });
+
+            if (error?.code === '23505') {
+                toast.info('You already requested activation today');
+                fetchActivationStatus();
+            } else if (error) {
+                throw error;
+            } else {
+                toast.success('Activation request sent! Waiting for admin approval.');
+                setActivationStatus('pending');
+            }
+        } catch (error) {
+            toast.error('Failed to request activation');
+            console.error(error);
+        }
+        setRequestingActive(false);
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-background p-4">
@@ -226,6 +286,54 @@ export default function DeliveryProfile() {
                                 </div>
                                 <p className="text-xs text-muted-foreground">Rating</p>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Daily Activation Card */}
+                <Card className={activationStatus === 'approved' ? 'border-green-500 bg-green-500/5' : activationStatus === 'pending' ? 'border-amber-500 bg-amber-500/5' : ''}>
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activationStatus === 'approved' ? 'bg-green-500' :
+                                        activationStatus === 'pending' ? 'bg-amber-500' :
+                                            activationStatus === 'rejected' ? 'bg-red-500' : 'bg-muted'
+                                    }`}>
+                                    {activationStatus === 'approved' ? (
+                                        <CheckCircle className="w-6 h-6 text-white" />
+                                    ) : activationStatus === 'pending' ? (
+                                        <Clock className="w-6 h-6 text-white" />
+                                    ) : activationStatus === 'rejected' ? (
+                                        <XCircle className="w-6 h-6 text-white" />
+                                    ) : (
+                                        <Power className="w-6 h-6 text-muted-foreground" />
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">
+                                        {activationStatus === 'approved' ? 'Active Today' :
+                                            activationStatus === 'pending' ? 'Awaiting Approval' :
+                                                activationStatus === 'rejected' ? 'Request Rejected' :
+                                                    'Not Active'}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {activationStatus === 'approved' ? 'You can receive orders' :
+                                            activationStatus === 'pending' ? 'Admin will review shortly' :
+                                                activationStatus === 'rejected' ? 'Contact admin for details' :
+                                                    'Request to go active for today'}
+                                    </p>
+                                </div>
+                            </div>
+                            {activationStatus === 'none' && (
+                                <Button onClick={requestActivation} disabled={requestingActive}>
+                                    {requestingActive ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Power className="w-4 h-4 mr-2" />
+                                    )}
+                                    {requestingActive ? 'Requesting...' : 'Go Active'}
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

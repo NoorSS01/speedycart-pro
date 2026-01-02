@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ChevronRight, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from '@/components/ProductCard';
+import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
 
 interface FlashDeal {
     id: string;
@@ -214,10 +215,7 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
 
                         {/* Products */}
                         <div className="bg-background rounded-b-2xl border border-t-0 p-3">
-                            <div
-                                className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide"
-                                style={{ scrollbarWidth: 'none' }}
-                            >
+                            <HorizontalScrollContainer className="gap-3 pb-2">
                                 {dealProducts.map((product) => (
                                     <ProductCard
                                         key={product.id}
@@ -225,12 +223,12 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
                                         onAddToCart={onAddToCart}
                                     />
                                 ))}
-                            </div>
+                            </HorizontalScrollContainer>
 
                             {/* See All */}
                             {deal.show_see_all && (
                                 <button
-                                    onClick={() => navigate(`/shop?flash=${deal.id}`)}
+                                    onClick={() => navigate(`/flash-deals/${deal.id}`)}
                                     className="w-full text-center text-primary font-semibold text-sm py-2 mt-2 flex items-center justify-center gap-1 hover:underline"
                                 >
                                     See all <ChevronRight className="h-4 w-4" />

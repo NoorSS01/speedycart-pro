@@ -195,8 +195,9 @@ export default function SuperAdmin() {
 
   useEffect(() => {
     if (authLoading) return;
-    const hasSuperAdminAccess = sessionStorage.getItem('superadmin_access') === 'true';
-    if (!user && !hasSuperAdminAccess) {
+    // SECURITY: Auth is now handled by ProtectedRoute wrapper in App.tsx
+    // This is a fallback check - ProtectedRoute prevents rendering entirely
+    if (!user) {
       navigate('/auth');
       return;
     }
@@ -206,7 +207,7 @@ export default function SuperAdmin() {
 
   // Refetch data when date range changes
   useEffect(() => {
-    if (user || sessionStorage.getItem('superadmin_access') === 'true') {
+    if (user) {
       fetchOrders();
       fetchStats();
     }
@@ -563,7 +564,6 @@ export default function SuperAdmin() {
   };
 
   const handleLogout = async () => {
-    sessionStorage.removeItem('superadmin_access');
     await signOut();
     navigate('/auth');
   };

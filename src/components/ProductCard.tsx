@@ -67,6 +67,7 @@ export default function ProductCard({ product, onAddToCart, compact = false }: P
                     <img
                         src={product.image_url}
                         alt={product.name}
+                        loading="lazy"
                         className="w-full h-full object-cover"
                     />
                 ) : (
@@ -75,10 +76,10 @@ export default function ProductCard({ product, onAddToCart, compact = false }: P
                     </div>
                 )}
 
-                {/* ADD Button - Pill style on image */}
+                {/* ADD Button - Pill style on image bottom-right */}
                 <button
                     onClick={handleAdd}
-                    className={`absolute top-2 right-2 px-3 py-1 rounded-md font-semibold text-xs
+                    className={`absolute bottom-2 right-2 px-4 py-1.5 rounded-lg font-bold text-sm
                         bg-primary text-white shadow-lg border border-primary
                         transition-all duration-150 ease-out
                         hover:bg-primary/90 hover:scale-105

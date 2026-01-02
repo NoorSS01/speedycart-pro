@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,8 +25,6 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 
-const DEFAULT_DELIVERY_TIME = 30;
-
 interface DeliveryOrder {
   id: string;
   order_id: string;
@@ -44,7 +43,7 @@ interface DeliveryOrder {
 }
 
 export default function Delivery() {
-  const { user, userRole, loading: authLoading, signOut } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [assignments, setAssignments] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +51,7 @@ export default function Delivery() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [earningsFilter, setEarningsFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
 
-  const deliveryTimeMinutes = parseInt(localStorage.getItem('delivery_time_minutes') || String(DEFAULT_DELIVERY_TIME));
+  const { deliveryTimeMinutes } = useDeliveryTime();
 
   // Timer update every second
   useEffect(() => {

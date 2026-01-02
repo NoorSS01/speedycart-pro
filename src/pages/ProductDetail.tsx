@@ -109,6 +109,7 @@ export default function ProductDetail() {
     useEffect(() => {
         if (id) {
             // Reset state when switching to a different product
+            setQuantity(1);
             setVariants([]);
             setSelectedVariant(null);
             setProductImages([]);
@@ -385,63 +386,60 @@ export default function ProductDetail() {
             return;
         }
 
-        // Verify stock
-        const { data: freshProduct } = await supabase
-            .from('products')
-            .select('stock_quantity, name')
-            .eq('id', product.id)
-            .single();
+        // Use variant price if selected, otherwise product price
+        const unitPrice = selectedVariant?.price ?? product.price;
 
-        if (!freshProduct || quantity > freshProduct.stock_quantity) {
-            toast.error(`Only ${freshProduct?.stock_quantity || 0} available`);
-            return;
-        }
-
-        // Save new address
-        if (addressOption === 'new' && newAddress.trim()) {
-            await supabase.from('profiles').update({ address: newAddress.trim() }).eq('id', user.id);
-            setSavedAddress(newAddress.trim());
-        }
-
-        const totalAmount = product.price * quantity;
-
-        // Create order
-        const { data: order, error: orderError } = await supabase
-            .from('orders')
-            .insert({
-                user_id: user.id,
-                total_amount: totalAmount,
-                delivery_address: deliveryAddress,
-                status: 'pending'
-            })
-            .select()
-            .single();
-
-        if (orderError || !order) {
-            toast.error('Failed to place order');
-            return;
-        }
-
-        // Create order item
-        await supabase.from('order_items').insert({
-            order_id: order.id,
+        // Build single-item cart for atomic RPC call
+        const cartItemsPayload = [{
             product_id: product.id,
-            quantity,
-            price: selectedVariant?.price || product.price,
-            variant_id: selectedVariant?.id || null
-        });
+            variant_id: selectedVariant?.id || null,
+            quantity: quantity,
+            price: unitPrice
+        }];
 
-        // Update stock
-        const newStock = Math.max(0, freshProduct.stock_quantity - quantity);
-        await supabase.from('products').update({ stock_quantity: newStock }).eq('id', product.id);
+        try {
+            // ATOMIC ORDER PLACEMENT: Single RPC call handles stock validation,
+            // order creation, and item insertion in one transaction
+            // Note: Cast to any as place_order_atomic is a custom function not in generated types
+            const { data, error } = await (supabase as any).rpc('place_order_atomic', {
+                p_user_id: user.id,
+                p_delivery_address: deliveryAddress,
+                p_cart_items: cartItemsPayload,
+                p_coupon_id: null,
+                p_coupon_discount: 0
+            });
 
-        setShowAddressDialog(false);
-        setNewAddress('');
-        // Show success animation
-        setLastOrderId(order.id);
-        setShowOrderConfirmation(true);
-        // toast.success('🎉 Order placed successfully!');
-        // navigate('/orders');
+            if (error) {
+                console.error('RPC error:', error);
+                toast.error('Failed to place order. Please try again.');
+                return;
+            }
+
+            // Handle response from atomic function
+            const result = data as unknown as { success: boolean; order_id?: string; error?: string };
+
+            if (!result.success) {
+                toast.error(result.error || 'Failed to place order');
+                // Refresh product to check updated stock
+                fetchProduct();
+                return;
+            }
+
+            // Save new address
+            if (addressOption === 'new' && newAddress.trim()) {
+                await supabase.from('profiles').update({ address: newAddress.trim() }).eq('id', user.id);
+                setSavedAddress(newAddress.trim());
+            }
+
+            setShowAddressDialog(false);
+            setNewAddress('');
+            // Show success animation
+            setLastOrderId(result.order_id || '');
+            setShowOrderConfirmation(true);
+        } catch (error) {
+            console.error('Order error:', error);
+            toast.error('Failed to place order. Please try again.');
+        }
     };
 
     const handleShare = async () => {
@@ -452,7 +450,10 @@ export default function ProductDetail() {
                     text: `Check out ${product.name} on PremasShop!`,
                     url: window.location.href
                 });
-            } catch (err) { }
+            } catch (err) {
+                // Share was cancelled or failed - this is expected behavior
+                console.log('Share cancelled or not available');
+            }
         }
     };
 

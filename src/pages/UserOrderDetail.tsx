@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatOrderQuantity } from '@/lib/formatUnit';
+import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,8 +11,6 @@ import { ArrowLeft, Package, MapPin, Timer, CheckCircle, Truck, Clock } from 'lu
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import BottomNav from '@/components/BottomNav';
-
-const DEFAULT_DELIVERY_TIME = 30;
 
 export default function UserOrderDetail() {
     const { user, loading: authLoading } = useAuth();
@@ -23,7 +22,7 @@ export default function UserOrderDetail() {
     const [loading, setLoading] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    const deliveryTimeMinutes = parseInt(localStorage.getItem('delivery_time_minutes') || String(DEFAULT_DELIVERY_TIME));
+    const { deliveryTimeMinutes } = useDeliveryTime();
 
     // Timer update
     useEffect(() => {

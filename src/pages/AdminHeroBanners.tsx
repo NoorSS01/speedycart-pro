@@ -25,7 +25,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Pencil, Trash2, Image, Palette, Type } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Image, Palette, Type, Link, Search, Package } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 
 interface HeroBanner {
@@ -45,8 +45,21 @@ interface HeroBanner {
     button_text_color: string;
     height: string;
     border_radius: string;
+    click_type: string;
+    click_target: string | null;
     is_active: boolean;
     display_order: number;
+}
+
+interface Category {
+    id: string;
+    name: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    image_url: string | null;
 }
 
 const PRESET_GRADIENTS = [
@@ -84,9 +97,14 @@ export default function AdminHeroBanners() {
         button_text_color: '#000000',
         height: '200px',
         border_radius: '16px',
+        click_type: 'none',
+        click_target: '',
         is_active: true,
         display_order: 0,
     });
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [productSearch, setProductSearch] = useState('');
 
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
@@ -97,6 +115,8 @@ export default function AdminHeroBanners() {
             return;
         }
         fetchBanners();
+        fetchCategories();
+        fetchProducts();
     }, [user, authLoading, isAdmin, navigate]);
 
     const fetchBanners = async () => {
@@ -111,6 +131,16 @@ export default function AdminHeroBanners() {
             console.error('Error fetching banners:', error);
         }
         setLoading(false);
+    };
+
+    const fetchCategories = async () => {
+        const { data } = await supabase.from('categories').select('id, name').eq('is_active', true).order('name');
+        if (data) setCategories(data);
+    };
+
+    const fetchProducts = async () => {
+        const { data } = await supabase.from('products').select('id, name, image_url').eq('is_active', true).order('name');
+        if (data) setProducts(data);
     };
 
     const openAddDialog = () => {
@@ -131,9 +161,12 @@ export default function AdminHeroBanners() {
             button_text_color: '#000000',
             height: '200px',
             border_radius: '16px',
+            click_type: 'none',
+            click_target: '',
             is_active: true,
             display_order: banners.length,
         });
+        setProductSearch('');
         setShowDialog(true);
     };
 
@@ -155,9 +188,12 @@ export default function AdminHeroBanners() {
             button_text_color: banner.button_text_color,
             height: banner.height,
             border_radius: banner.border_radius,
+            click_type: banner.click_type || 'none',
+            click_target: banner.click_target || '',
             is_active: banner.is_active,
             display_order: banner.display_order,
         });
+        setProductSearch('');
         setShowDialog(true);
     };
 
@@ -175,6 +211,8 @@ export default function AdminHeroBanners() {
                 image_url: formData.image_url || null,
                 button_text: formData.button_text || null,
                 button_link: formData.button_link || null,
+                click_type: formData.click_type,
+                click_target: formData.click_target || null,
                 updated_at: new Date().toISOString(),
             };
 
@@ -496,6 +534,98 @@ export default function AdminHeroBanners() {
                                 />
                             </div>
                         </div>
+
+                        {/* Click Navigation - What happens when banner is clicked */}
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                                <Link className="h-4 w-4" />
+                                Banner Click Action
+                            </Label>
+                            <Select
+                                value={formData.click_type}
+                                onValueChange={(v) => setFormData(f => ({ ...f, click_type: v, click_target: '' }))}
+                            >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None (No Click)</SelectItem>
+                                    <SelectItem value="category">Go to Category</SelectItem>
+                                    <SelectItem value="product">Go to Product</SelectItem>
+                                    <SelectItem value="url">Custom URL</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Category Picker */}
+                        {formData.click_type === 'category' && (
+                            <div className="space-y-2">
+                                <Label>Select Category</Label>
+                                <Select
+                                    value={formData.click_target}
+                                    onValueChange={(v) => setFormData(f => ({ ...f, click_target: v }))}
+                                >
+                                    <SelectTrigger><SelectValue placeholder="Choose a category" /></SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map(cat => (
+                                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {/* Product Picker */}
+                        {formData.click_type === 'product' && (
+                            <div className="space-y-2">
+                                <Label>Select Product</Label>
+                                <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search products..."
+                                        value={productSearch}
+                                        onChange={(e) => setProductSearch(e.target.value)}
+                                        className="pl-8"
+                                    />
+                                </div>
+                                <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                                    {products
+                                        .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                                        .slice(0, 15)
+                                        .map(prod => (
+                                            <button
+                                                key={prod.id}
+                                                type="button"
+                                                className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm hover:bg-muted ${formData.click_target === prod.id ? 'bg-primary/10 border-primary border' : ''
+                                                    }`}
+                                                onClick={() => setFormData(f => ({ ...f, click_target: prod.id }))}
+                                            >
+                                                {prod.image_url ? (
+                                                    <img src={prod.image_url} alt="" className="w-8 h-8 rounded object-cover" />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
+                                                        <Package className="h-4 w-4 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                                <span className="flex-1 truncate">{prod.name}</span>
+                                                {formData.click_target === prod.id && (
+                                                    <span className="text-primary text-xs">✓</span>
+                                                )}
+                                            </button>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Custom URL */}
+                        {formData.click_type === 'url' && (
+                            <div className="space-y-2">
+                                <Label>Click URL</Label>
+                                <Input
+                                    value={formData.click_target}
+                                    onChange={(e) => setFormData(f => ({ ...f, click_target: e.target.value }))}
+                                    placeholder="/shop?category=sale or https://..."
+                                />
+                            </div>
+                        )}
 
                         {/* Display Order */}
                         <div className="grid grid-cols-2 gap-4">
