@@ -24,7 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Pencil, Trash2, Zap, Clock } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Zap, Clock, Search, X, Package } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { format } from 'date-fns';
 
@@ -48,6 +48,12 @@ interface FlashDeal {
     display_order: number;
 }
 
+interface Product {
+    id: string;
+    name: string;
+    image_url: string | null;
+}
+
 export default function AdminFlashDeals() {
     const { user, userRole, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -67,13 +73,16 @@ export default function AdminFlashDeals() {
         text_color: '#000000',
         timer_bg_color: '#1e293b',
         timer_text_color: '#ffffff',
-        filter_type: 'discount',
+        filter_type: 'manual',
         min_discount: 30,
+        product_ids: [] as string[],
         max_products: 8,
         show_see_all: true,
         is_active: true,
         display_order: 0,
     });
+    const [products, setProducts] = useState<Product[]>([]);
+    const [productSearch, setProductSearch] = useState('');
 
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
@@ -84,7 +93,13 @@ export default function AdminFlashDeals() {
             return;
         }
         fetchDeals();
+        fetchProducts();
     }, [user, authLoading, isAdmin, navigate]);
+
+    const fetchProducts = async () => {
+        const { data } = await supabase.from('products').select('id, name, image_url').eq('is_active', true).order('name');
+        if (data) setProducts(data);
+    };
 
     const fetchDeals = async () => {
         try {
@@ -117,13 +132,15 @@ export default function AdminFlashDeals() {
             text_color: '#000000',
             timer_bg_color: '#1e293b',
             timer_text_color: '#ffffff',
-            filter_type: 'discount',
+            filter_type: 'manual',
             min_discount: 30,
+            product_ids: [],
             max_products: 8,
             show_see_all: true,
             is_active: true,
             display_order: deals.length,
         });
+        setProductSearch('');
         setShowDialog(true);
     };
 
@@ -143,11 +160,13 @@ export default function AdminFlashDeals() {
             timer_text_color: deal.timer_text_color,
             filter_type: deal.filter_type,
             min_discount: config.min_discount || 30,
+            product_ids: config.product_ids || [],
             max_products: deal.max_products,
             show_see_all: deal.show_see_all,
             is_active: deal.is_active,
             display_order: deal.display_order,
         });
+        setProductSearch('');
         setShowDialog(true);
     };
 
@@ -175,7 +194,9 @@ export default function AdminFlashDeals() {
                 timer_bg_color: formData.timer_bg_color,
                 timer_text_color: formData.timer_text_color,
                 filter_type: formData.filter_type,
-                filter_config: { min_discount: formData.min_discount },
+                filter_config: formData.filter_type === 'manual'
+                    ? { product_ids: formData.product_ids }
+                    : { min_discount: formData.min_discount },
                 max_products: formData.max_products,
                 show_see_all: formData.show_see_all,
                 is_active: formData.is_active,
@@ -392,16 +413,101 @@ export default function AdminFlashDeals() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Min Discount %</Label>
-                                <Input type="number" value={formData.min_discount} onChange={(e) => setFormData(f => ({ ...f, min_discount: parseInt(e.target.value) || 0 }))} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Max Products</Label>
-                                <Input type="number" value={formData.max_products} onChange={(e) => setFormData(f => ({ ...f, max_products: parseInt(e.target.value) || 8 }))} />
-                            </div>
+                        {/* Filter Type */}
+                        <div className="space-y-2">
+                            <Label>Product Selection</Label>
+                            <Select value={formData.filter_type} onValueChange={(v) => setFormData(f => ({ ...f, filter_type: v }))}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="manual">Select Products</SelectItem>
+                                    <SelectItem value="discount">By Discount %</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
+
+                        {formData.filter_type === 'discount' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Min Discount %</Label>
+                                    <Input type="number" value={formData.min_discount} onChange={(e) => setFormData(f => ({ ...f, min_discount: parseInt(e.target.value) || 0 }))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Max Products</Label>
+                                    <Input type="number" value={formData.max_products} onChange={(e) => setFormData(f => ({ ...f, max_products: parseInt(e.target.value) || 8 }))} />
+                                </div>
+                            </div>
+                        )}
+
+                        {formData.filter_type === 'manual' && (
+                            <div className="space-y-2">
+                                <Label>Select Products ({formData.product_ids.length} selected)</Label>
+
+                                {formData.product_ids.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 p-2 border rounded bg-muted/30">
+                                        {formData.product_ids.map(pid => {
+                                            const prod = products.find(p => p.id === pid);
+                                            if (!prod) return null;
+                                            return (
+                                                <span key={pid} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-primary text-white rounded-full">
+                                                    {prod.name.slice(0, 20)}{prod.name.length > 20 ? '...' : ''}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFormData(f => ({ ...f, product_ids: f.product_ids.filter(id => id !== pid) }))}
+                                                        className="hover:bg-white/20 rounded-full p-0.5"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search products..."
+                                        value={productSearch}
+                                        onChange={(e) => setProductSearch(e.target.value)}
+                                        className="pl-8"
+                                    />
+                                </div>
+
+                                <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                                    {products
+                                        .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                                        .slice(0, 20)
+                                        .map(prod => (
+                                            <button
+                                                key={prod.id}
+                                                type="button"
+                                                className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm hover:bg-muted ${formData.product_ids.includes(prod.id) ? 'bg-primary/10 border-primary border' : ''
+                                                    }`}
+                                                onClick={() => {
+                                                    setFormData(f => ({
+                                                        ...f,
+                                                        product_ids: f.product_ids.includes(prod.id)
+                                                            ? f.product_ids.filter(id => id !== prod.id)
+                                                            : [...f.product_ids, prod.id]
+                                                    }));
+                                                }}
+                                            >
+                                                {prod.image_url ? (
+                                                    <img src={prod.image_url} alt="" className="w-8 h-8 rounded object-cover" />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
+                                                        <Package className="h-4 w-4 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                                <span className="flex-1 truncate">{prod.name}</span>
+                                                {formData.product_ids.includes(prod.id) && (
+                                                    <span className="text-primary text-xs">✓</span>
+                                                )}
+                                            </button>
+                                        ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex items-center gap-4">
                             <div className="flex items-center space-x-2">

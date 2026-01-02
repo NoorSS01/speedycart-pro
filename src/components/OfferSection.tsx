@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ChevronRight, Plus, Package } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { formatVariantDisplay } from '@/lib/formatUnit';
+import ProductCard from '@/components/ProductCard';
 
 interface OfferSection {
     id: string;
@@ -154,67 +152,13 @@ export default function OfferSectionComponent({ section, onAddToCart }: OfferSec
                     className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide"
                     style={{ scrollbarWidth: 'none' }}
                 >
-                    {products.map((product) => {
-                        const variant = product.default_variant;
-                        const displayPrice = variant?.price ?? product.price;
-                        const displayMrp = variant?.mrp ?? product.mrp;
-                        const discount = displayMrp && displayMrp > displayPrice
-                            ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
-                            : product.discount_percent || 0;
-
-                        return (
-                            <Card
-                                key={product.id}
-                                className="min-w-[130px] max-w-[130px] overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0"
-                                onClick={() => navigate(`/product/${product.id}`)}
-                            >
-                                <div className="relative aspect-square bg-muted">
-                                    {product.image_url ? (
-                                        <img
-                                            src={product.image_url}
-                                            alt={product.name}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            <Package className="h-8 w-8 text-muted-foreground" />
-                                        </div>
-                                    )}
-                                    {/* Add Button */}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onAddToCart(product.id);
-                                        }}
-                                        className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center shadow-lg hover:bg-primary/90"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                    </button>
-                                </div>
-                                <CardContent className="p-2">
-                                    {/* Price */}
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <span className="font-bold text-primary text-sm">₹{displayPrice}</span>
-                                        {displayMrp && displayMrp > displayPrice && (
-                                            <span className="text-[10px] line-through text-muted-foreground">₹{displayMrp}</span>
-                                        )}
-                                    </div>
-                                    {/* Discount Badge */}
-                                    {discount > 0 && (
-                                        <span className="text-[10px] text-green-600 font-semibold">
-                                            ₹{(displayMrp || 0) - displayPrice} OFF
-                                        </span>
-                                    )}
-                                    {/* Name */}
-                                    <p className="text-xs font-medium line-clamp-2 mt-1">{product.name}</p>
-                                    {/* Unit */}
-                                    <p className="text-[10px] text-muted-foreground">
-                                        {variant ? formatVariantDisplay(variant) : product.unit}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
+                    {products.map((product) => (
+                        <ProductCard
+                            key={product.id}
+                            product={product}
+                            onAddToCart={onAddToCart}
+                        />
+                    ))}
                 </div>
 
                 {/* See All */}

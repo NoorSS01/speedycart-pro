@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Heart, Package, ChevronRight } from 'lucide-react';
+import { Heart, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { formatVariantDisplay } from '@/lib/formatUnit';
+import ProductCard from '@/components/ProductCard';
 
 interface ProductVariant {
     id: string;
@@ -23,6 +22,7 @@ interface BuyAgainProduct {
     mrp: number | null;
     image_url: string | null;
     unit: string;
+    discount_percent?: number | null;
     default_variant?: ProductVariant | null;
 }
 
@@ -77,7 +77,7 @@ export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
             const { data: productsData } = await supabase
                 .from('products')
                 .select(`
-                    id, name, price, mrp, image_url, unit,
+                    id, name, price, mrp, image_url, unit, discount_percent,
                     product_variants!left(id, variant_name, variant_value, variant_unit, price, mrp, is_default)
                 `)
                 .in('id', productIds.slice(0, 10))
@@ -115,75 +115,18 @@ export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
                 </button>
             </div>
 
-            {/* Horizontal Scroll Cards - Smaller Design */}
+            {/* Horizontal Scroll Cards */}
             <div
-                className="flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide"
+                className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide"
                 style={{ scrollbarWidth: 'none' }}
             >
-                {products.map((product) => {
-                    const variant = product.default_variant;
-                    const displayPrice = variant?.price ?? product.price;
-                    const displayMrp = variant?.mrp ?? product.mrp;
-                    const discount = displayMrp && displayMrp > displayPrice
-                        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
-                        : 0;
-
-                    return (
-                        <Card
-                            key={product.id}
-                            className="min-w-[110px] max-w-[110px] overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card"
-                            onClick={() => navigate(`/product/${product.id}`)}
-                        >
-                            {/* Image */}
-                            <div className="relative h-20 bg-muted">
-                                {product.image_url ? (
-                                    <img
-                                        src={product.image_url}
-                                        alt={product.name}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <Package className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                )}
-                                {/* Discount Badge */}
-                                {discount > 0 && (
-                                    <div className="absolute top-1 left-1 bg-green-500 text-white text-[8px] font-bold px-1 py-0.5 rounded">
-                                        {discount}%
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Content */}
-                            <CardContent className="p-1.5">
-                                {/* Name */}
-                                <p className="text-[10px] font-medium line-clamp-1 mb-0.5">
-                                    {product.name}
-                                </p>
-
-                                {/* Price and Add */}
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <span className="text-xs font-bold text-primary">₹{displayPrice}</span>
-                                        {displayMrp && displayMrp > displayPrice && (
-                                            <span className="text-[8px] line-through text-muted-foreground ml-1">₹{displayMrp}</span>
-                                        )}
-                                    </div>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onAddToCart(product.id);
-                                        }}
-                                        className="w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center shadow hover:bg-primary/90"
-                                    >
-                                        <Plus className="h-3 w-3" />
-                                    </button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                {products.map((product) => (
+                    <ProductCard
+                        key={product.id}
+                        product={product}
+                        onAddToCart={onAddToCart}
+                    />
+                ))}
             </div>
         </div>
     );

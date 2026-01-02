@@ -24,7 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Pencil, Trash2, Percent, Tag, Layers } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Percent, Tag, Layers, Search, X, Package } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 
 interface OfferSection {
@@ -46,6 +46,12 @@ interface OfferSection {
 interface Category {
     id: string;
     name: string;
+}
+
+interface Product {
+    id: string;
+    name: string;
+    image_url: string | null;
 }
 
 const PRESET_GRADIENTS = [
@@ -71,15 +77,18 @@ export default function AdminOfferSections() {
         background_type: 'gradient',
         background_value: PRESET_GRADIENTS[0],
         text_color: '#ffffff',
-        filter_type: 'discount',
+        filter_type: 'manual',
         min_discount: 40,
         max_discount: 60,
         category_ids: [] as string[],
+        product_ids: [] as string[],
         max_products: 10,
         show_see_all: true,
         is_active: true,
         display_order: 0,
     });
+    const [products, setProducts] = useState<Product[]>([]);
+    const [productSearch, setProductSearch] = useState('');
 
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
@@ -91,6 +100,7 @@ export default function AdminOfferSections() {
         }
         fetchSections();
         fetchCategories();
+        fetchProducts();
     }, [user, authLoading, isAdmin, navigate]);
 
     const fetchSections = async () => {
@@ -112,6 +122,11 @@ export default function AdminOfferSections() {
         if (data) setCategories(data);
     };
 
+    const fetchProducts = async () => {
+        const { data } = await supabase.from('products').select('id, name, image_url').eq('is_active', true).order('name');
+        if (data) setProducts(data);
+    };
+
     const openAddDialog = () => {
         setEditingSection(null);
         setFormData({
@@ -121,15 +136,17 @@ export default function AdminOfferSections() {
             background_type: 'gradient',
             background_value: PRESET_GRADIENTS[0],
             text_color: '#ffffff',
-            filter_type: 'discount',
+            filter_type: 'manual',
             min_discount: 40,
             max_discount: 60,
             category_ids: [],
+            product_ids: [],
             max_products: 10,
             show_see_all: true,
             is_active: true,
             display_order: sections.length,
         });
+        setProductSearch('');
         setShowDialog(true);
     };
 
@@ -147,11 +164,13 @@ export default function AdminOfferSections() {
             min_discount: config.min_discount || 0,
             max_discount: config.max_discount || 100,
             category_ids: config.category_ids || [],
+            product_ids: config.product_ids || [],
             max_products: section.max_products,
             show_see_all: section.show_see_all,
             is_active: section.is_active,
             display_order: section.display_order,
         });
+        setProductSearch('');
         setShowDialog(true);
     };
 
@@ -161,6 +180,8 @@ export default function AdminOfferSections() {
                 return { min_discount: formData.min_discount, max_discount: formData.max_discount };
             case 'category':
                 return { category_ids: formData.category_ids };
+            case 'manual':
+                return { product_ids: formData.product_ids };
             default:
                 return {};
         }
@@ -349,6 +370,7 @@ export default function AdminOfferSections() {
                             <Select value={formData.filter_type} onValueChange={(v) => setFormData(f => ({ ...f, filter_type: v }))}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="manual">Select Products</SelectItem>
                                     <SelectItem value="discount">By Discount %</SelectItem>
                                     <SelectItem value="category">By Category</SelectItem>
                                 </SelectContent>
@@ -389,6 +411,80 @@ export default function AdminOfferSections() {
                                             {cat.name}
                                         </button>
                                     ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {formData.filter_type === 'manual' && (
+                            <div className="space-y-2">
+                                <Label>Select Products ({formData.product_ids.length} selected)</Label>
+
+                                {/* Selected Products */}
+                                {formData.product_ids.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 p-2 border rounded bg-muted/30">
+                                        {formData.product_ids.map(pid => {
+                                            const prod = products.find(p => p.id === pid);
+                                            if (!prod) return null;
+                                            return (
+                                                <span key={pid} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-primary text-white rounded-full">
+                                                    {prod.name.slice(0, 20)}{prod.name.length > 20 ? '...' : ''}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFormData(f => ({ ...f, product_ids: f.product_ids.filter(id => id !== pid) }))}
+                                                        className="hover:bg-white/20 rounded-full p-0.5"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Search */}
+                                <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search products..."
+                                        value={productSearch}
+                                        onChange={(e) => setProductSearch(e.target.value)}
+                                        className="pl-8"
+                                    />
+                                </div>
+
+                                {/* Product List */}
+                                <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                                    {products
+                                        .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                                        .slice(0, 20)
+                                        .map(prod => (
+                                            <button
+                                                key={prod.id}
+                                                type="button"
+                                                className={`w-full flex items-center gap-2 p-2 rounded text-left text-sm hover:bg-muted ${formData.product_ids.includes(prod.id) ? 'bg-primary/10 border-primary border' : ''
+                                                    }`}
+                                                onClick={() => {
+                                                    setFormData(f => ({
+                                                        ...f,
+                                                        product_ids: f.product_ids.includes(prod.id)
+                                                            ? f.product_ids.filter(id => id !== prod.id)
+                                                            : [...f.product_ids, prod.id]
+                                                    }));
+                                                }}
+                                            >
+                                                {prod.image_url ? (
+                                                    <img src={prod.image_url} alt="" className="w-8 h-8 rounded object-cover" />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
+                                                        <Package className="h-4 w-4 text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                                <span className="flex-1 truncate">{prod.name}</span>
+                                                {formData.product_ids.includes(prod.id) && (
+                                                    <span className="text-primary text-xs">✓</span>
+                                                )}
+                                            </button>
+                                        ))}
                                 </div>
                             </div>
                         )}

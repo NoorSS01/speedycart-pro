@@ -94,19 +94,22 @@ export default function AnimatedSearchBar({ value, onChange, onFocus, className 
 
                 {/* Animated Placeholder */}
                 {showPlaceholder && (
-                    <div className="absolute left-12 top-1/2 -translate-y-1/2 pointer-events-none overflow-hidden h-6">
-                        <div
-                            className={`transition-all duration-300 ease-in-out ${isAnimating
-                                    ? 'transform -translate-y-full opacity-0'
-                                    : 'transform translate-y-0 opacity-100'
-                                }`}
-                        >
-                            <span className="text-muted-foreground">
-                                Search for{' '}
+                    <div className="absolute left-12 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+                        {/* Static "Search for" text */}
+                        <span className="text-muted-foreground">Search for </span>
+
+                        {/* Animated product name container */}
+                        <div className="overflow-hidden h-6 flex items-center">
+                            <div
+                                className={`transition-all duration-300 ease-in-out ${isAnimating
+                                        ? 'transform -translate-y-full opacity-0'
+                                        : 'transform translate-y-0 opacity-100'
+                                    }`}
+                            >
                                 <span className="text-foreground font-medium">
                                     "{currentProduct}"
                                 </span>
-                            </span>
+                            </div>
                         </div>
                     </div>
                 )}
