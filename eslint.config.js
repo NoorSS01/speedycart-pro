@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "src/integrations/supabase/types.ts"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -21,11 +21,11 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-explicit-any": "warn",  // Downgrade to warning - doesn't affect runtime
-      "@typescript-eslint/no-empty-object-type": "off",  // Shadcn UI uses these
-      "@typescript-eslint/ban-ts-comment": "warn",  // Downgrade to warning
-      "no-empty": "warn",  // Downgrade to warning
-      "react-hooks/exhaustive-deps": "warn",  // Keep as warning
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "no-empty": "warn",
+      "react-hooks/exhaustive-deps": "warn",
     },
   },
 );

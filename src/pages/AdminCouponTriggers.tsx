@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,7 +96,7 @@ export default function AdminCouponTriggers() {
     const fetchTriggers = async () => {
         try {
             const { data } = await supabase
-                .from('coupon_triggers' as any)
+                .from('coupon_triggers')
                 .select('*')
                 .order('priority', { ascending: false });
 
@@ -103,7 +104,7 @@ export default function AdminCouponTriggers() {
                 setTriggers(data as unknown as CouponTrigger[]);
             }
         } catch (error) {
-            console.error('Error fetching triggers:', error);
+            logger.error('Failed to fetch coupon triggers', { error });
         }
         setLoading(false);
     };
@@ -194,13 +195,13 @@ export default function AdminCouponTriggers() {
             };
 
             if (editingTrigger) {
-                await (supabase as any)
+                await supabase
                     .from('coupon_triggers')
                     .update(triggerData)
                     .eq('id', editingTrigger.id);
                 toast.success('Trigger updated');
             } else {
-                await (supabase as any)
+                await supabase
                     .from('coupon_triggers')
                     .insert(triggerData);
                 toast.success('Trigger created');
@@ -217,7 +218,7 @@ export default function AdminCouponTriggers() {
         if (!confirm('Delete this coupon trigger?')) return;
 
         try {
-            await (supabase as any)
+            await supabase
                 .from('coupon_triggers')
                 .delete()
                 .eq('id', id);
@@ -230,7 +231,7 @@ export default function AdminCouponTriggers() {
 
     const toggleActive = async (trigger: CouponTrigger) => {
         try {
-            await (supabase as any)
+            await supabase
                 .from('coupon_triggers')
                 .update({ is_active: !trigger.is_active })
                 .eq('id', trigger.id);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { formatOrderQuantity } from '@/lib/formatUnit';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -68,7 +69,7 @@ export default function DeliveryOrderDetail() {
                 .select('id, quantity, price, product_id, variant_id')
                 .eq('order_id', orderId);
 
-            console.log('Items data:', itemsData, 'Error:', itemsError);
+            logger.debug('Fetched delivery order items', { itemsData, error: itemsError });
 
             if (itemsData && (itemsData as any[]).length > 0) {
                 // Fetch product names, images, and units
@@ -118,7 +119,7 @@ export default function DeliveryOrderDetail() {
             if (assignmentData) setAssignment(assignmentData);
 
         } catch (err) {
-            console.error('Error:', err);
+            logger.error('Failed to fetch delivery order details', { error: err });
         } finally {
             setLoading(false);
         }

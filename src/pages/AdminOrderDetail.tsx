@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { formatOrderQuantity } from '@/lib/formatUnit';
 import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Button } from '@/components/ui/button';
@@ -136,7 +137,7 @@ export default function AdminOrderDetail() {
                     if (dpData) {
                         // Fetch average rating for this delivery partner
                         const { data: ratingsData } = await supabase
-                            .from('delivery_ratings' as any)
+                            .from('delivery_ratings')
                             .select('rating')
                             .eq('delivery_person_id', assignmentData.delivery_person_id);
 
@@ -154,7 +155,7 @@ export default function AdminOrderDetail() {
             }
 
         } catch (err) {
-            console.error('Error:', err);
+            logger.error('Failed to fetch admin order details', { error: err });
         } finally {
             setLoading(false);
         }

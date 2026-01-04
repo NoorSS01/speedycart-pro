@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,14 +122,14 @@ export default function AdminHeroBanners() {
 
     const fetchBanners = async () => {
         try {
-            const { data } = await (supabase as any)
+            const { data } = await supabase
                 .from('hero_banners')
                 .select('*')
                 .order('display_order', { ascending: true });
 
             if (data) setBanners(data);
         } catch (error) {
-            console.error('Error fetching banners:', error);
+            logger.error('Failed to fetch hero banners', { error });
         }
         setLoading(false);
     };
@@ -217,13 +218,13 @@ export default function AdminHeroBanners() {
             };
 
             if (editingBanner) {
-                await (supabase as any)
+                await supabase
                     .from('hero_banners')
                     .update(bannerData)
                     .eq('id', editingBanner.id);
                 toast.success('Banner updated');
             } else {
-                await (supabase as any)
+                await supabase
                     .from('hero_banners')
                     .insert(bannerData);
                 toast.success('Banner created');
@@ -240,7 +241,7 @@ export default function AdminHeroBanners() {
         if (!confirm('Delete this banner?')) return;
 
         try {
-            await (supabase as any).from('hero_banners').delete().eq('id', id);
+            await supabase.from('hero_banners').delete().eq('id', id);
             toast.success('Banner deleted');
             fetchBanners();
         } catch (error) {
@@ -250,7 +251,7 @@ export default function AdminHeroBanners() {
 
     const toggleActive = async (banner: HeroBanner) => {
         try {
-            await (supabase as any)
+            await supabase
                 .from('hero_banners')
                 .update({ is_active: !banner.is_active })
                 .eq('id', banner.id);

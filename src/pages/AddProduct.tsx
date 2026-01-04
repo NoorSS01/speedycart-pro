@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -143,7 +144,7 @@ export default function AddProduct() {
 
         // Fetch additional images
         try {
-            const { data: imagesData } = await (supabase as any)
+            const { data: imagesData } = await supabase
                 .from('product_images')
                 .select('image_url')
                 .eq('product_id', productId)
@@ -153,7 +154,7 @@ export default function AddProduct() {
                 setAdditionalImages(imagesData.map((img: any) => img.image_url));
             }
         } catch (e) {
-            console.log('Product images table may not exist yet');
+            logger.debug('Product images table may not exist yet');
         }
 
         setLoadingProduct(false);
@@ -219,19 +220,18 @@ export default function AddProduct() {
 
             const { error: variantError } = await supabase.from('product_variants').insert(variantsToInsert);
             if (variantError) {
-                console.error('Variant error:', variantError);
-                toast.error('Product saved but some variants failed');
+                logger.error('Variant save error', { error: variantError });
             }
         }
 
         // Save additional images to product_images table
         if (productId && additionalImages.length > 0) {
-            console.log('Saving additional images:', additionalImages.length, 'images for product:', productId);
+            logger.info('Saving additional images', { count: additionalImages.length, productId });
 
             // Delete existing additional images for this product
-            const { error: deleteError } = await (supabase as any).from('product_images').delete().eq('product_id', productId);
+            const { error: deleteError } = await supabase.from('product_images').delete().eq('product_id', productId);
             if (deleteError) {
-                console.error('Error deleting existing images:', deleteError);
+                logger.error('Error deleting existing images', { error: deleteError });
             }
 
             // Insert new additional images
@@ -242,16 +242,16 @@ export default function AddProduct() {
                 is_primary: false
             }));
 
-            console.log('Inserting images:', imagesToInsert);
-            const { error: imageError, data: insertedImages } = await (supabase as any).from('product_images').insert(imagesToInsert).select();
+            logger.debug('Inserting images', { images: imagesToInsert });
+            const { error: imageError, data: insertedImages } = await supabase.from('product_images').insert(imagesToInsert).select();
             if (imageError) {
-                console.error('Image insert error:', imageError);
+                logger.error('Image insert error', { error: imageError });
                 toast.error('Product saved but some images failed: ' + imageError.message);
             } else {
-                console.log('Images saved successfully:', insertedImages);
+                logger.info('Images saved successfully', { count: insertedImages?.length });
             }
         } else {
-            console.log('No additional images to save. additionalImages:', additionalImages);
+            logger.debug('No additional images to save', { count: additionalImages.length });
         }
 
         toast.success(isEditing ? 'Product updated successfully!' : 'Product created successfully!');

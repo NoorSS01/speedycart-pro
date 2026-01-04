@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -38,7 +39,7 @@ export default function HeroBannerCarousel() {
     const fetchBanners = async () => {
         try {
             const { data, error } = await supabase
-                .from('hero_banners' as any)
+                .from('hero_banners')
                 .select('*')
                 .eq('is_active', true)
                 .order('display_order', { ascending: true });
@@ -47,7 +48,7 @@ export default function HeroBannerCarousel() {
                 setBanners(data as unknown as HeroBanner[]);
             }
         } catch (error) {
-            console.log('Hero banners not available:', error);
+            logger.debug('Hero banners not available');
         }
         setLoading(false);
     };
@@ -127,8 +128,8 @@ export default function HeroBannerCarousel() {
                     <div
                         key={banner.id}
                         className={`min-w-full relative ${banner.click_type && banner.click_type !== 'none' && banner.click_target
-                                ? 'cursor-pointer'
-                                : ''
+                            ? 'cursor-pointer'
+                            : ''
                             }`}
                         style={{
                             ...getBackgroundStyle(banner),

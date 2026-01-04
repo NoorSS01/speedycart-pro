@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import {
     ArrowLeft,
     ShoppingCart,
@@ -26,13 +27,13 @@ import {
     Tag,
     ShieldCheck,
     AlertTriangle,
-    Percent,
     MapPin,
     Ticket,
     X,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import OrderConfirmation from '@/components/OrderConfirmation';
+import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
 
 interface Product {
     id: string;
@@ -84,7 +85,6 @@ export default function Cart() {
     const [loading, setLoading] = useState(true);
     const [promoCode, setPromoCode] = useState('');
     const [promoApplied, setPromoApplied] = useState(false);
-    const [promoDiscount, setPromoDiscount] = useState(0);
     const [showOrderSuccess, setShowOrderSuccess] = useState(false);
     const [lastOrderId, setLastOrderId] = useState('');
 
@@ -103,20 +103,10 @@ export default function Cart() {
     const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
     const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
     const [discountAmount, setDiscountAmount] = useState(0);
-    const [usedCouponIds, setUsedCouponIds] = useState<string[]>([]);
 
-    useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
-            navigate('/auth');
-            return;
-        }
-        fetchCart();
-        fetchSavedAddress();
-        fetchCoupons();
-    }, [user, authLoading, navigate]);
 
-    const fetchCart = async () => {
+
+    const fetchCart = useCallback(async () => {
         if (!user) return;
 
         const { data, error } = await supabase
@@ -132,9 +122,9 @@ export default function Cart() {
             setCartItems(data as CartItem[]);
         }
         setLoading(false);
-    };
+    }, [user]);
 
-    const fetchSavedAddress = async () => {
+    const fetchSavedAddress = useCallback(async () => {
         if (!user) return;
         const { data } = await supabase
             .from('profiles')
@@ -144,15 +134,15 @@ export default function Cart() {
         if (data?.address) {
             setSavedAddress(data.address);
         }
-    };
+    }, [user]);
 
     // Fetch available coupons
-    const fetchCoupons = async () => {
+    const fetchCoupons = useCallback(async () => {
         if (!user) return;
 
         try {
             const { data: coupons } = await supabase
-                .from('coupons' as any)
+                .from('coupons')
                 .select('*')
                 .eq('is_active', true)
                 .or(`valid_until.is.null,valid_until.gte.${new Date().toISOString()}`);
@@ -160,13 +150,13 @@ export default function Cart() {
             if (coupons) {
                 // Filter to only show coupons user hasn't redeemed (if not stackable)
                 const { data: usedCoupons } = await supabase
-                    .from('coupon_usage' as any)
+                    .from('coupon_usage')
                     .select('coupon_id')
                     .eq('user_id', user.id);
 
-                const redeemedIds = new Set((usedCoupons || []).map((uc: any) => uc.coupon_id));
+                const redeemedIds = new Set((usedCoupons || []).map(uc => uc.coupon_id));
 
-                const eligibleCoupons = coupons.filter((c: any) =>
+                const eligibleCoupons = coupons.filter(c =>
                     !redeemedIds.has(c.id) || c.is_stackable
                 );
 
@@ -174,9 +164,20 @@ export default function Cart() {
             }
         } catch (e) {
             // Log error for debugging - coupons table may not exist yet
-            console.error('Failed to fetch coupons:', e);
+            logger.error('Failed to fetch coupons', { error: e });
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (!user) {
+            navigate('/auth');
+            return;
+        }
+        fetchCart();
+        fetchSavedAddress();
+        fetchCoupons();
+    }, [user, authLoading, navigate, fetchCart, fetchSavedAddress, fetchCoupons]);
 
     // Apply coupon using server-side validation
     const applyCoupon = async (coupon: Coupon) => {
@@ -191,14 +192,14 @@ export default function Cart() {
         try {
             // SERVER-SIDE VALIDATION: Call the RPC function to validate and calculate discount
             // This ensures the UI shows exactly what the server will apply during checkout
-            const { data, error } = await (supabase as any).rpc('validate_and_apply_coupon', {
+            const { data, error } = await supabase.rpc('validate_and_apply_coupon', {
                 p_user_id: user.id,
                 p_coupon_code: coupon.code,
                 p_subtotal: currentSubtotal
             });
 
             if (error) {
-                console.error('Coupon validation error:', error);
+                logger.error('Coupon validation error', { error });
                 toast.error('Failed to validate coupon. Please try again.');
                 return;
             }
@@ -221,10 +222,9 @@ export default function Cart() {
             setDiscountAmount(result.discount || 0);
             setPromoCode(result.code || coupon.code);
             setPromoApplied(true);
-            setPromoDiscount(coupon.discount_type === 'percentage' ? coupon.discount_value : 0);
             toast.success(`${result.code} applied! You save ₹${(result.discount || 0).toFixed(0)}`);
         } catch (e) {
-            console.error('Coupon application error:', e);
+            logger.error('Coupon application error', { error: e });
             toast.error('Failed to apply coupon. Please try again.');
         }
     };
@@ -235,7 +235,6 @@ export default function Cart() {
         setDiscountAmount(0);
         setPromoCode('');
         setPromoApplied(false);
-        setPromoDiscount(0);
     };
 
     const updateQuantity = async (itemId: string, newQuantity: number) => {
@@ -347,16 +346,16 @@ export default function Cart() {
             // ATOMIC ORDER PLACEMENT: Single RPC call handles stock validation,
             // order creation, coupon usage, and cart clearing in one transaction
             // Note: Cast to any as place_order_atomic is a custom function not in generated types
-            const { data, error } = await (supabase as any).rpc('place_order_atomic', {
+            const { data, error } = await supabase.rpc('place_order_atomic', {
                 p_user_id: user.id,
                 p_delivery_address: deliveryAddress,
                 p_cart_items: cartItemsPayload,
-                p_coupon_id: appliedCoupon?.id || null,
+                p_coupon_id: appliedCoupon?.id || undefined,
                 p_coupon_discount: discountAmount || 0
             });
 
             if (error) {
-                console.error('RPC error:', error);
+                logger.error('Order placement RPC error', { error });
                 toast.error('Failed to place order. Please try again.');
                 return;
             }
@@ -394,7 +393,7 @@ export default function Cart() {
             setShowOrderSuccess(true);
 
         } catch (error: any) {
-            console.error('Order error:', error);
+            logger.error('Order placement error', { error });
             toast.error('Failed to place order. Please try again.');
         } finally {
             setPlacingOrder(false);
@@ -692,7 +691,7 @@ export default function Cart() {
                             {availableCoupons.length > 0 && !appliedCoupon && (
                                 <div className="mt-3">
                                     <p className="text-xs text-muted-foreground mb-2">Available for you:</p>
-                                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                                    <HorizontalScrollContainer className="gap-2" showButtons={true}>
                                         {availableCoupons.map((coupon) => {
                                             const subtotal = cartItems.reduce((sum, item) => {
                                                 const price = item.product_variants?.price ?? item.products.price;
@@ -725,7 +724,7 @@ export default function Cart() {
                                                 </button>
                                             );
                                         })}
-                                    </div>
+                                    </HorizontalScrollContainer>
                                 </div>
                             )}
                         </CardContent>
@@ -803,30 +802,32 @@ export default function Cart() {
             </main>
 
             {/* Sticky Checkout Bar */}
-            {cartItems.length > 0 && (
-                <div className="fixed bottom-16 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
-                    <div className="container mx-auto px-4 py-3 max-w-2xl">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-muted-foreground">Total Amount</p>
-                                <p className="text-xl font-bold text-primary">₹{finalTotal.toFixed(0)}</p>
-                                {totalSavings > 0 && (
-                                    <p className="text-xs text-green-600 font-medium">
-                                        You save ₹{totalSavings.toFixed(0)}!
-                                    </p>
-                                )}
+            {
+                cartItems.length > 0 && (
+                    <div className="fixed bottom-16 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+                        <div className="container mx-auto px-4 py-3 max-w-2xl">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Total Amount</p>
+                                    <p className="text-xl font-bold text-primary">₹{finalTotal.toFixed(0)}</p>
+                                    {totalSavings > 0 && (
+                                        <p className="text-xs text-green-600 font-medium">
+                                            You save ₹{totalSavings.toFixed(0)}!
+                                        </p>
+                                    )}
+                                </div>
+                                <Button
+                                    className="h-12 px-8 text-base font-semibold"
+                                    onClick={handleCheckout}
+                                >
+                                    <ShieldCheck className="h-5 w-5 mr-2" />
+                                    Checkout
+                                </Button>
                             </div>
-                            <Button
-                                className="h-12 px-8 text-base font-semibold"
-                                onClick={handleCheckout}
-                            >
-                                <ShieldCheck className="h-5 w-5 mr-2" />
-                                Checkout
-                            </Button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Address Dialog */}
             <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
@@ -939,6 +940,7 @@ export default function Cart() {
             </Dialog>
 
             <BottomNav />
-        </div>
+        </div >
     );
 }
+

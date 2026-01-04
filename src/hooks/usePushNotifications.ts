@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { toast } from 'sonner';
 
 // VAPID Public Key - This should match the one in your Supabase secrets
@@ -74,7 +75,7 @@ export function usePushNotifications() {
             }
             return false;
         } catch (error) {
-            console.error('Error checking subscription:', error);
+            logger.error('Error checking push subscription', { error });
             return false;
         }
     }, [isSupported]);
@@ -127,7 +128,7 @@ export function usePushNotifications() {
 
             // Save to Supabase (optional - works even if table doesn't exist)
             try {
-                const { error } = await (supabase as any)
+                const { error } = await supabase
                     .from('push_subscriptions')
                     .upsert({
                         user_id: userId,
@@ -153,7 +154,7 @@ export function usePushNotifications() {
                     // Don't fail - notifications still work locally
                 }
             } catch (dbError) {
-                console.warn('Database save skipped:', dbError);
+                logger.warn('Database save skipped', { error: dbError });
                 // Continue anyway - local notifications will still work
             }
 
@@ -188,7 +189,7 @@ export function usePushNotifications() {
             }
 
             // Remove from Supabase
-            await (supabase as any)
+            await supabase
                 .from('push_subscriptions')
                 .delete()
                 .eq('user_id', userId);
@@ -200,7 +201,7 @@ export function usePushNotifications() {
             return true;
 
         } catch (error) {
-            console.error('Error unsubscribing:', error);
+            logger.error('Error unsubscribing from push notifications', { error });
             toast.error('Failed to disable notifications');
             setLoading(false);
             return false;
@@ -229,7 +230,7 @@ export function usePushNotifications() {
             if ('vibrationEnabled' in newPreferences) updateData.vibration_enabled = newPreferences.vibrationEnabled;
             if ('reminderTime' in newPreferences) updateData.reminder_time = newPreferences.reminderTime + ':00';
 
-            const { error } = await (supabase as any)
+            const { error } = await supabase
                 .from('push_subscriptions')
                 .update(updateData)
                 .eq('user_id', userId);
@@ -239,7 +240,7 @@ export function usePushNotifications() {
             return true;
 
         } catch (error) {
-            console.error('Error updating preferences:', error);
+            logger.error('Error updating notification preferences', { error });
             toast.error('Failed to update preferences');
             return false;
         }
@@ -248,7 +249,7 @@ export function usePushNotifications() {
     // Load preferences from database
     const loadPreferences = useCallback(async (userId: string) => {
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('push_subscriptions')
                 .select('*')
                 .eq('user_id', userId)
@@ -292,7 +293,7 @@ export function usePushNotifications() {
             icon: '/dist/icons/icon.svg',
             badge: '/dist/icons/icon.svg',
             tag: 'test-notification',
-            // @ts-ignore - vibrate is valid in ServiceWorkerRegistration.showNotification options but missing in TS types
+            // @ts-expect-error - vibrate is valid in ServiceWorkerRegistration.showNotification options but missing in TS types
             vibrate,
             requireInteraction: false,
             data: {

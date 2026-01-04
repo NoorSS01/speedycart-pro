@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface CartContextType {
     cartItemCount: number;
@@ -30,7 +31,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 setCartItemCount(count || 0);
             }
         } catch (e) {
-            console.error('Error fetching cart count:', e);
+            logger.error('Error fetching cart count', { error: e });
         }
     }, [user]);
 

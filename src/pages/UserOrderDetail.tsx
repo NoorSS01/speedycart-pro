@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { formatOrderQuantity } from '@/lib/formatUnit';
 import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Package, MapPin, Timer, CheckCircle, Truck, Clock } from 'lucide-react';
+import { ArrowLeft, Package, MapPin, CheckCircle, Truck, Clock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import BottomNav from '@/components/BottomNav';
@@ -30,16 +31,7 @@ export default function UserOrderDetail() {
         return () => clearInterval(interval);
     }, []);
 
-    useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
-            navigate('/auth');
-            return;
-        }
-        if (orderId) fetchData();
-    }, [user, authLoading, orderId]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!orderId) return;
         setLoading(true);
 
@@ -109,11 +101,20 @@ export default function UserOrderDetail() {
             if (assignmentData) setAssignment(assignmentData);
 
         } catch (err) {
-            console.error('Error:', err);
+            logger.error('Failed to fetch user order details', { error: err });
         } finally {
             setLoading(false);
         }
-    };
+    }, [orderId, user?.id, navigate]);
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (!user) {
+            navigate('/auth');
+            return;
+        }
+        if (orderId) fetchData();
+    }, [user, authLoading, orderId, navigate, fetchData]);
 
     // Timer calculation
     const getTimeInfo = (createdAt: string) => {

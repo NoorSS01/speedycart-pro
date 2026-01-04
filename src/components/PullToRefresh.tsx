@@ -1,6 +1,7 @@
 import { useState, useRef, ReactNode, TouchEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 interface PullToRefreshProps {
     onRefresh: () => Promise<void>;
@@ -58,7 +59,7 @@ export default function PullToRefresh({ onRefresh, children, className }: PullTo
             try {
                 await onRefresh();
             } catch (error) {
-                console.error('Refresh failed:', error);
+                logger.error('Refresh failed', { error });
             } finally {
                 setPullDistance(0);
                 // Small delay before hiding spinner

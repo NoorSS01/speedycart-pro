@@ -1,0 +1,117 @@
+﻿
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.19 [32mbuilding for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 8 modules transformed.
+node.exe : 
+[31mx[39m Build 
+failed in 1.24s
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" "C:
+\Users\mdnoo\AppData\
+Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: ([31mx   
+ [39m Build faile    
+d in 1.24s:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+[31merror during 
+build:
+[31m[vite:esbuild] 
+Transform failed 
+with 1 error:
+C:/Users/mdnoo/OneDri
+ve/Documents/speedyca
+rt-pro/src/pages/Shop
+.tsx:721:25: ERROR: 
+Expected "}" but 
+found "?"[31m
+file: [36mC:/Users/m
+dnoo/OneDrive/Documen
+ts/speedycart-pro/src
+/pages/Shop.tsx:721:2
+5[31m
+[33m
+[33mExpected "}" 
+but found "?"[33m
+719|        <div 
+className="container 
+mx-auto px-4 pb-8">
+720|    {filteredProd
+ucts.length === 0 ? (
+721|        
+title={searchQuery ? 
+'No products found' 
+: 'No products in 
+this category'}
+   |                 
+          ^
+722|        descripti
+on={searchQuery ? 
+`No results for 
+"${searchQuery}"` : 
+'Try selecting a 
+different category'}
+723|      />
+[31m
+    at 
+failureErrorWithLog (
+C:\Users\mdnoo\OneDri
+ve\Documents\speedyca
+rt-pro\node_modules\e
+sbuild\lib\main.js:14
+72:15)
+    at C:\Users\mdnoo
+\OneDrive\Documents\s
+peedycart-pro\node_mo
+dules\esbuild\lib\mai
+n.js:755:50
+    at responseCallba
+cks.<computed> (C:\Us
+ers\mdnoo\OneDrive\Do
+cuments\speedycart-pr
+o\node_modules\esbuil
+d\lib\main.js:622:9)
+    at 
+handleIncomingPacket 
+(C:\Users\mdnoo\OneDr
+ive\Documents\speedyc
+art-pro\node_modules\
+esbuild\lib\main.js:6
+77:12)
+    at Socket.readFro
+mStdout (C:\Users\mdn
+oo\OneDrive\Documents
+\speedycart-pro\node_
+modules\esbuild\lib\m
+ain.js:600:7)
+    at Socket.emit 
+(node:events:508:28)
+    at addChunk (node
+:internal/streams/rea
+dable:559:12)
+    at readableAddChu
+nkPushByteMode (node:
+internal/streams/read
+able:510:3)
+    at Readable.push 
+(node:internal/stream
+s/readable:390:5)
+    at 
+Pipe.onStreamRead (no
+de:internal/stream_ba
+se_commons:189:23)[3
+9m

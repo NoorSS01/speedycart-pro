@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface Theme {
     id: string;
@@ -37,7 +38,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         try {
             const now = new Date().toISOString();
 
-            const { data } = await (supabase as any)
+            const { data } = await supabase
                 .from('themes')
                 .select('*')
                 .eq('is_active', true)
@@ -53,7 +54,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 resetThemeColors();
             }
         } catch (error) {
-            console.log('Theme not available:', error);
+            logger.debug('Theme not available');
         }
         setIsLoading(false);
     };

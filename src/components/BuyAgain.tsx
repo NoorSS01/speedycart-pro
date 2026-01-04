@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Heart, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from '@/components/ProductCard';
@@ -36,15 +37,7 @@ export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
     const [products, setProducts] = useState<BuyAgainProduct[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (user) {
-            fetchBuyAgainProducts();
-        } else {
-            setLoading(false);
-        }
-    }, [user]);
-
-    const fetchBuyAgainProducts = async () => {
+    const fetchBuyAgainProducts = useCallback(async () => {
         if (!user) return;
 
         try {
@@ -84,18 +77,26 @@ export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
                 .eq('is_active', true);
 
             if (productsData) {
-                const processedProducts = productsData.map((product: any) => {
+                const processedProducts = productsData.map(product => {
                     const variants = product.product_variants || [];
-                    const defaultVariant = variants.find((v: any) => v.is_default) || variants[0] || null;
+                    const defaultVariant = variants.find(v => v.is_default) || variants[0] || null;
                     return { ...product, default_variant: defaultVariant };
                 });
                 setProducts(processedProducts as BuyAgainProduct[]);
             }
         } catch (error) {
-            console.error('BuyAgain fetch error:', error);
+            logger.error('BuyAgain fetch error', { error });
         }
         setLoading(false);
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            fetchBuyAgainProducts();
+        } else {
+            setLoading(false);
+        }
+    }, [user, fetchBuyAgainProducts]);
 
     if (loading || !user || products.length === 0) return null;
 

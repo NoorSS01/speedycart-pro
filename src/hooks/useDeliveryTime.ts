@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 const DEFAULT_DELIVERY_TIME = 30;
 
@@ -7,14 +8,10 @@ export function useDeliveryTime() {
     const [deliveryTimeMinutes, setDeliveryTimeMinutes] = useState<number>(DEFAULT_DELIVERY_TIME);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        fetchDeliveryTime();
-    }, []);
-
-    const fetchDeliveryTime = async () => {
+    const fetchDeliveryTime = useCallback(async () => {
         try {
             // Type cast needed because admin_settings isn't in generated types
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('admin_settings')
                 .select('delivery_time_minutes')
                 .eq('id', '00000000-0000-0000-0000-000000000001')
@@ -30,7 +27,7 @@ export function useDeliveryTime() {
                 }
             }
         } catch (e) {
-            console.error('Failed to fetch delivery time:', e);
+            logger.error('Failed to fetch delivery time', { error: e });
             // Fallback to localStorage
             const localValue = localStorage.getItem('delivery_time_minutes');
             if (localValue) {
@@ -39,12 +36,16 @@ export function useDeliveryTime() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchDeliveryTime();
+    }, [fetchDeliveryTime]);
 
     const updateDeliveryTime = async (minutes: number) => {
         try {
             // Type cast needed because admin_settings isn't in generated types
-            const { error } = await (supabase as any)
+            const { error } = await supabase
                 .from('admin_settings')
                 .update({ delivery_time_minutes: minutes })
                 .eq('id', '00000000-0000-0000-0000-000000000001');
@@ -59,7 +60,7 @@ export function useDeliveryTime() {
                 return false;
             }
         } catch (e) {
-            console.error('Failed to update delivery time:', e);
+            logger.error('Failed to update delivery time', { error: e });
             return false;
         }
     };

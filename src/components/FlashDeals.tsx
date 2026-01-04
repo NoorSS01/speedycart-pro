@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { ChevronRight, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from '@/components/ProductCard';
@@ -10,7 +11,7 @@ interface FlashDeal {
     name: string;
     title: string;
     badge_text: string | null;
-    badge_color: string;
+    badge_color: string | null;
     start_time: string;
     end_time: string;
     background_color: string;
@@ -29,14 +30,14 @@ interface Product {
     price: number;
     mrp: number | null;
     image_url: string | null;
-    unit: string;
+    unit: string | null;
     discount_percent: number | null;
     default_variant?: {
         price: number;
         mrp: number | null;
         variant_name: string;
         variant_value: number;
-        variant_unit: string;
+        variant_unit: string | null;
     } | null;
 }
 
@@ -51,9 +52,83 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
     const [countdowns, setCountdowns] = useState<Record<string, { h: number; m: number; s: number }>>({});
     const [loading, setLoading] = useState(true);
 
+    const fetchDealProducts = useCallback(async (deal: FlashDeal): Promise<Product[]> => {
+        try {
+            let query = supabase
+                .from('products')
+                .select(`
+                    id, name, price, mrp, image_url, unit, discount_percent,
+                    product_variants!left(price, mrp, variant_name, variant_value, variant_unit, is_default)
+                `)
+                .eq('is_active', true);
+
+            switch (deal.filter_type) {
+                case 'discount': {
+                    const minDiscount = deal.filter_config?.min_discount || 0;
+                    query = query.gte('discount_percent', minDiscount);
+                    break;
+                }
+                case 'category': {
+                    const categoryIds = deal.filter_config?.category_ids || [];
+                    if (categoryIds.length > 0) {
+                        query = query.in('category_id', categoryIds);
+                    }
+                    break;
+                }
+                case 'manual': {
+                    const productIds = deal.filter_config?.product_ids || [];
+                    if (productIds.length > 0) {
+                        query = query.in('id', productIds);
+                    }
+                    break;
+                }
+            }
+
+            const { data } = await query.limit(deal.max_products).order('discount_percent', { ascending: false });
+
+            if (data) {
+                return data.map(p => ({
+                    ...p,
+                    default_variant: p.product_variants?.find(v => v.is_default) || p.product_variants?.[0] || null
+                })) as unknown as Product[];
+            }
+        } catch (error) {
+            logger.error('Error fetching deal products', { error });
+        }
+        return [];
+    }, []);
+
+    const fetchDeals = useCallback(async () => {
+        try {
+            const { data } = await supabase
+                .from('flash_deals')
+                .select('*')
+                .eq('is_active', true)
+                .lte('start_time', new Date().toISOString())
+                .gte('end_time', new Date().toISOString())
+                .order('display_order', { ascending: true });
+
+            if (data) {
+                const flashDeals = data as unknown as FlashDeal[];
+                setDeals(flashDeals);
+
+                // Fetch products for each deal
+                const productsMap: Record<string, Product[]> = {};
+                for (const deal of flashDeals) {
+                    const prods = await fetchDealProducts(deal);
+                    productsMap[deal.id] = prods;
+                }
+                setProducts(productsMap);
+            }
+        } catch (error) {
+            logger.debug('Flash deals not available');
+        }
+        setLoading(false);
+    }, [fetchDealProducts]);
+
     useEffect(() => {
         fetchDeals();
-    }, []);
+    }, [fetchDeals]);
 
     // Countdown timer
     useEffect(() => {
@@ -81,76 +156,6 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
         return () => clearInterval(interval);
     }, [deals]);
 
-    const fetchDeals = async () => {
-        try {
-            const { data } = await supabase
-                .from('flash_deals' as any)
-                .select('*')
-                .eq('is_active', true)
-                .lte('start_time', new Date().toISOString())
-                .gte('end_time', new Date().toISOString())
-                .order('display_order', { ascending: true });
-
-            if (data) {
-                const flashDeals = data as unknown as FlashDeal[];
-                setDeals(flashDeals);
-
-                // Fetch products for each deal
-                const productsMap: Record<string, Product[]> = {};
-                for (const deal of flashDeals) {
-                    const prods = await fetchDealProducts(deal);
-                    productsMap[deal.id] = prods;
-                }
-                setProducts(productsMap);
-            }
-        } catch (error) {
-            console.log('Flash deals not available:', error);
-        }
-        setLoading(false);
-    };
-
-    const fetchDealProducts = async (deal: FlashDeal): Promise<Product[]> => {
-        try {
-            let query = supabase
-                .from('products')
-                .select(`
-                    id, name, price, mrp, image_url, unit, discount_percent,
-                    product_variants!left(price, mrp, variant_name, variant_value, variant_unit, is_default)
-                `)
-                .eq('is_active', true);
-
-            switch (deal.filter_type) {
-                case 'discount':
-                    const minDiscount = deal.filter_config?.min_discount || 0;
-                    query = query.gte('discount_percent', minDiscount);
-                    break;
-                case 'category':
-                    const categoryIds = deal.filter_config?.category_ids || [];
-                    if (categoryIds.length > 0) {
-                        query = query.in('category_id', categoryIds);
-                    }
-                    break;
-                case 'manual':
-                    const productIds = deal.filter_config?.product_ids || [];
-                    if (productIds.length > 0) {
-                        query = query.in('id', productIds);
-                    }
-                    break;
-            }
-
-            const { data } = await query.limit(deal.max_products).order('discount_percent', { ascending: false });
-
-            if (data) {
-                return data.map((p: any) => ({
-                    ...p,
-                    default_variant: p.product_variants?.find((v: any) => v.is_default) || p.product_variants?.[0] || null
-                }));
-            }
-        } catch (error) {
-            console.error('Error fetching deal products:', error);
-        }
-        return [];
-    };
 
     if (loading || deals.length === 0) return null;
 
@@ -176,7 +181,7 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
                                     {deal.badge_text && (
                                         <span
                                             className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                                            style={{ backgroundColor: deal.badge_color, color: '#ffffff' }}
+                                            style={{ backgroundColor: deal.badge_color || undefined, color: '#ffffff' }}
                                         >
                                             {deal.badge_text}
                                         </span>

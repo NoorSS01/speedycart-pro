@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, Package, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -106,7 +107,7 @@ export default function Auth() {
         navigate('/');
       }
     } catch (e) {
-      console.error('Sign in error:', e);
+      logger.error('Sign in error', { error: e });
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
@@ -175,7 +176,7 @@ export default function Auth() {
         navigate('/');
       }
     } catch (e) {
-      console.error('Sign up error:', e);
+      logger.error('Sign up error', { error: e });
       toast.error('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
@@ -200,7 +201,7 @@ export default function Auth() {
       }
       // Note: OAuth redirects away, so we don't reset loading on success
     } catch (e) {
-      console.error('Social auth error:', e);
+      logger.error('Social auth error', { error: e });
       toast.error('Something went wrong. Please try again.');
       setIsLoading(false);
     }

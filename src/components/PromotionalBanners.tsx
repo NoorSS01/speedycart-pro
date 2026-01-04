@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '@/lib/logger';
 import { supabase } from '@/integrations/supabase/client';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ export default function PromotionalBanners() {
     const fetchBanners = async () => {
         try {
             const { data, error } = await supabase
-                .from('promotional_banners' as any)
+                .from('promotional_banners')
                 .select('*')
                 .eq('is_active', true)
                 .order('display_order', { ascending: true });
@@ -30,7 +31,7 @@ export default function PromotionalBanners() {
             }
         } catch (error) {
             // Table might not exist yet - silently fail
-            console.log('Promotional banners not available:', error);
+            logger.debug('Promotional banners not available', { error });
         }
     };
 

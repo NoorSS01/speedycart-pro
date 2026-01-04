@@ -9,7 +9,7 @@ interface ProductVariant {
     mrp: number | null;
     variant_name: string;
     variant_value: number;
-    variant_unit: string;
+    variant_unit: string | null;
 }
 
 interface ProductCardProps {
@@ -19,7 +19,7 @@ interface ProductCardProps {
         price: number;
         mrp: number | null;
         image_url: string | null;
-        unit: string;
+        unit: string | null;
         discount_percent?: number | null;
         default_variant?: ProductVariant | null;
     };
@@ -34,9 +34,7 @@ export default function ProductCard({ product, onAddToCart, compact = false }: P
     const variant = product.default_variant;
     const displayPrice = variant?.price ?? product.price;
     const displayMrp = variant?.mrp ?? product.mrp;
-    const discount = displayMrp && displayMrp > displayPrice
-        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
-        : product.discount_percent || 0;
+
     const discountAmount = displayMrp && displayMrp > displayPrice
         ? displayMrp - displayPrice
         : 0;

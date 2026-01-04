@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,6 +93,27 @@ export default function Orders() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
 
+
+
+  const fetchOrders = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`*, order_items(id, quantity, price, product_id, products(id, name, image_url)), delivery_assignments(*)`)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      const formattedOrders = data.map(order => ({
+        ...order,
+        order_items: Array.isArray(order.order_items) ? order.order_items : [],
+        delivery_assignments: Array.isArray(order.delivery_assignments) ? order.delivery_assignments : order.delivery_assignments ? [order.delivery_assignments] : []
+      }));
+      setOrders(formattedOrders as Order[]);
+    }
+    setLoading(false);
+  }, [user]);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -122,31 +144,12 @@ export default function Orders() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, authLoading, navigate]);
-
-  const fetchOrders = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`*, order_items(id, quantity, price, product_id, products(id, name, image_url)), delivery_assignments(*)`)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      const formattedOrders = data.map(order => ({
-        ...order,
-        order_items: Array.isArray(order.order_items) ? order.order_items : [],
-        delivery_assignments: Array.isArray(order.delivery_assignments) ? order.delivery_assignments : order.delivery_assignments ? [order.delivery_assignments] : []
-      }));
-      setOrders(formattedOrders as Order[]);
-    }
-    setLoading(false);
-  };
+  }, [user, authLoading, navigate, fetchOrders]);
 
   const confirmDelivery = async () => {
     if (!confirmDialog.assignmentId) return;
 
-    await supabase.from('delivery_assignments').update({ user_confirmed_at: new Date().toISOString() }).eq('id', confirmDialog.assignmentId);
+    await supabase.from('delivery_assignments').update({ user_confirmed_at: new Date().toISOString() }).eq('id', confirmDialog.assignmentId as string);
     await supabase.from('orders').update({ status: 'delivered' }).eq('id', confirmDialog.orderId);
 
     toast.success('Order confirmed as delivered!');
@@ -165,9 +168,9 @@ export default function Orders() {
   const rejectDelivery = async () => {
     if (!confirmDialog.assignmentId) return;
 
-    const { data: assignment } = await supabase.from('delivery_assignments').select('delivery_person_id, order_id').eq('id', confirmDialog.assignmentId).single();
+    const { data: assignment } = await supabase.from('delivery_assignments').select('delivery_person_id, order_id').eq('id', confirmDialog.assignmentId as string).single();
 
-    await supabase.from('delivery_assignments').update({ is_rejected: true, rejection_reason: 'User rejected delivery', marked_delivered_at: null }).eq('id', confirmDialog.assignmentId);
+    await supabase.from('delivery_assignments').update({ is_rejected: true, rejection_reason: 'User rejected delivery', marked_delivered_at: null }).eq('id', confirmDialog.assignmentId as string);
     await supabase.from('orders').update({ status: 'pending' }).eq('id', confirmDialog.orderId);
 
     if (assignment) {
@@ -190,7 +193,7 @@ export default function Orders() {
 
     // Try to insert into delivery_ratings table (if exists), else just log
     try {
-      await supabase.from('delivery_ratings' as any).insert({
+      await supabase.from('delivery_ratings').insert({
         order_id: ratingDialog.orderId,
         delivery_person_id: ratingDialog.deliveryPersonId,
         user_id: user?.id,
@@ -199,7 +202,7 @@ export default function Orders() {
       });
     } catch (e) {
       // Table might not exist - that's okay, we'll log it
-      console.log('Delivery rating stored locally:', deliveryRating);
+      logger.debug('Delivery rating stored locally', { rating: deliveryRating });
     }
 
     toast.success(`Thanks for rating! ${deliveryRating} ⭐`);
@@ -213,7 +216,7 @@ export default function Orders() {
     }
 
     try {
-      await supabase.from('product_reviews' as any).insert({
+      await supabase.from('product_reviews').insert({
         product_id: reviewDialog.productId,
         user_id: user?.id,
         order_id: reviewDialog.orderId,

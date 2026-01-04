@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface AnimatedSearchBarProps {
     value: string;
@@ -41,7 +42,7 @@ export default function AnimatedSearchBar({ value, onChange, onFocus, className 
                 setProductNames(shuffled);
             }
         } catch (error) {
-            console.log('Could not fetch product names for animation');
+            logger.debug('Could not fetch product names for animation');
         }
     };
 

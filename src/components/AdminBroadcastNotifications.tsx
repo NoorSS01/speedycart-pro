@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -150,7 +151,7 @@ export function AdminBroadcastNotifications() {
     }, []);
 
     const fetchBroadcasts = async () => {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('broadcast_notifications')
             .select('*')
             .order('created_at', { ascending: false })
@@ -199,7 +200,7 @@ export function AdminBroadcastNotifications() {
 
         try {
             // Create broadcast record
-            const { data: broadcast, error: insertError } = await (supabase as any)
+            const { data: broadcast, error: insertError } = await supabase
                 .from('broadcast_notifications')
                 .insert({
                     title,
@@ -247,7 +248,7 @@ export function AdminBroadcastNotifications() {
             fetchStats();
 
         } catch (error: any) {
-            console.error('Error sending broadcast:', error);
+            logger.error('Error sending broadcast', { error });
             toast.error('Failed to send broadcast: ' + error.message);
         } finally {
             setLoading(false);

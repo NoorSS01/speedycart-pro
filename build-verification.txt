@@ -1,0 +1,92 @@
+﻿
+> vite_react_shadcn_ts@0.0.0 build
+> vite build
+
+[36mvite v5.4.19 [32mbuilding for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 2197 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32massets/manifest-BJAA0WlI.json                [39m[1m[2m  2.12 kB[22m[1m[22m[2m Γöé gzip:   0.46 kB[22m
+[2mdist/[22m[32mindex.html                                   [39m[1m[2m  2.21 kB[22m[1m[22m[2m Γöé gzip:   0.87 kB[22m
+[2mdist/[22m[32massets/logo-BcuwO1nt.svg                     [39m[1m[2m 12.88 kB[22m[1m[22m[2m Γöé gzip:   5.56 kB[22m
+[2mdist/[22m[32massets/logo-icon-DBH0M-rE.svg                [39m[1m[2m 13.05 kB[22m[1m[22m[2m Γöé gzip:   5.69 kB[22m
+[2mdist/[22m[35massets/index-DdEYZ9yZ.css                    [39m[1m[2m127.18 kB[22m[1m[22m[2m Γöé gzip:  19.10 kB[22m
+[2mdist/[22m[36massets/navigation-BBpj9SnD.js                [39m[1m[2m  0.32 kB[22m[1m[22m[2m Γöé gzip:   0.25 kB[22m
+[2mdist/[22m[36massets/power-BEcAcgDZ.js                     [39m[1m[2m  0.34 kB[22m[1m[22m[2m Γöé gzip:   0.27 kB[22m
+[2mdist/[22m[36massets/dollar-sign-BLX3M2T0.js               [39m[1m[2m  0.39 kB[22m[1m[22m[2m Γöé gzip:   0.30 kB[22m
+[2mdist/[22m[36massets/timer-BcgfRsIK.js                     [39m[1m[2m  0.41 kB[22m[1m[22m[2m Γöé gzip:   0.29 kB[22m
+[2mdist/[22m[36massets/calendar-BNFFsSnC.js                  [39m[1m[2m  0.43 kB[22m[1m[22m[2m Γöé gzip:   0.30 kB[22m
+[2mdist/[22m[36massets/image-CPGnI6Tm.js                     [39m[1m[2m  0.44 kB[22m[1m[22m[2m Γöé gzip:   0.32 kB[22m
+[2mdist/[22m[36massets/pencil-BMr4U3pN.js                    [39m[1m[2m  0.45 kB[22m[1m[22m[2m Γöé gzip:   0.33 kB[22m
+[2mdist/[22m[36massets/user-plus-DInaxfZj.js                 [39m[1m[2m  0.48 kB[22m[1m[22m[2m Γöé gzip:   0.33 kB[22m
+[2mdist/[22m[36massets/square-pen-D6t0g53-.js                [39m[1m[2m  0.49 kB[22m[1m[22m[2m Γöé gzip:   0.34 kB[22m
+[2mdist/[22m[36massets/refresh-cw-Bw0SDkj_.js                [39m[1m[2m  0.49 kB[22m[1m[22m[2m Γöé gzip:   0.33 kB[22m
+[2mdist/[22m[36massets/layers-CnPtug56.js                    [39m[1m[2m  0.53 kB[22m[1m[22m[2m Γöé gzip:   0.34 kB[22m
+[2mdist/[22m[36massets/package-check-BVHnfobe.js             [39m[1m[2m  0.59 kB[22m[1m[22m[2m Γöé gzip:   0.39 kB[22m
+[2mdist/[22m[36massets/palette-i6bBDLB3.js                   [39m[1m[2m  0.78 kB[22m[1m[22m[2m Γöé gzip:   0.45 kB[22m
+[2mdist/[22m[36massets/boxes-ZN1pe-LU.js                     [39m[1m[2m  1.02 kB[22m[1m[22m[2m Γöé gzip:   0.50 kB[22m
+[2mdist/[22m[36massets/AdminSecurity--jaQwfjq.js             [39m[1m[2m  3.77 kB[22m[1m[22m[2m Γöé gzip:   1.39 kB[22m
+[2mdist/[22m[36massets/AdminBottomNav-I1cnp95u.js            [39m[1m[2m  3.96 kB[22m[1m[22m[2m Γöé gzip:   1.38 kB[22m
+[2mdist/[22m[36massets/AdminDeliveryApps-DIBpGTBJ.js         [39m[1m[2m  4.81 kB[22m[1m[22m[2m Γöé gzip:   1.63 kB[22m
+[2mdist/[22m[36massets/AdminDeliveryActivations-trCYkaeh.js  [39m[1m[2m  4.94 kB[22m[1m[22m[2m Γöé gzip:   1.61 kB[22m
+[2mdist/[22m[36massets/AdminOrders-Laao552G.js               [39m[1m[2m  5.33 kB[22m[1m[22m[2m Γöé gzip:   1.84 kB[22m
+[2mdist/[22m[36massets/AdminUsers-Q199vJQA.js                [39m[1m[2m  5.89 kB[22m[1m[22m[2m Γöé gzip:   1.93 kB[22m
+[2mdist/[22m[36massets/AdminStock-DkDW0zrY.js                [39m[1m[2m  6.19 kB[22m[1m[22m[2m Γöé gzip:   2.09 kB[22m
+[2mdist/[22m[36massets/DeliveryOrderDetail-B6CcHw8O.js       [39m[1m[2m  6.37 kB[22m[1m[22m[2m Γöé gzip:   2.33 kB[22m
+[2mdist/[22m[36massets/AdminToPay-h-9fjHPE.js                [39m[1m[2m  6.60 kB[22m[1m[22m[2m Γöé gzip:   1.96 kB[22m
+[2mdist/[22m[36massets/AdminBanners-BJGX6afu.js              [39m[1m[2m  7.19 kB[22m[1m[22m[2m Γöé gzip:   2.22 kB[22m
+[2mdist/[22m[36massets/AdminThemes-D6HvM4pb.js               [39m[1m[2m  7.55 kB[22m[1m[22m[2m Γöé gzip:   2.38 kB[22m
+[2mdist/[22m[36massets/AdminOrderDetail-Cgwg3vYX.js          [39m[1m[2m  7.87 kB[22m[1m[22m[2m Γöé gzip:   2.58 kB[22m
+[2mdist/[22m[36massets/AdminProfile-CllebeQ_.js              [39m[1m[2m  8.39 kB[22m[1m[22m[2m Γöé gzip:   2.41 kB[22m
+[2mdist/[22m[36massets/DeliveryProfile-DB4dpdvO.js           [39m[1m[2m 10.61 kB[22m[1m[22m[2m Γöé gzip:   3.17 kB[22m
+[2mdist/[22m[36massets/Delivery-C2K-4Yk3.js                  [39m[1m[2m 10.91 kB[22m[1m[22m[2m Γöé gzip:   3.32 kB[22m
+[2mdist/[22m[36massets/AdminOfferSections-2tgTqsqA.js        [39m[1m[2m 11.70 kB[22m[1m[22m[2m Γöé gzip:   3.38 kB[22m
+[2mdist/[22m[36massets/AdminCouponTriggers-B6HkeKZL.js       [39m[1m[2m 12.45 kB[22m[1m[22m[2m Γöé gzip:   3.60 kB[22m
+[2mdist/[22m[36massets/AdminFlashDeals-DBl0NZiG.js           [39m[1m[2m 12.79 kB[22m[1m[22m[2m Γöé gzip:   3.47 kB[22m
+[2mdist/[22m[36massets/AdminHeroBanners-DtvwzGS4.js          [39m[1m[2m 14.12 kB[22m[1m[22m[2m Γöé gzip:   3.86 kB[22m
+[2mdist/[22m[36massets/AddProduct-DaJSj_mE.js                [39m[1m[2m 15.89 kB[22m[1m[22m[2m Γöé gzip:   4.60 kB[22m
+[2mdist/[22m[36massets/Admin-DQ3RRSxi.js                     [39m[1m[2m 20.26 kB[22m[1m[22m[2m Γöé gzip:   4.70 kB[22m
+[2mdist/[22m[36massets/AdminNotifications-B1BS1n5m.js        [39m[1m[2m 20.81 kB[22m[1m[22m[2m Γöé gzip:   5.54 kB[22m
+[2mdist/[22m[36massets/SuperAdmin-BOaNen3H.js                [39m[1m[2m 30.25 kB[22m[1m[22m[2m Γöé gzip:   7.82 kB[22m
+[2mdist/[22m[36massets/index-jfoOpCED.js                     [39m[1m[33m828.03 kB[39m[22m[2m Γöé gzip: 233.66 kB[22m
+node.exe : [33m
+At line:1 char:1
++ & "C:\Program Files
+\nodejs/node.exe" "C:
+\Users\mdnoo\AppData\
+Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: ([33m:S   
+ tring) [], Remot    
+eException
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+(!) Some chunks are 
+larger than 500 kB 
+after minification. 
+Consider:
+- Using dynamic 
+import() to 
+code-split the 
+application
+- Use build.rollupOpt
+ions.output.manualChu
+nks to improve 
+chunking: https://rol
+lupjs.org/configurati
+on-options/#output-ma
+nualchunks
+- Adjust chunk size 
+limit for this 
+warning via build.chu
+nkSizeWarningLimit.[
+39m
+[32mΓ£ô built in 9.67s[39m

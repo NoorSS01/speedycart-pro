@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,14 +106,14 @@ export default function AdminOfferSections() {
 
     const fetchSections = async () => {
         try {
-            const { data } = await (supabase as any)
+            const { data } = await supabase
                 .from('offer_sections')
                 .select('*')
                 .order('display_order', { ascending: true });
 
             if (data) setSections(data);
         } catch (error) {
-            console.error('Error:', error);
+            logger.error('Failed to fetch offer sections', { error });
         }
         setLoading(false);
     };
@@ -211,10 +212,10 @@ export default function AdminOfferSections() {
             };
 
             if (editingSection) {
-                await (supabase as any).from('offer_sections').update(sectionData).eq('id', editingSection.id);
+                await supabase.from('offer_sections').update(sectionData).eq('id', editingSection.id);
                 toast.success('Section updated');
             } else {
-                await (supabase as any).from('offer_sections').insert(sectionData);
+                await supabase.from('offer_sections').insert(sectionData);
                 toast.success('Section created');
             }
 
@@ -228,7 +229,7 @@ export default function AdminOfferSections() {
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this offer section?')) return;
         try {
-            await (supabase as any).from('offer_sections').delete().eq('id', id);
+            await supabase.from('offer_sections').delete().eq('id', id);
             toast.success('Deleted');
             fetchSections();
         } catch (error) {
@@ -238,7 +239,7 @@ export default function AdminOfferSections() {
 
     const toggleActive = async (section: OfferSection) => {
         try {
-            await (supabase as any).from('offer_sections').update({ is_active: !section.is_active }).eq('id', section.id);
+            await supabase.from('offer_sections').update({ is_active: !section.is_active }).eq('id', section.id);
             fetchSections();
         } catch (error) {
             toast.error('Failed');

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { ArrowLeft, Zap } from 'lucide-react';
@@ -15,7 +16,7 @@ interface FlashDeal {
     name: string;
     title: string;
     badge_text: string | null;
-    badge_color: string;
+    badge_color: string | null;
     start_time: string;
     end_time: string;
     background_color: string;
@@ -33,14 +34,14 @@ interface Product {
     price: number;
     mrp: number | null;
     image_url: string | null;
-    unit: string;
+    unit: string | null;
     discount_percent: number | null;
     default_variant?: {
         price: number;
         mrp: number | null;
         variant_name: string;
         variant_value: number;
-        variant_unit: string;
+        variant_unit: string | null;
     } | null;
 }
 
@@ -82,7 +83,7 @@ export default function FlashDealsPage() {
 
     const fetchDeal = async () => {
         try {
-            const { data: dealData } = await (supabase as any)
+            const { data: dealData } = await supabase
                 .from('flash_deals')
                 .select('*')
                 .eq('id', id)
@@ -93,7 +94,7 @@ export default function FlashDealsPage() {
                 await fetchProducts(dealData);
             }
         } catch (error) {
-            console.error('Error fetching deal:', error);
+            logger.error('Failed to fetch flash deal', { error });
         }
         setLoading(false);
     };
@@ -106,35 +107,38 @@ export default function FlashDealsPage() {
                 .eq('is_active', true);
 
             switch (dealData.filter_type) {
-                case 'discount':
+                case 'discount': {
                     const minDiscount = dealData.filter_config?.min_discount || 0;
                     query = query.gte('discount_percent', minDiscount);
                     break;
-                case 'category':
+                }
+                case 'category': {
                     const categoryIds = dealData.filter_config?.category_ids || [];
                     if (categoryIds.length > 0) {
                         query = query.in('category_id', categoryIds);
                     }
                     break;
-                case 'manual':
+                }
+                case 'manual': {
                     const productIds = dealData.filter_config?.product_ids || [];
                     if (productIds.length > 0) {
                         query = query.in('id', productIds);
                     }
                     break;
+                }
             }
 
             const { data } = await query.order('discount_percent', { ascending: false });
 
             if (data) {
-                const processed = data.map((p: any) => ({
+                const processed = data.map(p => ({
                     ...p,
-                    default_variant: p.product_variants?.find((v: any) => v.is_default) || p.product_variants?.[0] || null
+                    default_variant: p.product_variants?.find(v => v.is_default) || p.product_variants?.[0] || null
                 }));
                 setProducts(processed);
             }
         } catch (error) {
-            console.error('Error fetching products:', error);
+            logger.error('Failed to fetch flash deal products', { error });
         }
     };
 

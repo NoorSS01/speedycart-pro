@@ -1,0 +1,184 @@
+﻿
+> vite_react_shadcn_ts@0.0.0 lint
+> eslint .
+
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\AdminBroadcastNotifications.tsx
+  166:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  172:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  175:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  250:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  262:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  310:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\FlashDeals.tsx
+  22:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\HeroBannerCarousel.tsx
+  145:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\OfferSection.tsx
+  18:35  warning  Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  54:8   error    React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\PWAInstallPrompt.tsx
+  23:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\PromotionalBanners.tsx
+  56:8  error  React Hook useEffect has a missing dependency: 'nextSlide'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\ui\badge.tsx
+  29:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\ui\form.tsx
+  129:10  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\ui\navigation-menu.tsx
+  111:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\ui\sidebar.tsx
+  636:3  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\ui\sonner.tsx
+  28:19  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\components\ui\toggle.tsx
+  37:18  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\contexts\AuthContext.tsx
+   11:118  warning  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   12:65   warning  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   35:38   warning  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  142:17   warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\contexts\CartContext.tsx
+  75:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\contexts\ThemeContext.tsx
+   94:8   error    React Hook useEffect has a missing dependency: 'fetchActiveTheme'. Either include it or remove the dependency array             react-hooks/exhaustive-deps
+  107:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\hooks\useFrequentlyBoughtTogether.ts
+  71:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\hooks\usePushNotifications.ts
+  113:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  167:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  220:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\hooks\useRecommendations.ts
+  109:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  226:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\integrations\supabase\types.ts
+  1:0  error  Parsing error: File appears to be binary
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\lib\couponTriggers.ts
+  8:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AddProduct.tsx
+   92:8   error    React Hook useEffect has a missing dependency: 'fetchProduct'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  154:58  warning  Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\Admin.tsx
+  116:6  error    React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  652:9  warning  Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AdminCouponTriggers.tsx
+   39:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  156:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AdminFlashDeals.tsx
+   45:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  333:81  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AdminHeroBanners.tsx
+  395:97  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AdminOfferSections.tsx
+  40:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AdminOrderDetail.tsx
+   20:40  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+   21:40  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+   24:50  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+   47:8   error    React Hook useEffect has missing dependencies: 'fetchData' and 'navigate'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  145:79  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AdminProfile.tsx
+  84:8   error    React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  99:46  warning  Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\AdminUsers.tsx
+  205:72  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\Auth.tsx
+  168:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\Cart.tsx
+  395:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\Delivery.tsx
+   82:6   error    React Hook useEffect has a missing dependency: 'fetchAssignments'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  124:47  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  426:64  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\DeliveryOrderDetail.tsx
+  18:40  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  19:40  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  20:50  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  31:8   error    React Hook useEffect has missing dependencies: 'fetchData' and 'navigate'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  62:27  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  74:44  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  76:50  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  83:50  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+  95:53  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\DeliveryProfile.tsx
+   85:8   error    React Hook useEffect has missing dependencies: 'fetchActivationStatus' and 'fetchData'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  100:46  warning  Unexpected any. Specify a different type                                                                                                    @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\FlashDealsPage.tsx
+  27:35  warning  Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+  61:8   error    React Hook useEffect has a missing dependency: 'fetchDeal'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\ProductDetail.tsx
+  188:36  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  206:49  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  273:8   error    React Hook useEffect has a missing dependency: 'fetchSavedAddress'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  631:45  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+  635:65  warning  Unexpected any. Specify a different type                                                                              @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\Profile.tsx
+   88:6   error    React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  100:35  warning  Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\Settings.tsx
+  43:8  error  React Hook useEffect has a missing dependency: 'fetchProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\Shop.tsx
+  285:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\SuperAdmin.tsx
+  207:6  error  React Hook useEffect has missing dependencies: 'fetchData' and 'subscribeToChanges'. Either include them or remove the dependency array     react-hooks/exhaustive-deps
+  215:6  error  React Hook useEffect has missing dependencies: 'fetchOrders', 'fetchStats', and 'user'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\src\pages\UserOrderDetail.tsx
+   20:40  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+   21:40  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+   22:50  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+   41:8   error    React Hook useEffect has missing dependencies: 'fetchData' and 'navigate'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  140:58  warning  Unexpected any. Specify a different type                                                                                       @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\supabase\functions\process-notifications\index.ts
+  25:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\mdnoo\OneDrive\Documents\speedycart-pro\supabase\functions\send-push-notification\index.ts
+   68:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  255:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 91 problems (18 errors, 73 warnings)
+

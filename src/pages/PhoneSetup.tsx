@@ -7,8 +7,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Package, Phone, Loader2, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 export default function PhoneSetup() {
   const { user, loading: authLoading } = useAuth();
@@ -17,6 +19,7 @@ export default function PhoneSetup() {
   const [username, setUsername] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [usernameError, setUsernameError] = useState('');
+  const [tosAccepted, setTosAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -119,6 +122,12 @@ export default function PhoneSetup() {
       return;
     }
 
+    // Validate ToS acceptance
+    if (!tosAccepted) {
+      toast.error('Please accept the Terms of Service and Privacy Policy');
+      return;
+    }
+
     setSaving(true);
 
     // Check if username is already taken
@@ -141,7 +150,8 @@ export default function PhoneSetup() {
       .from('profiles')
       .update({
         phone: normalizedPhone,
-        username: username.toLowerCase()
+        username: username.toLowerCase(),
+        tos_accepted_at: new Date().toISOString()
       })
       .eq('id', user.id);
 
@@ -248,6 +258,22 @@ export default function PhoneSetup() {
               <p className="text-xs text-muted-foreground">
                 We'll use this number for order updates and delivery coordination
               </p>
+            </div>
+
+            {/* ToS Acceptance */}
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="tos-accept"
+                checked={tosAccepted}
+                onCheckedChange={(checked) => setTosAccepted(checked === true)}
+                className="mt-1"
+              />
+              <Label htmlFor="tos-accept" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
+                I agree to the{' '}
+                <Link to="/terms" className="text-primary hover:underline" target="_blank">Terms of Service</Link>
+                {' '}and{' '}
+                <Link to="/privacy-policy" className="text-primary hover:underline" target="_blank">Privacy Policy</Link>
+              </Label>
             </div>
 
             <Button

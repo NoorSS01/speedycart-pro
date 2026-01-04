@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '@/lib/logger';
 import { supabase } from '@/integrations/supabase/client';
 import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +28,9 @@ import {
   User,
   Zap,
   Image,
-  Layers
+  Layers,
+  Power,
+  Palette
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -141,7 +144,7 @@ export default function Admin() {
 
       // Check lockout status (PI-004 fix)
       try {
-        const { data: lockoutData } = await (supabase as any)
+        const { data: lockoutData } = await supabase
           .from('admin_settings')
           .select('is_locked, payment_message')
           .eq('id', '00000000-0000-0000-0000-000000000001')
@@ -153,11 +156,11 @@ export default function Admin() {
         }
       } catch (e) {
         // admin_settings may not exist yet
-        console.log('Lockout check skipped:', e);
+        logger.debug('Lockout check skipped', { error: e });
       }
 
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching admin data', { error });
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -389,6 +392,21 @@ export default function Admin() {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
+            {/* Delivery Activations */}
+            <button
+              onClick={() => navigate('/admin/delivery-activations')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-teal-50 to-white dark:from-teal-900/20 dark:to-slate-900 border border-teal-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-teal-100 dark:bg-teal-900/40 rounded-lg">
+                <Power className="w-5 h-5 text-teal-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Daily Activations</p>
+                <p className="text-xs text-muted-foreground truncate">Approve delivery shifts</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
             {/* Products */}
             <button
               onClick={() => navigate('/admin/stock')}
@@ -505,6 +523,21 @@ export default function Admin() {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm">Users</p>
                 <p className="text-xs text-muted-foreground truncate">Manage roles</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            {/* Themes */}
+            <button
+              onClick={() => navigate('/admin/themes')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-900/20 dark:to-slate-900 border border-indigo-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
+                <Palette className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Themes</p>
+                <p className="text-xs text-muted-foreground truncate">Seasonal & festive</p>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>

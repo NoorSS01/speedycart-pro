@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface ProductVariant {
     id: string;
@@ -19,9 +20,9 @@ interface Product {
     mrp?: number | null;
     image_url: string | null;
     category_id: string | null;
-    stock_quantity: number;
-    unit: string;
-    created_at?: string;
+    stock_quantity: number | null;
+    unit: string | null;
+    created_at?: string | null;
     discount_percent?: number | null;
     default_variant?: ProductVariant | null;
 }
@@ -62,16 +63,16 @@ export function useRecommendations(): RecommendationResult {
 
         try {
             const { data: existing } = await supabase
-                .from('user_product_views' as any)
+                .from('user_product_views')
                 .select('id, view_count')
                 .eq('user_id', user.id)
                 .eq('product_id', productId)
                 .single();
 
             if (existing) {
-                const existingData = existing as any;
+                const existingData = existing;
                 await supabase
-                    .from('user_product_views' as any)
+                    .from('user_product_views')
                     .update({
                         view_count: (existingData.view_count || 1) + 1,
                         viewed_at: new Date().toISOString()
@@ -79,7 +80,7 @@ export function useRecommendations(): RecommendationResult {
                     .eq('id', existingData.id);
             } else {
                 await supabase
-                    .from('user_product_views' as any)
+                    .from('user_product_views')
                     .insert({
                         user_id: user.id,
                         product_id: productId,
@@ -92,7 +93,7 @@ export function useRecommendations(): RecommendationResult {
     }, [user]);
 
     // Calculate trending products (cross-user popularity)
-    const calculateTrending = useCallback(async (allProducts: Product[]): Promise<Map<string, number>> => {
+    const calculateTrending = useCallback(async (): Promise<Map<string, number>> => {
         const trendingScores = new Map<string, number>();
 
         try {
@@ -128,16 +129,18 @@ export function useRecommendations(): RecommendationResult {
     const fetchRecommendations = useCallback(async () => {
         try {
             // 1. Get all in-stock products first
-            const { data: allProducts } = await supabase
+            const { data: allProductsData } = await supabase
                 .from('products')
                 .select('*')
                 .gt('stock_quantity', 0)
                 .order('created_at', { ascending: false });
 
-            if (!allProducts || allProducts.length === 0) {
+            if (!allProductsData || allProductsData.length === 0) {
                 setIsLoading(false);
                 return;
             }
+
+            const allProducts = allProductsData as Product[];
 
             // 1b. Fetch default variants for all products
             const productIds = allProducts.map(p => p.id);
@@ -149,12 +152,12 @@ export function useRecommendations(): RecommendationResult {
 
             // Attach default variant to each product
             const productsWithVariants = allProducts.map(product => {
-                const defaultVariant = defaultVariants?.find((v: any) => v.product_id === product.id) || null;
+                const defaultVariant = defaultVariants?.find(v => v.product_id === product.id) || null;
                 return { ...product, default_variant: defaultVariant };
             });
 
             // 2. Calculate trending scores (works even without user)
-            const trendingScores = await calculateTrending(productsWithVariants);
+            const trendingScores = await calculateTrending();
 
             // 3. If no user, show trending only
             if (!user) {
@@ -171,7 +174,7 @@ export function useRecommendations(): RecommendationResult {
 
             // 4. Get user's view history (last 50 views)
             const { data: viewHistory } = await supabase
-                .from('user_product_views' as any)
+                .from('user_product_views')
                 .select('product_id, view_count, viewed_at')
                 .eq('user_id', user.id)
                 .order('viewed_at', { ascending: false })
@@ -194,13 +197,13 @@ export function useRecommendations(): RecommendationResult {
             const categoryScores: Record<string, number> = {};
             const recentlyPurchasedIds = new Set<string>();
             const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
 
             // Process order history for category affinity (35 pts max)
             if (orderHistory) {
-                orderHistory.forEach((order: any) => {
-                    const orderDate = new Date(order.created_at);
-                    order.order_items?.forEach((item: any) => {
+                orderHistory.forEach(order => {
+                    const orderDate = new Date(order.created_at || Date.now());
+                    order.order_items?.forEach(item => {
                         const categoryId = item.products?.category_id;
                         if (categoryId) {
                             // Exponential decay based on recency
@@ -309,7 +312,7 @@ export function useRecommendations(): RecommendationResult {
             setTrendingProducts(trendingOnly);
 
         } catch (e) {
-            console.error('Recommendations error:', e);
+            logger.error('Recommendations error', { error: e });
         } finally {
             setIsLoading(false);
         }

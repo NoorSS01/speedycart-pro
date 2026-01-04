@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface Product {
     id: string;
@@ -61,21 +62,21 @@ export function useFrequentlyBoughtTogether(productId: string | undefined): Freq
 
             // Step 2: Get products from purchase_pairs (most relevant)
             try {
-                const { data: pairs } = await (supabase as any)
-                    .from('purchase_pairs')
+                const { data: pairs } = await (supabase
+                    .from('product_co_purchases')
                     .select(`
-                        product_a_id,
-                        product_b_id,
+                        product_id,
+                        co_product_id,
                         pair_count
-                    `)
-                    .or(`product_a_id.eq.${productId},product_b_id.eq.${productId}`)
+                    `) as any)
+                    .or(`product_id.eq.${productId},co_product_id.eq.${productId}`)
                     .order('pair_count', { ascending: false })
                     .limit(10);
 
                 if (pairs && pairs.length > 0) {
                     // Get paired product IDs
                     const pairedIds = pairs.map((p: any) =>
-                        p.product_a_id === productId ? p.product_b_id : p.product_a_id
+                        p.product_id === productId ? p.co_product_id : p.product_id
                     ).filter((id: string) => !addedIds.has(id));
 
                     if (pairedIds.length > 0) {
@@ -133,7 +134,7 @@ export function useFrequentlyBoughtTogether(productId: string | undefined): Freq
 
                 if (recentOrders && recentOrders.length > 0) {
                     // Count frequency
-                    const productCounts = recentOrders.reduce((acc: Record<string, number>, item: any) => {
+                    const productCounts = recentOrders.reduce((acc: Record<string, number>, item) => {
                         if (!addedIds.has(item.product_id)) {
                             acc[item.product_id] = (acc[item.product_id] || 0) + 1;
                         }
@@ -186,7 +187,7 @@ export function useFrequentlyBoughtTogether(productId: string | undefined): Freq
 
             setProducts(recommendations);
         } catch (e) {
-            console.error('Frequently bought error:', e);
+            logger.error('Frequently bought together error', { error: e });
         } finally {
             setIsLoading(false);
         }

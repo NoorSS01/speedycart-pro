@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,7 +45,7 @@ export default function AdminDeliveryActivations() {
         try {
             const today = new Date().toISOString().split('T')[0];
 
-            const { data } = await (supabase as any)
+            const { data } = await supabase
                 .from('delivery_activations')
                 .select(`
                     id, delivery_partner_id, activation_date, status, created_at,
@@ -55,14 +56,14 @@ export default function AdminDeliveryActivations() {
 
             if (data) setRequests(data);
         } catch (error) {
-            console.error('Error fetching requests:', error);
+            logger.error('Failed to fetch delivery activation requests', { error });
         }
         setLoading(false);
     };
 
     const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
         try {
-            await (supabase as any)
+            await supabase
                 .from('delivery_activations')
                 .update({ status, admin_id: user?.id, updated_at: new Date().toISOString() })
                 .eq('id', id);

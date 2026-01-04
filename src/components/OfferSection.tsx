@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProductCard from '@/components/ProductCard';
@@ -26,7 +27,7 @@ interface Product {
     price: number;
     mrp: number | null;
     image_url: string | null;
-    unit: string;
+    unit: string | null;
     discount_percent: number | null;
     category_id: string | null;
     default_variant?: {
@@ -34,7 +35,7 @@ interface Product {
         mrp: number | null;
         variant_name: string;
         variant_value: number;
-        variant_unit: string;
+        variant_unit: string | null;
     } | null;
 }
 
@@ -64,23 +65,26 @@ export default function OfferSectionComponent({ section, onAddToCart }: OfferSec
 
             // Apply filter based on type
             switch (section.filter_type) {
-                case 'discount':
+                case 'discount': {
                     const minDiscount = section.filter_config?.min_discount || 0;
                     const maxDiscount = section.filter_config?.max_discount || 100;
                     query = query.gte('discount_percent', minDiscount).lte('discount_percent', maxDiscount);
                     break;
-                case 'category':
+                }
+                case 'category': {
                     const categoryIds = section.filter_config?.category_ids || [];
                     if (categoryIds.length > 0) {
                         query = query.in('category_id', categoryIds);
                     }
                     break;
-                case 'manual':
+                }
+                case 'manual': {
                     const productIds = section.filter_config?.product_ids || [];
                     if (productIds.length > 0) {
                         query = query.in('id', productIds);
                     }
                     break;
+                }
             }
 
             query = query.limit(section.max_products).order('discount_percent', { ascending: false });
@@ -88,14 +92,14 @@ export default function OfferSectionComponent({ section, onAddToCart }: OfferSec
             const { data } = await query;
 
             if (data) {
-                const processed = data.map((p: any) => ({
+                const processed = data.map(p => ({
                     ...p,
-                    default_variant: p.product_variants?.find((v: any) => v.is_default) || p.product_variants?.[0] || null
+                    default_variant: p.product_variants?.find(v => v.is_default) || p.product_variants?.[0] || null
                 }));
                 setProducts(processed);
             }
         } catch (error) {
-            console.error('Error fetching offer products:', error);
+            logger.error('Error fetching offer products', { error });
         }
         setLoading(false);
     };

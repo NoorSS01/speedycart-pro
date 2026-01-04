@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,7 +93,9 @@ export default function AdminFlashDeals() {
             navigate('/');
             return;
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         fetchDeals();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         fetchProducts();
     }, [user, authLoading, isAdmin, navigate]);
 
@@ -103,14 +106,29 @@ export default function AdminFlashDeals() {
 
     const fetchDeals = async () => {
         try {
-            const { data } = await (supabase as any)
+            const { data } = await supabase
                 .from('flash_deals')
                 .select('*')
                 .order('display_order', { ascending: true });
 
-            if (data) setDeals(data);
+            if (data) {
+                const typedDeals: FlashDeal[] = data.map((d: any) => ({
+                    ...d,
+                    badge_color: d.badge_color || '#ec4899', // Default fallback
+                    background_color: d.background_color || '#fef3c7',
+                    text_color: d.text_color || '#000000',
+                    timer_bg_color: d.timer_bg_color || '#1e293b',
+                    timer_text_color: d.timer_text_color || '#ffffff',
+                    filter_type: d.filter_type || 'manual',
+                    max_products: d.max_products || 8,
+                    show_see_all: d.show_see_all ?? true,
+                    is_active: d.is_active ?? false,
+                    display_order: d.display_order || 0
+                }));
+                setDeals(typedDeals);
+            }
         } catch (error) {
-            console.error('Error:', error);
+            logger.error('Failed to fetch flash deals', { error });
         }
         setLoading(false);
     };
@@ -181,6 +199,41 @@ export default function AdminFlashDeals() {
             return;
         }
 
+        if (new Date(formData.end_time) <= new Date(formData.start_time)) {
+            toast.error('End time must be after start time');
+            return;
+        }
+
+        // Validation for discount filter
+        if (formData.filter_type === 'discount') {
+            const minDiscount = formData.min_discount || 0;
+            if (minDiscount <= 0 || minDiscount > 100) {
+                toast.error('Invalid discount percentage');
+                return;
+            }
+
+            // Check if any products actually match
+            const { count, error } = await supabase
+                .from('products')
+                .select('*', { count: 'exact', head: true })
+                .gte('discount_percent', minDiscount)
+                .eq('is_active', true);
+
+            if (error) {
+                logger.error('Failed to validate discount products', { error });
+                toast.error('Failed to validate product criteria');
+                return;
+            }
+
+            if (count === 0) {
+                toast.error(`No active products found with >= ${minDiscount}% discount`);
+                return;
+            }
+        } else if (formData.filter_type === 'manual' && formData.product_ids.length === 0) {
+            toast.error('Please select at least one product');
+            return;
+        }
+
         try {
             const dealData = {
                 name: formData.name,
@@ -205,10 +258,10 @@ export default function AdminFlashDeals() {
             };
 
             if (editingDeal) {
-                await (supabase as any).from('flash_deals').update(dealData).eq('id', editingDeal.id);
+                await supabase.from('flash_deals').update(dealData).eq('id', editingDeal.id);
                 toast.success('Flash deal updated');
             } else {
-                await (supabase as any).from('flash_deals').insert(dealData);
+                await supabase.from('flash_deals').insert(dealData);
                 toast.success('Flash deal created');
             }
 
@@ -222,7 +275,7 @@ export default function AdminFlashDeals() {
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this flash deal?')) return;
         try {
-            await (supabase as any).from('flash_deals').delete().eq('id', id);
+            await supabase.from('flash_deals').delete().eq('id', id);
             toast.success('Deleted');
             fetchDeals();
         } catch (error) {
@@ -232,7 +285,7 @@ export default function AdminFlashDeals() {
 
     const toggleActive = async (deal: FlashDeal) => {
         try {
-            await (supabase as any).from('flash_deals').update({ is_active: !deal.is_active }).eq('id', deal.id);
+            await supabase.from('flash_deals').update({ is_active: !deal.is_active }).eq('id', deal.id);
             fetchDeals();
         } catch (error) {
             toast.error('Failed');

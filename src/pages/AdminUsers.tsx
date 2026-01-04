@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +28,37 @@ export default function AdminUsers() {
     const [newUserId, setNewUserId] = useState('');
     const [newRole, setNewRole] = useState<'user' | 'admin' | 'delivery'>('user');
     const [adding, setAdding] = useState(false);
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const PAGE_SIZE = 50;
+
+    const fetchUserRoles = useCallback(async () => {
+        setLoading(true);
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        const { data, error, count } = await supabase
+            .from('user_roles')
+            .select('*', { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range(from, to);
+
+        if (error) {
+            toast.error('Failed to load user roles');
+        } else {
+            const typedData: UserRole[] = (data || []).map(item => ({
+                id: item.id,
+                user_id: item.user_id,
+                role: item.role as UserRole['role'],
+                created_at: item.created_at || new Date().toISOString()
+            }));
+            setUserRoles(typedData);
+            if (count !== null) {
+                setHasMore(to < count - 1);
+            }
+        }
+        setLoading(false);
+    }, [page]);
 
     useEffect(() => {
         if (authLoading) return;
@@ -40,24 +71,14 @@ export default function AdminUsers() {
             return;
         }
         fetchUserRoles();
-    }, [user, userRole, authLoading, navigate]);
-
-    const fetchUserRoles = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('user_roles')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            toast.error('Failed to load user roles');
-        } else {
-            setUserRoles(data || []);
-        }
-        setLoading(false);
-    };
+    }, [user, userRole, authLoading, navigate, fetchUserRoles]);
 
     const handleAddRole = async () => {
+        if (userRole !== 'super_admin') {
+            toast.error('Only Super Admins can add roles');
+            return;
+        }
+
         if (!newUserId.trim()) {
             toast.error('Please enter a user ID');
             return;
@@ -83,6 +104,11 @@ export default function AdminUsers() {
     };
 
     const handleDeleteRole = async (roleId: string) => {
+        if (userRole !== 'super_admin') {
+            toast.error('Only Super Admins can remove roles');
+            return;
+        }
+
         const { error } = await supabase
             .from('user_roles')
             .delete()
@@ -122,7 +148,7 @@ export default function AdminUsers() {
     };
 
     const stats = {
-        total: userRoles.length,
+        total: userRoles.length, // Note: active page only, ideally fetch total count separately if needed roughly
         admins: userRoles.filter(r => r.role === 'admin' || r.role === 'super_admin').length,
         delivery: userRoles.filter(r => r.role === 'delivery').length,
         users: userRoles.filter(r => r.role === 'user').length,
@@ -158,109 +184,113 @@ export default function AdminUsers() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold tracking-tight">User Management</h1>
-                            <p className="text-xs text-muted-foreground">{stats.total} users with roles</p>
+                            <p className="text-xs text-muted-foreground">{userRole === 'super_admin' ? 'Super Admin Mode' : 'Read-Only Mode'}</p>
                         </div>
                     </div>
                 </div>
             </header>
 
             <main className="container mx-auto px-4 py-6 space-y-6">
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-3">
-                    <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-100">
-                        <CardContent className="p-3 text-center">
-                            <p className="text-2xl font-bold text-blue-600">{stats.admins}</p>
-                            <p className="text-xs text-muted-foreground">Admins</p>
+                {/* Add Role - Super Admin Only */}
+                {userRole === 'super_admin' && (
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <UserPlus className="w-4 h-4" />
+                                Add Role
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <Input
+                                placeholder="User ID (UUID)"
+                                value={newUserId}
+                                onChange={(e) => setNewUserId(e.target.value)}
+                            />
+                            <div className="flex gap-2">
+                                <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
+                                    <SelectTrigger className="flex-1">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="user">User</SelectItem>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="delivery">Delivery</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Button onClick={handleAddRole} disabled={adding}>
+                                    Add
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100">
-                        <CardContent className="p-3 text-center">
-                            <p className="text-2xl font-bold text-emerald-600">{stats.delivery}</p>
-                            <p className="text-xs text-muted-foreground">Delivery</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-gray-50 dark:bg-gray-900/20 border-gray-100">
-                        <CardContent className="p-3 text-center">
-                            <p className="text-2xl font-bold text-gray-600">{stats.users}</p>
-                            <p className="text-xs text-muted-foreground">Users</p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Add Role */}
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <UserPlus className="w-4 h-4" />
-                            Add Role
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <Input
-                            placeholder="User ID (UUID)"
-                            value={newUserId}
-                            onChange={(e) => setNewUserId(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                            <Select value={newRole} onValueChange={(v: any) => setNewRole(v)}>
-                                <SelectTrigger className="flex-1">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="user">User</SelectItem>
-                                    <SelectItem value="admin">Admin</SelectItem>
-                                    <SelectItem value="delivery">Delivery</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Button onClick={handleAddRole} disabled={adding}>
-                                Add
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                )}
 
                 {/* User Roles List */}
                 <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base">All Roles</CardTitle>
+                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <CardTitle className="text-base">User List</CardTitle>
+                        <span className="text-xs text-muted-foreground">Page {page + 1}</span>
                     </CardHeader>
                     <CardContent className="space-y-2">
                         {loading ? (
                             [1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)
                         ) : userRoles.length === 0 ? (
-                            <p className="text-center text-muted-foreground py-4">No roles assigned</p>
+                            <p className="text-center text-muted-foreground py-4">No roles found</p>
                         ) : (
-                            userRoles.map((role) => (
-                                <div
-                                    key={role.id}
-                                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-lg ${getRoleColor(role.role)} bg-opacity-20`}>
-                                            {getRoleIcon(role.role)}
+                            <>
+                                {userRoles.map((role) => (
+                                    <div
+                                        key={role.id}
+                                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${getRoleColor(role.role)} bg-opacity-20`}>
+                                                {getRoleIcon(role.role)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-mono">{role.user_id.slice(0, 8)}...</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {format(new Date(role.created_at), 'MMM dd, yyyy')}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-mono">{role.user_id.slice(0, 8)}...</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {format(new Date(role.created_at), 'MMM dd, yyyy')}
-                                            </p>
+                                        <div className="flex items-center gap-2">
+                                            <Badge className={getRoleColor(role.role)}>
+                                                {role.role}
+                                            </Badge>
+                                            {userRole === 'super_admin' && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                    onClick={() => handleDeleteRole(role.id)}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge className={getRoleColor(role.role)}>
-                                            {role.role}
-                                        </Badge>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                            onClick={() => handleDeleteRole(role.id)}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                    </div>
+                                ))}
+
+                                <div className="flex justify-between items-center pt-4">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                                        disabled={page === 0 || loading}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setPage(p => p + 1)}
+                                        disabled={!hasMore || loading}
+                                    >
+                                        Next
+                                    </Button>
                                 </div>
-                            ))
+                            </>
                         )}
                     </CardContent>
                 </Card>

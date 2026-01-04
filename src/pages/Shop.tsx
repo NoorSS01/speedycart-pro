@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 import {
   LogOut,
   ShoppingCart,
@@ -41,6 +42,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import OrderConfirmation from '@/components/OrderConfirmation';
+import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
+import ProductCard from '@/components/ProductCard';
 
 interface Category {
   id: string;
@@ -63,7 +66,7 @@ interface Product {
   name: string;
   description: string | null;
   price: number;
-  mrp?: number | null;
+  mrp: number | null;
   image_url: string | null;
   stock_quantity: number;
   unit: string;
@@ -113,40 +116,9 @@ export default function Shop() {
   // AI Recommendations
   const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
 
-  // Sync category from URL when it changes (for navigation within page)
-  useEffect(() => {
-    const categoryFromUrl = searchParams.get('category');
-    if (categoryFromUrl !== selectedCategory) {
-      setSelectedCategory(categoryFromUrl);
-    }
-  }, [searchParams]);
 
-  // Fetch products when selectedCategory changes or user loads
-  useEffect(() => {
-    if (user && !authLoading) {
-      fetchProducts();
-    }
-  }, [selectedCategory, user, authLoading]);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-    fetchCategories();
-    // fetchProducts() is called by the selectedCategory useEffect
-    fetchCart();
-    fetchSavedAddress();
-
-    // Listen for cart open event from bottom nav
-    const handleOpenCart = () => setShowCartSheet(true);
-    window.addEventListener('openCart', handleOpenCart);
-
-    return () => window.removeEventListener('openCart', handleOpenCart);
-  }, [user, authLoading, navigate]);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     const { data, error } = await supabase
       .from('categories')
       .select('*')
@@ -157,9 +129,9 @@ export default function Shop() {
       setCategories(data);
     }
     setLoading(false);
-  };
+  }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     let query = supabase
       .from('products')
       .select('*')
@@ -188,9 +160,9 @@ export default function Shop() {
 
       setProducts(productsWithVariants);
     }
-  };
+  }, [selectedCategory]);
 
-  const fetchCart = async () => {
+  const fetchCart = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -201,9 +173,9 @@ export default function Shop() {
     if (!error && data) {
       setCartItems(data as CartItem[]);
     }
-  };
+  }, [user]);
 
-  const fetchSavedAddress = async () => {
+  const fetchSavedAddress = useCallback(async () => {
     if (!user) return;
 
     const { data } = await supabase
@@ -218,13 +190,42 @@ export default function Shop() {
     } else {
       setAddressOption('new');
     }
-  };
+  }, [user]);
 
+  // Sync category from URL when it changes (for navigation within page)
   useEffect(() => {
-    if (user) {
+    const categoryFromUrl = searchParams.get('category');
+    if (categoryFromUrl && categoryFromUrl !== selectedCategory) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [searchParams, selectedCategory]);
+
+  // Fetch products when selectedCategory changes or user loads
+  useEffect(() => {
+    if (user && !authLoading) {
       fetchProducts();
     }
-  }, [selectedCategory, user]);
+  }, [selectedCategory, user, authLoading, fetchProducts]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    fetchCategories();
+    // fetchProducts() is called by the selectedCategory useEffect
+    fetchCart();
+    fetchSavedAddress();
+
+    // Listen for cart open event from bottom nav
+    const handleOpenCart = () => setShowCartSheet(true);
+    window.addEventListener('openCart', handleOpenCart);
+
+    return () => window.removeEventListener('openCart', handleOpenCart);
+  }, [user, authLoading, navigate, fetchCategories, fetchCart, fetchSavedAddress]);
+
+
 
   const addToCart = async (productId: string) => {
     if (!user) return;
@@ -254,13 +255,14 @@ export default function Shop() {
     const requestedQty = currentCartQty + 1;
 
     // Check if we have enough stock
-    if (requestedQty > freshProduct.stock_quantity) {
-      if (freshProduct.stock_quantity === 0) {
+    const stock = freshProduct.stock_quantity ?? 0;
+    if (requestedQty > stock) {
+      if (stock === 0) {
         toast.error(`${freshProduct.name} is out of stock`);
-      } else if (currentCartQty >= freshProduct.stock_quantity) {
-        toast.error(`Only ${freshProduct.stock_quantity} ${freshProduct.name} available. You already have ${currentCartQty} in cart.`);
+      } else if (currentCartQty >= stock) {
+        toast.error(`Only ${stock} ${freshProduct.name} available. You already have ${currentCartQty} in cart.`);
       } else {
-        toast.error(`Only ${freshProduct.stock_quantity} ${freshProduct.name} available`);
+        toast.error(`Only ${stock} ${freshProduct.name} available`);
       }
       return;
     }
@@ -327,17 +329,18 @@ export default function Shop() {
     }
 
     // Check if requested quantity exceeds available stock
-    if (newQuantity > freshProduct.stock_quantity) {
-      toast.error(`Only ${freshProduct.stock_quantity} ${freshProduct.name} available`);
+    const stock = freshProduct.stock_quantity ?? 0;
+    if (newQuantity > stock) {
+      toast.error(`Only ${stock} ${freshProduct.name} available`);
       // Update to max available if trying to increase
-      if (freshProduct.stock_quantity > 0 && freshProduct.stock_quantity !== cartItem.quantity) {
+      if (stock > 0 && stock !== cartItem.quantity) {
         const { error } = await supabase
           .from('cart_items')
-          .update({ quantity: freshProduct.stock_quantity })
+          .update({ quantity: stock })
           .eq('id', cartItemId);
         if (!error) {
           fetchCart();
-          toast.info(`Cart updated to maximum available (${freshProduct.stock_quantity})`);
+          toast.info(`Cart updated to maximum available (${stock})`);
         }
       }
       return;
@@ -424,7 +427,7 @@ export default function Shop() {
         }));
 
       // Call atomic RPC function
-      const { data, error } = await (supabase as any).rpc('place_order_atomic', {
+      const { data, error } = await supabase.rpc('place_order_atomic', {
         p_user_id: user.id,
         p_delivery_address: deliveryAddress,
         p_cart_items: cartItemsPayload,
@@ -433,7 +436,7 @@ export default function Shop() {
       });
 
       if (error) {
-        console.error('Order placement error:', error);
+        logger.error('Order placement error', { error });
         toast.error('Failed to place order. Please try again.');
         return;
       }
@@ -468,7 +471,7 @@ export default function Shop() {
         setShowOrderConfirmation(true);
       }
     } catch (error) {
-      console.error('Unexpected error placing order:', error);
+      logger.error('Unexpected order placement error', { error });
       toast.error('An unexpected error occurred. Please try again.');
     }
   };
@@ -696,84 +699,20 @@ export default function Shop() {
             </div>
             <h2 className="text-lg font-bold">For You</h2>
           </div>
-          <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
+          <HorizontalScrollContainer className="gap-3">
             {recommendedProducts.slice(0, 8).map(product => (
-              <div
-                key={product.id}
-                className="min-w-[160px] max-w-[160px] snap-start cursor-pointer"
-                onClick={() => {
-                  trackView(product.id);
-                  navigate(`/product/${product.id}`);
-                }}
-              >
-                <Card className="overflow-hidden rounded-xl border border-border/50 bg-card/90 hover:shadow-lg transition-all h-full">
-                  <div className="aspect-square bg-muted relative overflow-hidden">
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
-                    {/* Discount Badge - Use default variant pricing if available */}
-                    {(() => {
-                      const variant = product.default_variant;
-                      const displayPrice = variant?.price ?? product.price;
-                      const displayMrp = variant?.mrp ?? product.mrp;
-                      const discount = displayMrp && displayMrp > displayPrice
-                        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
-                        : product.discount_percent || 0;
-                      return discount > 0 ? (
-                        <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] font-bold">
-                          {discount}% OFF
-                        </div>
-                      ) : null;
-                    })()}
-                    {product.stock_quantity <= 5 && product.stock_quantity > 0 && (
-                      <Badge className="absolute top-1 right-1 text-[10px] bg-red-500 text-white px-1.5 py-0.5">Low</Badge>
-                    )}
-                  </div>
-                  <CardContent className="p-2">
-                    <p className="text-sm font-medium truncate">{product.name}</p>
-                    {/* Show variant name if has default variant */}
-                    {product.default_variant && (
-                      <span className="text-[10px] text-muted-foreground">{formatVariantDisplay(product.default_variant)}</span>
-                    )}
-                    {(() => {
-                      // Use default variant pricing if available
-                      const variant = product.default_variant;
-                      const displayPrice = variant?.price ?? product.price;
-                      const displayMrp = variant?.mrp ?? product.mrp;
-
-                      if (displayMrp && displayMrp > displayPrice) {
-                        return (
-                          <div className="flex items-center gap-1">
-                            <p className="text-sm font-bold text-primary">₹{displayPrice}</p>
-                            <p className="text-xs text-muted-foreground line-through">₹{displayMrp}</p>
-                          </div>
-                        );
-                      } else if (product.discount_percent && product.discount_percent > 0) {
-                        return (
-                          <div className="flex items-center gap-1">
-                            <p className="text-sm font-bold text-primary">
-                              ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
-                            </p>
-                            <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
-                          </div>
-                        );
-                      } else {
-                        return <p className="text-sm font-bold text-primary">₹{displayPrice}</p>;
-                      }
-                    })()}
-                  </CardContent>
-                </Card>
+              <div key={product.id} className="flex-shrink-0 w-40">
+                <ProductCard
+                  product={product}
+                  onAddToCart={() => {
+                    trackView(product.id);
+                    navigate(`/product/${product.id}`);
+                  }}
+                  compact={false}
+                />
               </div>
             ))}
-          </div>
+          </HorizontalScrollContainer>
         </div>
       )}
 
@@ -781,7 +720,6 @@ export default function Shop() {
       <div className="container mx-auto px-4 pb-8">
         {filteredProducts.length === 0 ? (
           <EmptyState
-            type={searchQuery ? 'search' : 'products'}
             title={searchQuery ? 'No products found' : 'No products in this category'}
             description={searchQuery ? `No results for "${searchQuery}"` : 'Try selecting a different category'}
           />
@@ -925,19 +863,23 @@ export default function Shop() {
       </div>
 
       {/* Buy Again Section - below products */}
-      {!searchQuery && !selectedCategory && (
-        <BuyAgain onAddToCart={addToCart} />
-      )}
+      {
+        !searchQuery && !selectedCategory && (
+          <BuyAgain onAddToCart={addToCart} />
+        )
+      }
 
       {/* Shop by Category - below Buy Again */}
-      {!searchQuery && !selectedCategory && (
-        <div className="container mx-auto px-4 py-6">
-          <CategoryGrid
-            categories={categories}
-            onCategorySelect={setSelectedCategory}
-          />
-        </div>
-      )}
+      {
+        !searchQuery && !selectedCategory && (
+          <div className="container mx-auto px-4 py-6">
+            <CategoryGrid
+              categories={categories}
+              onCategorySelect={setSelectedCategory}
+            />
+          </div>
+        )
+      }
 
       {/* Address Dialog */}
       <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
@@ -1043,6 +985,13 @@ export default function Shop() {
 
       {/* Bottom Navigation */}
       <BottomNav />
-    </div>
+    </div >
   );
 }
+
+
+
+
+
+
+

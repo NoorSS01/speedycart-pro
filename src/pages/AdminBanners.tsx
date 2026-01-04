@@ -59,7 +59,7 @@ export default function AdminBanners() {
 
     const fetchBanners = async () => {
         const { data } = await supabase
-            .from('promotional_banners' as any)
+            .from('promotional_banners')
             .select('*')
             .order('display_order', { ascending: true });
 
@@ -102,7 +102,7 @@ export default function AdminBanners() {
         try {
             if (editingBanner) {
                 // Update existing
-                await (supabase as any)
+                await supabase
                     .from('promotional_banners')
                     .update({
                         title: formData.title,
@@ -120,7 +120,7 @@ export default function AdminBanners() {
                     ? Math.max(...banners.map(b => b.display_order)) + 1
                     : 1;
 
-                await (supabase as any)
+                await supabase
                     .from('promotional_banners')
                     .insert({
                         title: formData.title,
@@ -144,7 +144,7 @@ export default function AdminBanners() {
         if (!confirm('Delete this banner?')) return;
 
         try {
-            await (supabase as any)
+            await supabase
                 .from('promotional_banners')
                 .delete()
                 .eq('id', id);
@@ -157,7 +157,7 @@ export default function AdminBanners() {
 
     const toggleActive = async (banner: Banner) => {
         try {
-            await (supabase as any)
+            await supabase
                 .from('promotional_banners')
                 .update({ is_active: !banner.is_active })
                 .eq('id', banner.id);

@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   // Profile check for OAuth users - runs after initial auth load
-  const checkProfileSetup = async (userId: string) => {
+  const checkProfileSetup = useCallback(async (userId: string) => {
     try {
       const { data: profile } = await supabase
         .from('profiles')
@@ -41,7 +42,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       // Silently fail - don't block app loading
     }
-  };
+  }, [navigate]);
+
+  const fetchUserRole = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      if (!error && data && data.length > 0) {
+        const roles = data.map((r: { role: string }) => r.role);
+        const rolePriority = ['super_admin', 'admin', 'delivery', 'user'];
+        const primaryRole = rolePriority.find((role) => roles.includes(role)) ?? roles[0];
+        setUserRole(primaryRole);
+      }
+    } catch (error) {
+      logger.error('Error fetching user role', { error });
+    }
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -79,25 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
-
-      if (!error && data && data.length > 0) {
-        const roles = data.map((r: { role: string }) => r.role);
-        const rolePriority = ['super_admin', 'admin', 'delivery', 'user'];
-        const primaryRole = rolePriority.find((role) => roles.includes(role)) ?? roles[0];
-        setUserRole(primaryRole);
-      }
-    } catch (error) {
-      console.error('Error fetching user role:', error);
-    }
-  };
+  }, [checkProfileSetup, fetchUserRole]);
 
   const signUp = async (email: string, password: string, phone: string, fullName?: string, username?: string) => {
     const redirectUrl = `${window.location.origin}/`;

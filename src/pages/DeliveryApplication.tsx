@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +52,7 @@ export default function DeliveryApplication() {
     setLoading(false);
 
     if (error) {
-      console.error('Application error:', error);
+      logger.error('Application submission error', { error });
       toast.error('Failed to submit application. Please try again.');
     } else {
       toast.success('Application submitted successfully! We will review it soon.');

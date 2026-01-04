@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -116,7 +117,7 @@ export default function Delivery() {
         .order('assigned_at', { ascending: false });
 
       if (error) {
-        console.error('Fetch error:', error);
+        logger.error('Delivery assignments fetch error', { error });
         setAssignments([]);
       } else {
         // Add order numbers
@@ -128,7 +129,7 @@ export default function Delivery() {
         setAssignments(enriched);
       }
     } catch (err) {
-      console.error('Exception:', err);
+      logger.error('Exception fetching delivery data', { error: err });
       setAssignments([]);
     } finally {
       setLoading(false);

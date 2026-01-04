@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from './logger';
 
 interface CouponTrigger {
     id: string;
@@ -49,7 +50,7 @@ export const checkNewUserTrigger = async (userId: string): Promise<TriggeredCoup
         if (orders && orders.length > 0) return null;
 
         // Check if already has a triggered coupon for new_user
-        const { data: existingCoupons } = await (supabase as any)
+        const { data: existingCoupons } = await supabase
             .from('user_triggered_coupons')
             .select('id')
             .eq('user_id', userId)
@@ -58,7 +59,7 @@ export const checkNewUserTrigger = async (userId: string): Promise<TriggeredCoup
         if (existingCoupons && existingCoupons.length > 0) return null;
 
         // Get active new_user triggers
-        const { data: triggers } = await (supabase as any)
+        const { data: triggers } = await supabase
             .from('coupon_triggers')
             .select('*')
             .eq('trigger_type', 'new_user')
@@ -71,7 +72,7 @@ export const checkNewUserTrigger = async (userId: string): Promise<TriggeredCoup
         const trigger = triggers[0] as CouponTrigger;
         return await createTriggeredCoupon(userId, trigger);
     } catch (error) {
-        console.error('Error checking new user trigger:', error);
+        logger.error('Error checking new user trigger', { error });
         return null;
     }
 };
@@ -90,7 +91,7 @@ export const checkInactivityTrigger = async (userId: string): Promise<TriggeredC
         if (!orders || orders.length === 0) return null;
 
         // Get active inactivity triggers
-        const { data: triggers } = await (supabase as any)
+        const { data: triggers } = await supabase
             .from('coupon_triggers')
             .select('*')
             .eq('trigger_type', 'inactivity')
@@ -107,7 +108,7 @@ export const checkInactivityTrigger = async (userId: string): Promise<TriggeredC
             const daysRequired = trigger.conditions?.days_inactive || 7;
             if (daysSinceLastOrder >= daysRequired) {
                 // Check if already has this trigger's coupon
-                const { data: existing } = await (supabase as any)
+                const { data: existing } = await supabase
                     .from('user_triggered_coupons')
                     .select('id')
                     .eq('user_id', userId)
@@ -122,7 +123,7 @@ export const checkInactivityTrigger = async (userId: string): Promise<TriggeredC
 
         return null;
     } catch (error) {
-        console.error('Error checking inactivity trigger:', error);
+        logger.error('Error checking inactivity trigger', { error });
         return null;
     }
 };
@@ -143,7 +144,7 @@ export const checkLoyaltyTrigger = async (userId: string): Promise<TriggeredCoup
         const totalSpend = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
         // Get active loyalty triggers
-        const { data: triggers } = await (supabase as any)
+        const { data: triggers } = await supabase
             .from('coupon_triggers')
             .select('*')
             .eq('trigger_type', 'loyalty')
@@ -159,7 +160,7 @@ export const checkLoyaltyTrigger = async (userId: string): Promise<TriggeredCoup
 
             if (orderCount >= minOrders && totalSpend >= minSpend) {
                 // Check if already has this trigger's coupon
-                const { data: existing } = await (supabase as any)
+                const { data: existing } = await supabase
                     .from('user_triggered_coupons')
                     .select('id')
                     .eq('user_id', userId)
@@ -174,7 +175,7 @@ export const checkLoyaltyTrigger = async (userId: string): Promise<TriggeredCoup
 
         return null;
     } catch (error) {
-        console.error('Error checking loyalty trigger:', error);
+        logger.error('Error checking loyalty trigger', { error });
         return null;
     }
 };
@@ -187,7 +188,7 @@ const createTriggeredCoupon = async (userId: string, trigger: CouponTrigger): Pr
 
         const couponCode = generateCouponCode(trigger.coupon_code_prefix);
 
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('user_triggered_coupons')
             .insert({
                 user_id: userId,
@@ -205,7 +206,7 @@ const createTriggeredCoupon = async (userId: string, trigger: CouponTrigger): Pr
         if (error) throw error;
         return data as TriggeredCoupon;
     } catch (error) {
-        console.error('Error creating triggered coupon:', error);
+        logger.error('Error creating triggered coupon', { error });
         return null;
     }
 };
@@ -213,7 +214,7 @@ const createTriggeredCoupon = async (userId: string, trigger: CouponTrigger): Pr
 // Get user's available triggered coupons
 export const getUserTriggeredCoupons = async (userId: string): Promise<TriggeredCoupon[]> => {
     try {
-        const { data } = await (supabase as any)
+        const { data } = await supabase
             .from('user_triggered_coupons')
             .select('*')
             .eq('user_id', userId)
@@ -223,7 +224,7 @@ export const getUserTriggeredCoupons = async (userId: string): Promise<Triggered
 
         return (data || []) as TriggeredCoupon[];
     } catch (error) {
-        console.error('Error getting user coupons:', error);
+        logger.error('Error getting user coupons', { error });
         return [];
     }
 };
@@ -231,7 +232,7 @@ export const getUserTriggeredCoupons = async (userId: string): Promise<Triggered
 // Apply a triggered coupon (mark as used)
 export const applyTriggeredCoupon = async (couponId: string, orderId: string): Promise<boolean> => {
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('user_triggered_coupons')
             .update({
                 is_used: true,
@@ -242,7 +243,7 @@ export const applyTriggeredCoupon = async (couponId: string, orderId: string): P
 
         return !error;
     } catch (error) {
-        console.error('Error applying coupon:', error);
+        logger.error('Error applying coupon', { error });
         return false;
     }
 };
@@ -253,7 +254,7 @@ export const validateTriggeredCoupon = async (
     couponCode: string
 ): Promise<TriggeredCoupon | null> => {
     try {
-        const { data } = await (supabase as any)
+        const { data } = await supabase
             .from('user_triggered_coupons')
             .select('*')
             .eq('user_id', userId)

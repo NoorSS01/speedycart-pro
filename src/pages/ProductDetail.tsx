@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
@@ -14,30 +14,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
-    ArrowLeft,
-    Package,
-    Plus,
-    Minus,
-    ShoppingCart,
-    Zap,
-    Share2,
-    Tag,
-    Leaf,
-    Scale,
-    Box,
-    Info,
-    Star,
-    ChevronDown,
-    ChevronUp,
-    ChevronLeft,
-    ChevronRight,
-    MapPin,
-    User,
-    Search,
-    X
+    ShoppingCart, Star, Info, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+    Minus, Plus, MapPin, Zap, User, Tag, Box, Package, Leaf, Scale, ArrowLeft,
+    Search, X
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
+import ProductCard from '@/components/ProductCard';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useFrequentlyBoughtTogether } from '@/hooks/useFrequentlyBoughtTogether';
 import OrderConfirmation from '@/components/OrderConfirmation';
@@ -106,30 +89,7 @@ export default function ProductDetail() {
     const { trackView } = useRecommendations();
     const { products: frequentlyBought, isLoading: frequentlyBoughtLoading } = useFrequentlyBoughtTogether(id);
 
-    useEffect(() => {
-        if (id) {
-            // Reset state when switching to a different product
-            setQuantity(1);
-            setVariants([]);
-            setSelectedVariant(null);
-            setProductImages([]);
-            setSelectedImageIndex(0);
-            setProduct(null);
-            setLoading(true);
 
-            // Fetch new product data
-            fetchProduct();
-            fetchReviews();
-            fetchVariants();
-            fetchProductImages();
-        }
-    }, [id]);
-
-    useEffect(() => {
-        if (user) {
-            fetchSavedAddress();
-        }
-    }, [user]);
 
     // Live search suggestions
     useEffect(() => {
@@ -155,7 +115,21 @@ export default function ProductDetail() {
         return () => clearTimeout(timeoutId);
     }, [searchQuery]);
 
-    const fetchProduct = async () => {
+    const fetchRelatedProducts = useCallback(async (categoryId: string, currentProductId: string) => {
+        const { data } = await supabase
+            .from('products')
+            .select('*')
+            .eq('category_id', categoryId)
+            .neq('id', currentProductId)
+            .gt('stock_quantity', 0)
+            .limit(6);
+
+        if (data) {
+            setRelatedProducts(data);
+        }
+    }, []);
+
+    const fetchProduct = useCallback(async () => {
         if (!id) return;
 
         const { data, error } = await supabase
@@ -173,15 +147,15 @@ export default function ProductDetail() {
             }
         }
         setLoading(false);
-    };
+    }, [id, trackView, fetchRelatedProducts]);
 
-    const fetchReviews = async () => {
+    const fetchReviews = useCallback(async () => {
         if (!id) return;
 
         // Attempt to fetch reviews - wrapped in try/catch in case table doesn't exist
         try {
             const { data, error } = await supabase
-                .from('product_reviews' as any)
+                .from('product_reviews')
                 .select(`
           id,
           rating,
@@ -199,13 +173,13 @@ export default function ProductDetail() {
         } catch (e) {
             console.log('Product reviews table may not exist yet');
         }
-    };
+    }, [id]);
 
-    const fetchProductImages = async () => {
+    const fetchProductImages = useCallback(async () => {
         if (!id) return;
 
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('product_images')
                 .select('image_url, display_order')
                 .eq('product_id', id)
@@ -217,23 +191,11 @@ export default function ProductDetail() {
         } catch (e) {
             console.log('Product images table may not exist yet');
         }
-    };
+    }, [id]);
 
-    const fetchRelatedProducts = async (categoryId: string, currentProductId: string) => {
-        const { data } = await supabase
-            .from('products')
-            .select('*')
-            .eq('category_id', categoryId)
-            .neq('id', currentProductId)
-            .gt('stock_quantity', 0)
-            .limit(6);
 
-        if (data) {
-            setRelatedProducts(data);
-        }
-    };
 
-    const fetchVariants = async () => {
+    const fetchVariants = useCallback(async () => {
         if (!id) return;
 
         try {
@@ -252,10 +214,11 @@ export default function ProductDetail() {
         } catch (e) {
             console.log('Product variants table may not exist yet');
         }
-    };
+    }, [id]);
 
 
-    const fetchSavedAddress = async () => {
+
+    const fetchSavedAddress = useCallback(async () => {
         if (!user) return;
         const { data } = await supabase
             .from('profiles')
@@ -265,7 +228,32 @@ export default function ProductDetail() {
         if (data?.address) {
             setSavedAddress(data.address);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (id) {
+            // Reset state when switching to a different product
+            setQuantity(1);
+            setVariants([]);
+            setSelectedVariant(null);
+            setProductImages([]);
+            setSelectedImageIndex(0);
+            setProduct(null);
+            setLoading(true);
+
+            // Fetch new product data
+            fetchProduct();
+            fetchReviews();
+            fetchVariants();
+            fetchProductImages();
+        }
+    }, [id, fetchProduct, fetchReviews, fetchVariants, fetchProductImages]);
+
+    useEffect(() => {
+        if (user) {
+            fetchSavedAddress();
+        }
+    }, [user]);
 
     const addToCart = async () => {
         if (!user || !product) {
@@ -401,7 +389,7 @@ export default function ProductDetail() {
             // ATOMIC ORDER PLACEMENT: Single RPC call handles stock validation,
             // order creation, and item insertion in one transaction
             // Note: Cast to any as place_order_atomic is a custom function not in generated types
-            const { data, error } = await (supabase as any).rpc('place_order_atomic', {
+            const { data, error } = await supabase.rpc('place_order_atomic', {
                 p_user_id: user.id,
                 p_delivery_address: deliveryAddress,
                 p_cart_items: cartItemsPayload,
@@ -1090,37 +1078,20 @@ export default function ProductDetail() {
                         </h2>
                         <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                             {frequentlyBought.map(relProduct => (
-                                <Card key={relProduct.id} className="flex-shrink-0 w-36 overflow-hidden cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate(`/product/${relProduct.id}`)}>
-                                    <CardContent className="p-0">
-                                        <div className="aspect-square bg-muted relative">
-                                            {relProduct.image_url ? (
-                                                <img src={relProduct.image_url} alt={relProduct.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center">
-                                                    <Package className="h-8 w-8 text-muted-foreground" />
-                                                </div>
-                                            )}
-                                            {relProduct.discount_percent && relProduct.discount_percent > 0 && (
-                                                <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-green-500 text-white text-xs font-bold">
-                                                    {relProduct.discount_percent}% OFF
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="p-2">
-                                            <p className="text-sm font-medium truncate">{relProduct.name}</p>
-                                            {relProduct.discount_percent && relProduct.discount_percent > 0 ? (
-                                                <div className="flex items-center gap-1">
-                                                    <p className="text-sm font-bold text-primary">
-                                                        ₹{Math.round(relProduct.price * (100 - relProduct.discount_percent) / 100)}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground line-through">₹{relProduct.price}</p>
-                                                </div>
-                                            ) : (
-                                                <p className="text-sm font-bold text-primary">₹{relProduct.price}</p>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <ProductCard
+                                    key={relProduct.id}
+                                    product={{
+                                        ...relProduct,
+                                        image_url: relProduct.image_url || null,
+                                        unit: relProduct.unit || 'unit',
+                                        mrp: relProduct.mrp ?? null,
+                                        default_variant: null
+                                    }}
+                                    onAddToCart={(id) => {
+                                        navigate(`/product/${id}`);
+                                    }}
+                                    compact={true}
+                                />
                             ))}
                         </div>
                     </div>

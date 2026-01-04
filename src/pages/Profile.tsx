@@ -1,36 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   ArrowLeft,
   Save,
   User,
   LogOut,
   Truck,
-  Bell,
   MapPin,
-  Shield,
   Mail,
   Phone,
   ChevronRight,
-  Trash2,
-  Plus,
-  Check,
   Ticket,
-  Heart,
-  Languages,
-  AlertTriangle,
-  ClipboardList,
   Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -78,16 +65,7 @@ export default function Profile() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-    fetchProfile();
-  }, [user, authLoading, navigate]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -107,7 +85,16 @@ export default function Profile() {
       });
     }
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    fetchProfile();
+  }, [user, authLoading, navigate, fetchProfile]);
 
   const saveProfile = async () => {
     if (!user) return;

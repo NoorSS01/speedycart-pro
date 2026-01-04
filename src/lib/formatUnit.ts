@@ -6,7 +6,7 @@
 export interface VariantInfo {
     variant_name?: string;
     variant_value?: number;
-    variant_unit?: string;
+    variant_unit?: string | null;
 }
 
 /**

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -148,7 +149,7 @@ export default function DeliveryProfile() {
             });
 
         } catch (err) {
-            console.error('Error fetching data:', err);
+            logger.error('Error fetching delivery profile data', { error: err });
         } finally {
             setLoading(false);
         }
@@ -186,7 +187,7 @@ export default function DeliveryProfile() {
         const today = new Date().toISOString().split('T')[0];
 
         try {
-            const { data } = await (supabase as any)
+            const { data } = await supabase
                 .from('delivery_activations')
                 .select('status')
                 .eq('delivery_partner_id', user.id)
@@ -199,7 +200,7 @@ export default function DeliveryProfile() {
                 setActivationStatus('none');
             }
         } catch (error) {
-            console.log('Activation status not available');
+            logger.debug('Activation status not available');
             setActivationStatus('none');
         }
     };
@@ -211,7 +212,7 @@ export default function DeliveryProfile() {
         try {
             const today = new Date().toISOString().split('T')[0];
 
-            const { error } = await (supabase as any)
+            const { error } = await supabase
                 .from('delivery_activations')
                 .insert({
                     delivery_partner_id: user.id,
@@ -230,7 +231,7 @@ export default function DeliveryProfile() {
             }
         } catch (error) {
             toast.error('Failed to request activation');
-            console.error(error);
+            logger.error('Activation request failed', { error });
         }
         setRequestingActive(false);
     };
@@ -296,8 +297,8 @@ export default function DeliveryProfile() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${activationStatus === 'approved' ? 'bg-green-500' :
-                                        activationStatus === 'pending' ? 'bg-amber-500' :
-                                            activationStatus === 'rejected' ? 'bg-red-500' : 'bg-muted'
+                                    activationStatus === 'pending' ? 'bg-amber-500' :
+                                        activationStatus === 'rejected' ? 'bg-red-500' : 'bg-muted'
                                     }`}>
                                     {activationStatus === 'approved' ? (
                                         <CheckCircle className="w-6 h-6 text-white" />
@@ -337,6 +338,43 @@ export default function DeliveryProfile() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Payouts Section */}
+                <div>
+                    <h2 className="font-semibold mb-3">Recent Payouts</h2>
+                    <div className="space-y-3">
+                        {payouts.length === 0 ? (
+                            <Card><CardContent className="p-4 text-center text-muted-foreground">No payment history</CardContent></Card>
+                        ) : (
+                            payouts.map(pay => (
+                                <Card key={pay.id} className="overflow-hidden">
+                                    <CardContent className="p-4">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-bold text-lg">₹{pay.amount}</p>
+                                                <p className="text-xs text-muted-foreground">{new Date(pay.created_at).toLocaleDateString()}</p>
+                                            </div>
+                                            <Badge variant={pay.status === 'approved' ? 'default' : pay.status === 'pending' ? 'outline' : 'destructive'}>
+                                                {pay.status}
+                                            </Badge>
+                                        </div>
+
+                                        {pay.status === 'pending' && (
+                                            <div className="mt-3 flex gap-2">
+                                                <Button size="sm" variant="outline" className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handlePayoutAction(pay.id, 'rejected')}>
+                                                    Reject
+                                                </Button>
+                                                <Button size="sm" className="w-full bg-green-600 hover:bg-green-700" onClick={() => handlePayoutAction(pay.id, 'approved')}>
+                                                    Confirm Receipt
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
+                    </div>
+                </div>
 
                 {/* Earnings Overview */}
                 <Card className="bg-primary/5 border-primary/20">

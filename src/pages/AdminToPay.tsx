@@ -2,22 +2,31 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Smartphone, TrendingUp, ShoppingBag, Wallet, Truck } from 'lucide-react';
+import { Smartphone, TrendingUp, Wallet, Truck, History, AlertCircle } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
+import PaymentDialog from '@/components/PaymentDialog';
+import { format } from 'date-fns';
 
 interface PayoutStats {
   deliveredOrders: number;
-  commissionDeveloper: number;
-  commissionDelivery: number;
+  totalDeveloperCommission: number;
+  paidDeveloperCommission: number;
+  pendingDeveloper: number;
 }
 
-interface DeliveryProfile {
-  full_name: string | null;
-  phone: string | null;
+interface DeliveryPartnerStats {
+  id: string; // user_id
+  full_name: string;
+  phone: string;
+  deliveredOrders: number;
+  totalCommission: number;
+  paidCommission: number;
+  pendingAmount: number;
 }
 
 const DEVELOPER_PHONE = '8310807978';
@@ -29,13 +38,30 @@ const AdminToPay = () => {
 
   const [stats, setStats] = useState<PayoutStats>({
     deliveredOrders: 0,
-    commissionDeveloper: 0,
-    commissionDelivery: 0,
+    totalDeveloperCommission: 0,
+    paidDeveloperCommission: 0,
+    pendingDeveloper: 0
   });
-  const [deliveryProfile, setDeliveryProfile] = useState<DeliveryProfile | null>(null);
+
+  const [deliveryPartners, setDeliveryPartners] = useState<DeliveryPartnerStats[]>([]);
   const [loadingPage, setLoadingPage] = useState(true);
-  const [showDeveloperPayOptions, setShowDeveloperPayOptions] = useState(false);
-  const [showDeliveryPayOptions, setShowDeliveryPayOptions] = useState(false);
+
+  // Payment Dialog State
+  const [paymentState, setPaymentState] = useState<{
+    open: boolean;
+    upiId: string;
+    payeeName: string;
+    amount: number;
+    payeeId: string | null; // null for developer
+    type: 'developer_commission' | 'delivery_commission';
+  }>({
+    open: false,
+    upiId: '',
+    payeeName: '',
+    amount: 0,
+    payeeId: null,
+    type: 'developer_commission'
+  });
 
   useEffect(() => {
     if (loading) return;
@@ -45,109 +71,163 @@ const AdminToPay = () => {
       return;
     }
 
-    if (userRole === null) return;
-
     if (userRole !== 'admin' && userRole !== 'super_admin') {
-      switch (userRole) {
-        case 'delivery':
-          navigate('/delivery');
-          break;
-        default:
-          navigate('/shop');
-          break;
-      }
+      navigate('/shop');
       return;
     }
 
-    const init = async () => {
-      try {
-        await Promise.all([fetchPayoutStats(), fetchFirstDeliveryProfile()]);
-      } finally {
-        setLoadingPage(false);
-      }
-    };
-
-    init();
+    fetchEverything();
   }, [user, userRole, loading, navigate]);
 
-  const fetchPayoutStats = async () => {
-    const { data: ordersData, error } = await supabase
-      .from('orders')
-      .select('status, total_amount');
-
-    if (error) {
-      console.error('Error fetching payout stats', error);
-      toast.error('Failed to load payout details');
-      return;
-    }
-
-    if (ordersData) {
-      const deliveredOrders = ordersData.filter((o) => o.status === 'delivered').length;
-      const commissionDeveloper = deliveredOrders * 4;
-      const commissionDelivery = deliveredOrders * 5;
-      setStats({ deliveredOrders, commissionDeveloper, commissionDelivery });
+  const fetchEverything = async () => {
+    setLoadingPage(true);
+    try {
+      await Promise.all([fetchDeveloperStats(), fetchDeliveryPartnersStats()]);
+    } catch (e) {
+      logger.error('Failed to load payment data', { error: e });
+    } finally {
+      setLoadingPage(false);
     }
   };
 
-  const fetchFirstDeliveryProfile = async () => {
-    const { data: rolesData, error: rolesError } = await supabase
+  const fetchDeveloperStats = async () => {
+    // 1. Get total orders delivered (lifetime)
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('status', 'delivered');
+
+    if (ordersError) throw ordersError;
+    const count = orders?.length || 0;
+    const totalCommission = count * 4; // ₹4 per order
+
+    // 2. Get total PAID or PENDING approvals
+    const { data: payouts, error: payoutsError } = await supabase
+      .from('payouts')
+      .select('amount')
+      .eq('type', 'developer_commission')
+      .neq('status', 'rejected'); // Count pending and approved as "paid" to avoid double payment
+
+    if (payoutsError) throw payoutsError;
+    const paidAmount = payouts?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+    setStats({
+      deliveredOrders: count,
+      totalDeveloperCommission: totalCommission,
+      paidDeveloperCommission: paidAmount,
+      pendingDeveloper: Math.max(0, totalCommission - paidAmount)
+    });
+  };
+
+  const fetchDeliveryPartnersStats = async () => {
+    // 1. Get all delivery users
+    const { data: deliveryUsers, error: userError } = await supabase
       .from('user_roles')
       .select('user_id')
       .eq('role', 'delivery');
 
-    if (rolesError || !rolesData || rolesData.length === 0) return;
+    if (userError || !deliveryUsers) return;
 
-    const userIds = rolesData.map((r) => r.user_id);
-    const { data: profilesData } = await supabase
+    // 2. Get profiles for names/phones
+    const userIds = deliveryUsers.map(u => u.user_id);
+    const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, phone')
       .in('id', userIds);
 
-    if (profilesData && profilesData.length > 0) {
-      const first = profilesData[0];
-      setDeliveryProfile({ full_name: first.full_name, phone: first.phone });
+    if (!profiles) return;
+
+    const partners: DeliveryPartnerStats[] = [];
+
+    // 3. For each partner, calculate stats
+    for (const profile of profiles) {
+      // Get assignments
+      const { data: assignments } = await supabase
+        .from('delivery_assignments')
+        .select('order_id, orders!inner(status)')
+        .eq('delivery_person_id', profile.id)
+        .eq('orders.status', 'delivered');
+
+      const deliveredCount = assignments?.length || 0;
+      const totalComm = deliveredCount * 5; // ₹5 per order
+
+      // Get payouts
+      const { data: payouts } = await supabase
+        .from('payouts')
+        .select('amount')
+        .eq('payee_id', profile.id)
+        .eq('type', 'delivery_commission')
+        .neq('status', 'rejected');
+
+      const paidAmt = payouts?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+      partners.push({
+        id: profile.id,
+        full_name: profile.full_name || 'Delivery Partner',
+        phone: profile.phone || '',
+        deliveredOrders: deliveredCount,
+        totalCommission: totalComm,
+        paidCommission: paidAmt,
+        pendingAmount: Math.max(0, totalComm - paidAmt)
+      });
     }
+
+    setDeliveryPartners(partners);
   };
 
-  const createUpiLink = (upiId: string, name: string, amount: number) => {
-    return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amount.toFixed(2)}&cu=INR&tn=${encodeURIComponent('PremasShop payout')}`;
-  };
-
-  const openUpiLink = (url: string) => {
-    window.location.href = url;
-  };
-
-  const handlePayDeveloper = () => {
-    if (stats.commissionDeveloper <= 0) {
-      toast.message('No payout pending for developer');
+  const initiatePayment = (
+    payeeId: string | null,
+    name: string,
+    phone: string | null,
+    amount: number,
+    type: 'developer_commission' | 'delivery_commission'
+  ) => {
+    if (amount <= 0) {
+      toast.success('No pending payment!');
       return;
     }
-    const url = createUpiLink(DEVELOPER_UPI_ID, 'Developer', stats.commissionDeveloper);
-    openUpiLink(url);
+
+    const upiId = payeeId === null ? DEVELOPER_UPI_ID : `${phone}@upi`; // Default assumption if no VPA stored
+
+    setPaymentState({
+      open: true,
+      upiId,
+      payeeName: name,
+      amount,
+      payeeId,
+      type
+    });
   };
 
-  const handlePayDelivery = () => {
-    if (stats.commissionDelivery <= 0) {
-      toast.message('No payout pending for delivery partners');
-      return;
+  const handlePaymentConfirmed = async () => {
+    try {
+      const { error } = await supabase.from('payouts').insert({
+        payer_id: user?.id,
+        payee_id: paymentState.payeeId, // null for developer
+        amount: paymentState.amount,
+        status: 'pending', // Waiting for receiver to approve
+        type: paymentState.type
+      });
+
+      if (error) throw error;
+
+      toast.success('Payment recorded! Waiting for approval.');
+      setPaymentState(prev => ({ ...prev, open: false }));
+
+      // Refresh stats
+      fetchEverything();
+    } catch (e) {
+      toast.error('Failed to record payment');
+      logger.error('Payment insert error', { error: e });
     }
-    if (!deliveryProfile || !deliveryProfile.phone) {
-      toast.error('No delivery partner phone available');
-      return;
-    }
-    const upiId = `${deliveryProfile.phone}@upi`;
-    const name = deliveryProfile.full_name || 'Delivery Partner';
-    const url = createUpiLink(upiId, name, stats.commissionDelivery);
-    openUpiLink(url);
   };
 
   if (loading || userRole === null || loadingPage) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
+        {/* Loading Skeleton */}
         <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
-          <div className="container mx-auto px-4 py-4">
-            <Skeleton className="h-8 w-48" />
-          </div>
+          <div className="container mx-auto px-4 py-4"><Skeleton className="h-8 w-48" /></div>
         </header>
         <main className="container mx-auto px-4 py-6 space-y-4">
           {[1, 2].map(i => <Skeleton key={i} className="h-48 rounded-xl" />)}
@@ -157,11 +237,8 @@ const AdminToPay = () => {
     );
   }
 
-  if (userRole !== 'admin' && userRole !== 'super_admin') return null;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
@@ -169,120 +246,134 @@ const AdminToPay = () => {
               <Wallet className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Pending Payments</h1>
-              <p className="text-xs text-muted-foreground">Manage commission payouts</p>
+              <h1 className="text-xl font-bold tracking-tight">Daily Payouts</h1>
+              <p className="text-xs text-muted-foreground">{format(new Date(), 'MMM dd, yyyy')}</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-4">
-        {/* Developer Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-indigo-500" />
-              Developer Commission
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                <p className="text-3xl font-bold">₹{stats.commissionDeveloper}</p>
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Developer Section */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">Platform Fees</h2>
+          <Card className="border-indigo-500/20 shadow-sm overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+            <CardContent className="p-5">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">Developer</h3>
+                    <p className="text-xs text-muted-foreground">Commission (₹4/order)</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-indigo-600">
+                    ₹{stats.pendingDeveloper.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">Pending</p>
+                </div>
               </div>
-              <div className="text-right text-sm text-muted-foreground">
-                <p>{stats.deliveredOrders} orders</p>
-                <p>₹4/order</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">Pay to: {DEVELOPER_PHONE}</p>
-            <Button className="w-full" onClick={() => setShowDeveloperPayOptions(true)}>
-              <Smartphone className="h-4 w-4 mr-2" />
-              Pay Now
-            </Button>
-          </CardContent>
-        </Card>
 
-        {/* Delivery Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Truck className="w-4 h-4 text-rose-500" />
-              Delivery Partner Commission
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Amount to Pay</p>
-                <p className="text-3xl font-bold">₹{stats.commissionDelivery}</p>
+              <div className="grid grid-cols-2 gap-4 mb-4 text-sm bg-muted/40 p-3 rounded-lg">
+                <div>
+                  <p className="text-muted-foreground">Total Earned</p>
+                  <p className="font-semibold">₹{stats.totalDeveloperCommission}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground">Total Paid</p>
+                  <p className="font-semibold text-green-600">₹{stats.paidDeveloperCommission}</p>
+                </div>
               </div>
-              <div className="text-right text-sm text-muted-foreground">
-                <p>{stats.deliveredOrders} orders</p>
-                <p>₹5/order</p>
-              </div>
+
+              <Button
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                size="lg"
+                disabled={stats.pendingDeveloper <= 0}
+                onClick={() => initiatePayment(null, 'Developer', DEVELOPER_PHONE, stats.pendingDeveloper, 'developer_commission')}
+              >
+                <Smartphone className="h-4 w-4 mr-2" />
+                Pay Remainder
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Delivery Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between pl-1">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Delivery Partners</h2>
+            <span className="text-xs bg-muted px-2 py-1 rounded-full">{deliveryPartners.length} Active</span>
+          </div>
+
+          {deliveryPartners.map(partner => (
+            <Card key={partner.id} className="border-rose-500/20 shadow-sm overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-rose-400 to-orange-500"></div>
+              <CardContent className="p-5">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-rose-500/10 rounded-lg">
+                      <Truck className="h-5 w-5 text-rose-600" />
+                    </div>
+                    <div className="overflow-hidden">
+                      <h3 className="font-bold text-lg truncate w-32 md:w-auto">{partner.full_name}</h3>
+                      <p className="text-xs text-muted-foreground">{partner.phone}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-rose-600">
+                      ₹{partner.pendingAmount.toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground uppercase font-semibold">Due Today</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-4 text-sm bg-muted/40 p-3 rounded-lg">
+                  <div>
+                    <p className="text-muted-foreground">Orders</p>
+                    <p className="font-semibold">{partner.deliveredOrders}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground">Paid So Far</p>
+                    <p className="font-semibold text-green-600">₹{partner.paidCommission}</p>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full bg-rose-600 hover:bg-rose-700"
+                  size="lg"
+                  disabled={partner.pendingAmount <= 0}
+                  onClick={() => initiatePayment(partner.id, partner.full_name, partner.phone, partner.pendingAmount, 'delivery_commission')}
+                >
+                  <Smartphone className="h-4 w-4 mr-2" />
+                  Pay Partner
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+
+          {deliveryPartners.length === 0 && (
+            <div className="text-center py-8 bg-muted/20 rounded-xl">
+              <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
+              <p className="text-muted-foreground">No active delivery partners found.</p>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              {deliveryProfile?.phone
-                ? `Pay to: ${deliveryProfile.full_name || 'Partner'} (${deliveryProfile.phone})`
-                : 'No delivery partner found'}
-            </p>
-            <Button
-              className="w-full"
-              onClick={() => setShowDeliveryPayOptions(true)}
-              disabled={!deliveryProfile?.phone}
-            >
-              <Smartphone className="h-4 w-4 mr-2" />
-              Pay Now
-            </Button>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </main>
 
-      {/* Developer Pay Modal */}
-      {showDeveloperPayOptions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-background rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border">
-            <h2 className="text-lg font-bold">Pay Developer</h2>
-            <p className="text-sm text-muted-foreground">Amount: ₹{stats.commissionDeveloper}</p>
-            <div className="flex gap-3">
-              <Button className="flex-1" onClick={() => { handlePayDeveloper(); setShowDeveloperPayOptions(false); }}>
-                GPay
-              </Button>
-              <Button className="flex-1" variant="outline" onClick={() => { handlePayDeveloper(); setShowDeveloperPayOptions(false); }}>
-                PhonePe
-              </Button>
-            </div>
-            <Button variant="ghost" className="w-full" onClick={() => setShowDeveloperPayOptions(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Delivery Pay Modal */}
-      {showDeliveryPayOptions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-background rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl border">
-            <h2 className="text-lg font-bold">Pay Delivery Partner</h2>
-            <p className="text-sm text-muted-foreground">Amount: ₹{stats.commissionDelivery}</p>
-            <div className="flex gap-3">
-              <Button className="flex-1" onClick={() => { handlePayDelivery(); setShowDeliveryPayOptions(false); }}>
-                GPay
-              </Button>
-              <Button className="flex-1" variant="outline" onClick={() => { handlePayDelivery(); setShowDeliveryPayOptions(false); }}>
-                PhonePe
-              </Button>
-            </div>
-            <Button variant="ghost" className="w-full" onClick={() => setShowDeliveryPayOptions(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
-
       <AdminBottomNav />
+
+      <PaymentDialog
+        open={paymentState.open}
+        onOpenChange={(val) => setPaymentState(prev => ({ ...prev, open: val }))}
+        upiId={paymentState.upiId}
+        payeeName={paymentState.payeeName}
+        amount={paymentState.amount}
+        onPaymentConfirmed={handlePaymentConfirmed}
+      />
     </div>
   );
 };
