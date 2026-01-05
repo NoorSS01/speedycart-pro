@@ -45,6 +45,7 @@ const AdminToPay = () => {
 
   const [deliveryPartners, setDeliveryPartners] = useState<DeliveryPartnerStats[]>([]);
   const [loadingPage, setLoadingPage] = useState(true);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   // Payment Dialog State
   const [paymentState, setPaymentState] = useState<{
@@ -101,21 +102,21 @@ const AdminToPay = () => {
     const count = orders?.length || 0;
     const totalCommission = count * 4; // ₹4 per order
 
-    // 2. Get total PAID or PENDING approvals
+    // 2. Get total APPROVED only (pending payments shouldn't reduce pending amount)
     const { data: payouts, error: payoutsError } = await supabase
       .from('payouts' as any)
-      .select('amount')
+      .select('amount, status')
       .eq('type', 'developer_commission')
-      .neq('status', 'rejected'); // Count pending and approved as "paid" to avoid double payment
+      .eq('status', 'approved'); // Only count approved as paid
 
     if (payoutsError) console.warn('Developer payout error', payoutsError);
-    const paidAmount = payouts?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
+    const approvedAmount = payouts?.reduce((sum, p) => sum + (Number((p as any).amount) || 0), 0) || 0;
 
     setStats({
       deliveredOrders: count,
       totalDeveloperCommission: totalCommission,
-      paidDeveloperCommission: paidAmount,
-      pendingDeveloper: Math.max(0, totalCommission - paidAmount)
+      paidDeveloperCommission: approvedAmount,
+      pendingDeveloper: Math.max(0, totalCommission - approvedAmount)
     });
   };
 
@@ -152,18 +153,18 @@ const AdminToPay = () => {
         const deliveredCount = assignments?.length || 0;
         const totalComm = deliveredCount * 5; // ₹5 per order
 
-        // Get payouts
+        // Get payouts - only count APPROVED as paid
         const { data: payouts, error: payoutError } = await supabase
           .from('payouts' as any)
           .select('amount')
           .eq('payee_id', profile.id)
           .eq('type', 'delivery_commission')
-          .neq('status', 'rejected');
+          .eq('status', 'approved'); // Only count approved
 
         if (payoutError) console.warn('Payout fetch error', payoutError);
 
-        const paidAmt = payouts?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
-        const pending = Math.max(0, totalComm - paidAmt);
+        const approvedAmt = payouts?.reduce((sum, p) => sum + (Number((p as any).amount) || 0), 0) || 0;
+        const pending = Math.max(0, totalComm - approvedAmt);
 
         partners.push({
           id: profile.id,
@@ -171,7 +172,7 @@ const AdminToPay = () => {
           phone: profile.phone || '',
           deliveredOrders: deliveredCount,
           totalCommission: totalComm,
-          paidCommission: paidAmt,
+          paidCommission: approvedAmt,
           pendingAmount: pending
         });
       } catch (err) {
@@ -207,6 +208,10 @@ const AdminToPay = () => {
   };
 
   const handlePaymentConfirmed = async () => {
+    // Prevent double submission
+    if (paymentSubmitting) return;
+    setPaymentSubmitting(true);
+
     try {
       const { error } = await supabase.from('payouts' as any).insert({
         payer_id: user?.id,
@@ -226,6 +231,8 @@ const AdminToPay = () => {
     } catch (e) {
       toast.error('Failed to record payment');
       logger.error('Payment insert error', { error: e });
+    } finally {
+      setPaymentSubmitting(false);
     }
   };
 

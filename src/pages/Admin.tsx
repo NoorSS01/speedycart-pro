@@ -85,8 +85,6 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('7days');
   const [pendingApplications, setPendingApplications] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
-  const [lockoutMessage, setLockoutMessage] = useState('');
   const { deliveryTimeMinutes, updateDeliveryTime } = useDeliveryTime();
 
   // Auth Check
@@ -142,22 +140,7 @@ export default function Admin() {
 
       setPendingApplications(appsData?.length || 0);
 
-      // Check lockout status (PI-004 fix)
-      try {
-        const { data: lockoutData } = await supabase
-          .from('admin_settings')
-          .select('is_locked, payment_message')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
-          .single();
 
-        if (lockoutData) {
-          setIsLocked(lockoutData.is_locked || false);
-          setLockoutMessage(lockoutData.payment_message || 'Payment required to continue using admin panel.');
-        }
-      } catch (e) {
-        // admin_settings may not exist yet
-        logger.debug('Lockout check skipped', { error: e });
-      }
 
     } catch (error) {
       logger.error('Error fetching admin data', { error });
@@ -210,25 +193,6 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 pb-24">
-      {/* Admin Lockout Overlay - PI-004 fix */}
-      {isLocked && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <Card className="max-w-md w-full border-red-500 shadow-2xl">
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-red-600" />
-              </div>
-              <h2 className="text-xl font-bold text-red-600 mb-2">Admin Access Locked</h2>
-              <p className="text-muted-foreground mb-4">{lockoutMessage}</p>
-              <p className="text-sm text-muted-foreground mb-4">Please complete your payment to continue using the admin dashboard.</p>
-              <Button onClick={() => navigate('/admin/to-pay')} className="w-full">
-                <CreditCard className="w-4 h-4 mr-2" />
-                Go to Payments
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
         <div className="container mx-auto px-4 py-4">
