@@ -308,35 +308,6 @@ export default function SuperAdmin() {
     }
   }, []);
 
-  // Define other fetch functions similarly (fetchProducts, fetchCategories, etc.) - abbreviated for brevity as they are large blocks.
-  // We need to define them *before* the useEffect to fix TDZ.
-  // HOWEVER, SuperAdmin is huge. It's safer to just move useEffect to the bottom.
-  // BUT the user asked to "wrap functions" and Update useEffect dependency arrays.
-
-  // Let's create a single aggregate fetch function that calls all the others, keeping file structure simpler if possible,
-  // OR just wrap the main ones used in the initial load.
-
-  // Actually, I should use the pattern of declaring functions first, then useEffect.
-  // Since I can't rewrite the whole file easily in one go without potential errors, I will use `useCallback` on the `fetchData` function
-  // and its dependencies, then update the useEffect.
-
-  // Let's look at `fetchData`. It calls `fetchProducts`, `fetchCategories`, `fetchOrders`, `fetchMaliciousActivities`, `fetchUserRoles`, `fetchDeliveryApplications`, `fetchStats`, `fetchAdminSettings`.
-  // This is too many to wrap individually in one edit without reading the whole file. 
-
-  // STRATEGY: Move the `useEffect` to the bottom of the file (or at least after all function definitions) and add `fetchData` to dependencies.
-  // Wrapp `fetchData` in `useCallback`.
-
-  // Wait, I only see a few fetch functions in the viewed snippet. I need to see more of SuperAdmin to wrap them all.
-  // But moving useEffect is the most high-impact low-risk change for TDZ.
-  // And adding `useCallback` to `fetchData` is key.
-
-  // Let's try to just fix `useEffect` dependencies by removing the exhaustive deps warning via a comment if refactoring is too risky/large?
-  // NO, user wants "best and professional". That means fixing it.
-
-  // Okay, looking at lines 197-207.
-
-  return;
-  // I will skip this replacement for now and do a ViewFile first to see where the functions are defined.
 
 
   // Refetch data when date range changes
