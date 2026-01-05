@@ -56,7 +56,7 @@ export function useDeliveryTime() {
                 localStorage.setItem('delivery_time_minutes', minutes.toString());
                 return true;
             } else {
-                console.error('Failed to update delivery time:', error);
+                logger.error('Failed to update delivery time', { error });
                 return false;
             }
         } catch (e) {

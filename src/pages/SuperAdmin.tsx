@@ -13,11 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import {
   LogOut,
-  Package,
-  ShoppingBag,
   AlertTriangle,
-  TrendingUp,
-  Users,
   Shield,
   Edit,
   Trash2,
@@ -25,7 +21,8 @@ import {
   Truck,
   Minus,
   Calendar,
-  Boxes
+  Boxes,
+  Wallet
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -197,19 +194,20 @@ export default function SuperAdmin() {
   // New Payouts State
   const [payouts, setPayouts] = useState<any[]>([]);
 
-  const fetchPayouts = async () => {
-    const { data, error } = await supabase
-      .from('payouts')
+  const fetchPayouts = useCallback(async () => {
+    const { data: payoutsData, error: payoutsError } = await supabase
+      .from('payouts' as any)
       .select('id, amount, status, type, transaction_date, created_at, payer_id')
       .eq('type', 'developer_commission')
       .order('created_at', { ascending: false });
 
-    if (data) setPayouts(data);
-  };
+    if (payoutsData) setPayouts(payoutsData);
+    if (payoutsError) console.error('Error fetching payouts', payoutsError);
+  }, []);
 
   const updatePayoutStatus = async (id: string, status: 'approved' | 'rejected') => {
     const { error } = await supabase
-      .from('payouts')
+      .from('payouts' as any)
       .update({ status })
       .eq('id', id);
 
@@ -237,7 +235,7 @@ export default function SuperAdmin() {
       .single();
 
     if (!error && data) {
-      const settings = data.value as any;
+      const settings = data as any;
       setAdminSettings({
         isLocked: settings?.is_locked || false,
         paymentStatus: settings?.payment_status || 'none',
@@ -248,17 +246,15 @@ export default function SuperAdmin() {
 
   const fetchStats = useCallback(async () => {
     // Determine date range filter
-    let startDate = new Date();
+    const startDate = new Date();
     startDate.setHours(0, 0, 0, 0);
 
-    if (dateRange === 'week') {
+    if (dateRange === '7days') {
       startDate.setDate(startDate.getDate() - 7);
-    } else if (dateRange === 'month') {
+    } else if (dateRange === '1month') {
       startDate.setMonth(startDate.getMonth() - 1);
-    } else if (dateRange === 'year') {
+    } else if (dateRange === '1year') {
       startDate.setFullYear(startDate.getFullYear() - 1);
-    } else if (dateRange === 'all') {
-      startDate = new Date(0); // Beginning of time
     }
 
     // Parallel fetching for performance
@@ -295,7 +291,7 @@ export default function SuperAdmin() {
       .from('orders')
       .select(`
         *,
-        profiles:user_id (full_name, phone_number)
+        profiles:user_id (full_name, phone)
       `)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -425,7 +421,8 @@ export default function SuperAdmin() {
       .order('created_at', { ascending: false });
     if (data) {
       // Fix nullables
-      const typedApps: DeliveryApplication[] = data.map(a => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const typedApps: DeliveryApplication[] = (data as any[]).map(a => ({
         id: a.id,
         user_id: a.user_id,
         full_name: a.full_name,
@@ -439,6 +436,7 @@ export default function SuperAdmin() {
     }
   }, []);
 
+
   const fetchData = useCallback(async () => {
     await Promise.all([
       fetchProducts(),
@@ -450,16 +448,15 @@ export default function SuperAdmin() {
       fetchStats(),
       fetchAdminSettings()
     ]);
-  }, [
-    fetchProducts,
-    fetchCategories,
-    fetchOrders,
-    fetchMaliciousActivities,
-    fetchUserRoles,
-    fetchDeliveryApplications,
-    fetchStats,
-    fetchAdminSettings
-  ]);
+  }, []);
+
+  // 3. Effect to call fetchData
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user, fetchData]);
+
 
 
 
@@ -1116,6 +1113,53 @@ export default function SuperAdmin() {
                               variant="destructive"
                               onClick={() => handleApplicationAction(app.id, app.user_id, 'rejected')}
                             >
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payouts" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-indigo-600" />
+                  Developer Commission Payouts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {payouts.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No payout history found.</p>
+                  ) : (
+                    payouts.map((payout) => (
+                      <div key={payout.id} className="flex justify-between items-center p-4 border rounded-xl bg-muted/20">
+                        <div>
+                          <p className="font-bold text-lg">₹{Number(payout.amount).toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {payout.created_at ? new Date(payout.created_at).toLocaleDateString() : 'Unknown Date'}
+                          </p>
+                          <div className="mt-1">
+                            <span className={`px-2 py-0.5 text-[10px] rounded-full uppercase font-bold tracking-wider ${payout.status === 'approved' ? 'bg-green-100 text-green-700' :
+                              payout.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                              {payout.status}
+                            </span>
+                          </div>
+                        </div>
+                        {payout.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => updatePayoutStatus(payout.id, 'approved')}>
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => updatePayoutStatus(payout.id, 'rejected')}>
                               Reject
                             </Button>
                           </div>

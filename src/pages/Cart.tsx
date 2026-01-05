@@ -870,9 +870,8 @@ export default function Cart() {
                                                 <option value="">Select your apartment...</option>
                                                 <option value="VBHC Vaibhava">VBHC Vaibhava</option>
                                                 <option value="Symphony">Symphony</option>
-                                                <option value="Other">Other</option>
                                             </select>
-                                            {selectedApartment && selectedApartment !== 'Other' && (
+                                            {selectedApartment && (
                                                 <p className="text-xs text-muted-foreground mt-1">
                                                     📍 {selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106
                                                 </p>
@@ -901,18 +900,8 @@ export default function Cart() {
                                             </div>
                                         </div>
 
-                                        {/* Additional Address for Other */}
-                                        {selectedApartment === 'Other' && (
-                                            <Textarea
-                                                placeholder="Enter your complete delivery address"
-                                                value={newAddress}
-                                                onChange={(e) => setNewAddress(e.target.value)}
-                                                rows={2}
-                                            />
-                                        )}
-
                                         {/* Preview */}
-                                        {(selectedApartment && selectedApartment !== 'Other' && (blockNumber || roomNumber)) && (
+                                        {(selectedApartment && (blockNumber || roomNumber)) && (
                                             <div className="p-2 bg-muted/50 rounded-lg text-sm">
                                                 <p className="font-medium">Delivery to:</p>
                                                 <p className="text-muted-foreground">
@@ -940,7 +929,7 @@ export default function Cart() {
             </Dialog>
 
             <BottomNav />
-        </div >
+        </div>
     );
 }
 

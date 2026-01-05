@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 import { formatVariantDisplay } from '@/lib/formatUnit';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -107,7 +108,11 @@ export default function ProductDetail() {
                 .limit(5);
 
             if (data) {
-                setSearchSuggestions(data);
+                setSearchSuggestions(data.map(p => ({
+                    ...p,
+                    stock_quantity: p.stock_quantity ?? 0,
+                    unit: p.unit || 'piece'
+                })));
             }
         };
 
@@ -125,7 +130,11 @@ export default function ProductDetail() {
             .limit(6);
 
         if (data) {
-            setRelatedProducts(data);
+            setRelatedProducts(data.map(p => ({
+                ...p,
+                stock_quantity: p.stock_quantity ?? 0,
+                unit: p.unit || 'piece'
+            })));
         }
     }, []);
 
@@ -139,7 +148,11 @@ export default function ProductDetail() {
             .single();
 
         if (!error && data) {
-            setProduct(data);
+            setProduct({
+                ...data,
+                stock_quantity: data.stock_quantity ?? 0,
+                unit: data.unit || 'piece'
+            });
             // Track view for AI recommendations
             trackView(data.id);
             if (data.category_id) {
@@ -171,7 +184,7 @@ export default function ProductDetail() {
                 setReviews(data as any);
             }
         } catch (e) {
-            console.log('Product reviews table may not exist yet');
+            logger.info('Product reviews table may not exist yet');
         }
     }, [id]);
 
@@ -189,7 +202,7 @@ export default function ProductDetail() {
                 setProductImages(data.map((img: any) => img.image_url));
             }
         } catch (e) {
-            console.log('Product images table may not exist yet');
+            logger.info('Product images table may not exist yet');
         }
     }, [id]);
 
@@ -212,7 +225,7 @@ export default function ProductDetail() {
                 setSelectedVariant(defaultVariant as ProductVariant);
             }
         } catch (e) {
-            console.log('Product variants table may not exist yet');
+            logger.info('Product variants table may not exist yet');
         }
     }, [id]);
 
@@ -291,7 +304,7 @@ export default function ProductDetail() {
             const { data: existingItem, error: fetchError } = await query.maybeSingle();
 
             if (fetchError) {
-                console.error('Cart fetch error:', fetchError);
+                logger.error('Cart fetch error', { error: fetchError });
                 toast.error('Failed to check cart. Please try again.');
                 setAddingToCart(false);
                 return;
@@ -312,7 +325,7 @@ export default function ProductDetail() {
                     .eq('id', existingItem.id);
 
                 if (updateError) {
-                    console.error('Cart update error:', updateError);
+                    logger.error('Cart update error', { error: updateError });
                     toast.error('Failed to update cart. Please try again.');
                     setAddingToCart(false);
                     return;
@@ -329,7 +342,7 @@ export default function ProductDetail() {
                     });
 
                 if (insertError) {
-                    console.error('Cart insert error:', insertError);
+                    logger.error('Cart insert error', { error: insertError });
                     // Check if it's a unique constraint violation
                     if (insertError.code === '23505') {
                         toast.error('This item is already in your cart. Try refreshing the page.');
@@ -345,7 +358,7 @@ export default function ProductDetail() {
             toast.success(`Added ${quantity}${variantName} to cart`);
             refreshCart(); // Instant badge update
         } catch (error) {
-            console.error('Unexpected cart error:', error);
+            logger.error('Unexpected cart error', { error });
             toast.error('Something went wrong. Please try again.');
         } finally {
             setAddingToCart(false);
@@ -393,12 +406,12 @@ export default function ProductDetail() {
                 p_user_id: user.id,
                 p_delivery_address: deliveryAddress,
                 p_cart_items: cartItemsPayload,
-                p_coupon_id: null,
+                p_coupon_id: null as unknown as string,
                 p_coupon_discount: 0
             });
 
             if (error) {
-                console.error('RPC error:', error);
+                logger.error('RPC error', { error });
                 toast.error('Failed to place order. Please try again.');
                 return;
             }
@@ -425,7 +438,7 @@ export default function ProductDetail() {
             setLastOrderId(result.order_id || '');
             setShowOrderConfirmation(true);
         } catch (error) {
-            console.error('Order error:', error);
+            logger.error('Order error', { error });
             toast.error('Failed to place order. Please try again.');
         }
     };
@@ -440,7 +453,7 @@ export default function ProductDetail() {
                 });
             } catch (err) {
                 // Share was cancelled or failed - this is expected behavior
-                console.log('Share cancelled or not available');
+                logger.debug('Share cancelled or not available', { error: err });
             }
         }
     };

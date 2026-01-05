@@ -88,7 +88,7 @@ export default function Shop() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { refreshCart } = useCart();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
   // Initialize selectedCategory from URL immediately to prevent blink
   const initialCategory = searchParams.get('category');
@@ -158,7 +158,11 @@ export default function Shop() {
         return { ...product, default_variant: defaultVariant };
       });
 
-      setProducts(productsWithVariants);
+      setProducts(productsWithVariants.map(p => ({
+        ...p,
+        stock_quantity: p.stock_quantity ?? 0,
+        unit: p.unit || 'piece'
+      })));
     }
   }, [selectedCategory]);
 
@@ -192,13 +196,13 @@ export default function Shop() {
     }
   }, [user]);
 
-  // Sync category from URL when it changes (for navigation within page)
+  // Sync category from URL when it changes (for external navigation)
   useEffect(() => {
     const categoryFromUrl = searchParams.get('category');
-    if (categoryFromUrl && categoryFromUrl !== selectedCategory) {
-      setSelectedCategory(categoryFromUrl);
-    }
-  }, [searchParams, selectedCategory]);
+    // Only sync from URL if different from current state
+    // This handles browser back/forward and external links
+    setSelectedCategory(categoryFromUrl);
+  }, [searchParams]);
 
   // Fetch products when selectedCategory changes or user loads
   useEffect(() => {
@@ -657,7 +661,10 @@ export default function Shop() {
         <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
           <Button
             variant={selectedCategory === null ? 'default' : 'outline'}
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => {
+              setSelectedCategory(null);
+              setSearchParams({});
+            }}
             className="rounded-full flex-shrink-0"
           >
             All
@@ -666,7 +673,10 @@ export default function Shop() {
             <Button
               key={category.id}
               variant={selectedCategory === category.id ? 'default' : 'outline'}
-              onClick={() => setSelectedCategory(category.id)}
+              onClick={() => {
+                setSelectedCategory(category.id);
+                setSearchParams({ category: category.id });
+              }}
               className="rounded-full flex-shrink-0 whitespace-nowrap"
             >
               {category.name}
@@ -923,9 +933,8 @@ export default function Shop() {
                           <option value="Symphony" title="Symphony, Chandapura-Anekal Road, Bangalore - 562106">
                             Symphony
                           </option>
-                          <option value="Other">Other</option>
                         </select>
-                        {selectedApartment && selectedApartment !== 'Other' && (
+                        {selectedApartment && (
                           <p className="text-xs text-muted-foreground mt-1">
                             📍 {selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106
                           </p>
@@ -953,16 +962,6 @@ export default function Shop() {
                           />
                         </div>
                       </div>
-
-                      {/* Additional Address */}
-                      {selectedApartment === 'Other' && (
-                        <Textarea
-                          placeholder="Enter your complete delivery address..."
-                          rows={2}
-                          value={newAddress}
-                          onChange={(e) => setNewAddress(e.target.value)}
-                        />
-                      )}
                     </div>
                   )}
                 </div>

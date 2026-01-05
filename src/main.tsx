@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { logger } from "./lib/logger";
 
 // PWA Version - Change this on each deploy to force SW update
 const SW_VERSION = '2.0.4';
@@ -23,7 +24,7 @@ if ('serviceWorker' in navigator) {
             const registration = await navigator.serviceWorker.register(swUrl, {
                 updateViaCache: 'none' // Tell browser to never cache the service worker file
             });
-            console.log('ServiceWorker registered:', registration.scope, 'version:', SW_VERSION);
+            logger.info('ServiceWorker registered:', { scope: registration.scope, version: SW_VERSION });
 
             // Check for updates immediately
             registration.update();
@@ -40,7 +41,7 @@ if ('serviceWorker' in navigator) {
                             if (navigator.serviceWorker.controller) {
                                 // New content is available, tell SW to skip waiting
                                 newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                console.log('New content available, refreshing...');
+                                logger.info('New content available, refreshing...');
                                 // Reload after a short delay to let SW take over
                                 setTimeout(() => window.location.reload(), 500);
                             }
@@ -51,10 +52,10 @@ if ('serviceWorker' in navigator) {
 
             // Listen for controller change and reload
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                console.log('Controller changed, page will reload');
+                logger.info('Controller changed, page will reload');
             });
         } catch (error) {
-            console.log('ServiceWorker registration failed:', error);
+            logger.error('ServiceWorker registration failed', { error });
         }
     });
 }

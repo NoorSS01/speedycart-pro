@@ -33,9 +33,7 @@ export default function AddressInput({ value, onChange, savedAddress, showSavedO
         if (addressOption === 'saved' && savedAddress) {
             onChange(savedAddress);
         } else if (addressOption === 'new') {
-            if (apartment === 'Other') {
-                onChange(customAddress);
-            } else if (apartment && block && room) {
+            if (apartment && block && room) {
                 const fullAddress = `${apartment}, Block ${block}, Room ${room}`;
                 onChange(fullAddress);
             } else {
@@ -112,13 +110,12 @@ export default function AddressInput({ value, onChange, savedAddress, showSavedO
                             <SelectContent>
                                 <SelectItem value="VBHC Vaibhava">VBHC Vaibhava</SelectItem>
                                 <SelectItem value="Symphony">Symphony</SelectItem>
-                                <SelectItem value="Other">Other</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     {/* Block and Room for selected apartments */}
-                    {apartment && apartment !== 'Other' && (
+                    {apartment && (
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-2">
                                 <Label>Block / Tower</Label>
@@ -139,29 +136,14 @@ export default function AddressInput({ value, onChange, savedAddress, showSavedO
                         </div>
                     )}
 
-                    {/* Custom Address for Other */}
-                    {apartment === 'Other' && (
-                        <div className="space-y-2">
-                            <Label>Full Address</Label>
-                            <Textarea
-                                placeholder="Enter your complete delivery address"
-                                value={customAddress}
-                                onChange={(e) => setCustomAddress(e.target.value)}
-                                rows={3}
-                            />
-                        </div>
-                    )}
-
                     {/* Address Preview */}
-                    {((apartment && apartment !== 'Other' && block && room) || (apartment === 'Other' && customAddress)) && (
+                    {(apartment && block && room) && (
                         <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
                             <p className="text-xs text-muted-foreground mb-1">Delivery Address:</p>
                             <div className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-300">
                                 <Home className="h-4 w-4" />
                                 <span>
-                                    {apartment === 'Other'
-                                        ? customAddress
-                                        : `${apartment}, Block ${block}, Room ${room}`}
+                                    {`${apartment}, Block ${block}, Room ${room}`}
                                 </span>
                             </div>
                         </div>
