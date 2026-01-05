@@ -474,6 +474,12 @@ USING (
   OR has_role(auth.uid(), 'delivery'::app_role)
   OR has_role(auth.uid(), 'admin'::app_role) 
   OR has_role(auth.uid(), 'super_admin'::app_role)
+)
+WITH CHECK (
+  auth.uid() = user_id 
+  OR has_role(auth.uid(), 'delivery'::app_role)
+  OR has_role(auth.uid(), 'admin'::app_role) 
+  OR has_role(auth.uid(), 'super_admin'::app_role)
 );
 
 -- Allow admins to delete orders
