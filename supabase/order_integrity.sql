@@ -106,7 +106,7 @@ BEGIN
   -- Validate transitions
   CASE OLD.status
     WHEN 'pending' THEN
-      IF NEW.status NOT IN ('confirmed', 'cancelled', 'rejected') THEN
+      IF NEW.status NOT IN ('confirmed', 'out_for_delivery', 'cancelled', 'rejected') THEN
         RAISE EXCEPTION 'Invalid status transition from pending to %', NEW.status;
       END IF;
     WHEN 'confirmed' THEN
