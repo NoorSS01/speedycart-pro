@@ -202,7 +202,7 @@ export default function SuperAdmin() {
       .order('created_at', { ascending: false });
 
     if (payoutsData) setPayouts(payoutsData);
-    if (payoutsError) console.error('Error fetching payouts', payoutsError);
+    if (payoutsError) logger.error('Error fetching payouts', { error: payoutsError });
   }, []);
 
   const updatePayoutStatus = async (id: string, status: 'approved' | 'rejected') => {

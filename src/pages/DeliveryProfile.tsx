@@ -14,14 +14,12 @@ import {
     ArrowLeft,
     User,
     LogOut,
-    Truck,
     Bell,
     Phone,
     Mail,
     IndianRupee,
     CheckCircle,
     Star,
-    Calendar,
     TrendingUp,
     Clock,
     Package,
@@ -29,9 +27,10 @@ import {
     Loader2,
     XCircle
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
+// date-fns format removed - not currently used
 
 interface Profile {
     phone: string;
@@ -73,6 +72,7 @@ export default function DeliveryProfile() {
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [activationStatus, setActivationStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
     const [requestingActive, setRequestingActive] = useState(false);
+    const [payouts, setPayouts] = useState<any[]>([]);
 
     useEffect(() => {
         if (authLoading) return;
@@ -82,6 +82,7 @@ export default function DeliveryProfile() {
         }
         fetchData();
         fetchActivationStatus();
+        fetchPayouts();
     }, [user, authLoading, navigate]);
 
     const fetchData = async () => {
@@ -135,7 +136,7 @@ export default function DeliveryProfile() {
                 .eq('delivery_person_id', user.id);
 
             const avgRating = ratings && ratings.length > 0
-                ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+                ? ratings.reduce((sum, r) => sum + (r.rating ?? 0), 0) / ratings.length
                 : 0;
 
             setStats({
@@ -194,8 +195,8 @@ export default function DeliveryProfile() {
                 .eq('activation_date', today)
                 .maybeSingle();
 
-            if (data) {
-                setActivationStatus(data.status);
+            if (data && data.status) {
+                setActivationStatus(data.status as 'pending' | 'approved' | 'rejected');
             } else {
                 setActivationStatus('none');
             }
@@ -234,6 +235,36 @@ export default function DeliveryProfile() {
             logger.error('Activation request failed', { error });
         }
         setRequestingActive(false);
+    };
+
+    const fetchPayouts = async () => {
+        if (!user) return;
+        try {
+            const { data } = await supabase
+                .from('payouts' as any)
+                .select('*')
+                .eq('payee_id', user.id)
+                .eq('type', 'delivery_commission')
+                .order('created_at', { ascending: false })
+                .limit(10);
+            if (data) setPayouts(data);
+        } catch (e) {
+            logger.debug('Payouts fetch failed', { error: e });
+        }
+    };
+
+    const handlePayoutAction = async (payoutId: string, newStatus: 'approved' | 'rejected') => {
+        try {
+            const { error } = await supabase
+                .from('payouts' as any)
+                .update({ status: newStatus })
+                .eq('id', payoutId);
+            if (error) throw error;
+            toast.success(`Payout ${newStatus}`);
+            fetchPayouts();
+        } catch (e) {
+            toast.error('Failed to update payout');
+        }
     };
 
     if (loading) {
