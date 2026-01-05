@@ -45,16 +45,50 @@ export default function AdminDeliveryActivations() {
         try {
             const today = new Date().toISOString().split('T')[0];
 
-            const { data } = await supabase
+            // First, fetch activations for today
+            const { data: activationsData, error: activationsError } = await supabase
                 .from('delivery_activations')
-                .select(`
-                    id, delivery_partner_id, activation_date, status, created_at,
-                    profiles:delivery_partner_id(full_name, phone)
-                `)
+                .select('id, delivery_partner_id, activation_date, status, created_at')
                 .eq('activation_date', today)
                 .order('created_at', { ascending: false });
 
-            if (data) setRequests(data);
+            if (activationsError) {
+                logger.error('Failed to fetch activations', { error: activationsError });
+                setLoading(false);
+                return;
+            }
+
+            if (!activationsData || activationsData.length === 0) {
+                setRequests([]);
+                setLoading(false);
+                return;
+            }
+
+            // Get unique partner IDs
+            const partnerIds = [...new Set(activationsData.map(a => a.delivery_partner_id))];
+
+            // Fetch profiles for these partners
+            const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('id, full_name, phone')
+                .in('id', partnerIds);
+
+            // Create a map for quick lookup
+            const profilesMap = new Map(
+                (profilesData || []).map(p => [p.id, { full_name: p.full_name, phone: p.phone }])
+            );
+
+            // Combine activations with profiles
+            const combinedData: ActivationRequest[] = activationsData.map(a => ({
+                id: a.id,
+                delivery_partner_id: a.delivery_partner_id,
+                activation_date: a.activation_date,
+                status: a.status || 'pending',
+                created_at: a.created_at || new Date().toISOString(),
+                profiles: profilesMap.get(a.delivery_partner_id) || null
+            }));
+
+            setRequests(combinedData);
         } catch (error) {
             logger.error('Failed to fetch delivery activation requests', { error });
         }
