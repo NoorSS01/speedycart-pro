@@ -8,9 +8,10 @@ import { useDeliveryTime } from '@/hooks/useDeliveryTime';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Package, MapPin, CheckCircle, Truck, Clock } from 'lucide-react';
+import { ArrowLeft, Package, MapPin, CheckCircle, Truck, Clock, XCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
 
 export default function UserOrderDetail() {
@@ -21,6 +22,7 @@ export default function UserOrderDetail() {
     const [items, setItems] = useState<any[]>([]);
     const [assignment, setAssignment] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [confirming, setConfirming] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
 
     const { deliveryTimeMinutes } = useDeliveryTime();
@@ -106,6 +108,44 @@ export default function UserOrderDetail() {
             setLoading(false);
         }
     }, [orderId, user?.id, navigate]);
+
+    // Confirm or reject delivery
+    const handleDeliveryConfirmation = async (accepted: boolean) => {
+        if (!assignment?.id) return;
+        setConfirming(true);
+
+        try {
+            if (accepted) {
+                // User confirms delivery received
+                await supabase
+                    .from('delivery_assignments')
+                    .update({ user_confirmed_at: new Date().toISOString() })
+                    .eq('id', assignment.id);
+
+                await supabase
+                    .from('orders')
+                    .update({ status: 'delivered' })
+                    .eq('id', orderId);
+
+                toast.success('Order confirmed as delivered!');
+            } else {
+                // User rejects - mark as rejected in assignment
+                await supabase
+                    .from('delivery_assignments')
+                    .update({ is_rejected: true })
+                    .eq('id', assignment.id);
+
+                toast.error('Delivery reported as issue. Admin will review.');
+            }
+
+            fetchData();
+        } catch (error) {
+            logger.error('Failed to confirm delivery', { error });
+            toast.error('Failed to confirm. Please try again.');
+        } finally {
+            setConfirming(false);
+        }
+    };
 
     useEffect(() => {
         if (authLoading) return;
@@ -285,6 +325,50 @@ export default function UserOrderDetail() {
                     Payment: {order.payment_method === 'cod' ? 'Cash on Delivery' : 'Prepaid'}
                 </div>
             </div>
+
+            {/* Non-dismissible Delivery Confirmation Modal */}
+            {assignment?.marked_delivered_at && !assignment?.user_confirmed_at && !assignment?.is_rejected && (
+                <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-sm border-2 border-primary shadow-2xl">
+                        <CardContent className="p-6 text-center space-y-4">
+                            <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                                <Package className="w-8 h-8 text-primary" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold">Order Delivered</h2>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    The delivery partner has marked your order as delivered.
+                                </p>
+                            </div>
+                            <p className="text-sm font-medium">
+                                Did you receive your order?
+                            </p>
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <Button
+                                    variant="outline"
+                                    className="border-red-500 text-red-500 hover:bg-red-50"
+                                    onClick={() => handleDeliveryConfirmation(false)}
+                                    disabled={confirming}
+                                >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    {confirming ? 'Wait...' : 'No, Report'}
+                                </Button>
+                                <Button
+                                    className="bg-green-500 hover:bg-green-600"
+                                    onClick={() => handleDeliveryConfirmation(true)}
+                                    disabled={confirming}
+                                >
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    {confirming ? 'Wait...' : 'Yes, Received'}
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                You must confirm to continue using the app.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             <BottomNav />
         </div>

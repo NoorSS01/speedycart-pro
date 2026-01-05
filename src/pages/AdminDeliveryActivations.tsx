@@ -29,6 +29,11 @@ export default function AdminDeliveryActivations() {
     const navigate = useNavigate();
     const [requests, setRequests] = useState<ActivationRequest[]>([]);
     const [loading, setLoading] = useState(true);
+    const [approvalDialog, setApprovalDialog] = useState<{ open: boolean; requestId: string | null; hours: number }>({
+        open: false,
+        requestId: null,
+        hours: 8
+    });
 
     const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
@@ -95,18 +100,37 @@ export default function AdminDeliveryActivations() {
         setLoading(false);
     };
 
-    const updateStatus = async (id: string, status: 'approved' | 'rejected') => {
+    const updateStatus = async (id: string, status: 'approved' | 'rejected', durationHours?: number) => {
         try {
+            const updateData: any = {
+                status,
+                admin_id: user?.id,
+                updated_at: new Date().toISOString()
+            };
+
+            // If approving, set the expiry time
+            if (status === 'approved' && durationHours) {
+                const approvedUntil = new Date();
+                approvedUntil.setHours(approvedUntil.getHours() + durationHours);
+                updateData.approved_until = approvedUntil.toISOString();
+                updateData.duration_hours = durationHours;
+            }
+
             await supabase
                 .from('delivery_activations')
-                .update({ status, admin_id: user?.id, updated_at: new Date().toISOString() })
+                .update(updateData)
                 .eq('id', id);
 
-            toast.success(`Request ${status}`);
+            toast.success(`Request ${status}${status === 'approved' ? ` for ${durationHours}h` : ''}`);
+            setApprovalDialog({ open: false, requestId: null, hours: 8 });
             fetchRequests();
         } catch (error) {
             toast.error('Failed to update request');
         }
+    };
+
+    const openApprovalDialog = (requestId: string) => {
+        setApprovalDialog({ open: true, requestId, hours: 8 });
     };
 
     if (loading) {
@@ -188,7 +212,7 @@ export default function AdminDeliveryActivations() {
                                                 <Button
                                                     size="sm"
                                                     className="bg-green-500 hover:bg-green-600"
-                                                    onClick={() => updateStatus(req.id, 'approved')}
+                                                    onClick={() => openApprovalDialog(req.id)}
                                                 >
                                                     <Check className="h-4 w-4 mr-1" />
                                                     Approve
@@ -247,6 +271,50 @@ export default function AdminDeliveryActivations() {
                     </div>
                 )}
             </div>
+
+            {/* Approval Duration Dialog */}
+            {approvalDialog.open && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <Card className="w-full max-w-sm">
+                        <CardHeader>
+                            <CardTitle className="text-lg">Set Activation Duration</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                How long should this activation be valid?
+                            </p>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[4, 6, 8, 10, 12, 16, 20, 24].map(h => (
+                                    <Button
+                                        key={h}
+                                        variant={approvalDialog.hours === h ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => setApprovalDialog(prev => ({ ...prev, hours: h }))}
+                                    >
+                                        {h}h
+                                    </Button>
+                                ))}
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => setApprovalDialog({ open: false, requestId: null, hours: 8 })}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    className="flex-1 bg-green-500 hover:bg-green-600"
+                                    onClick={() => approvalDialog.requestId && updateStatus(approvalDialog.requestId, 'approved', approvalDialog.hours)}
+                                >
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Approve for {approvalDialog.hours}h
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
 
             <AdminBottomNav />
         </div>
