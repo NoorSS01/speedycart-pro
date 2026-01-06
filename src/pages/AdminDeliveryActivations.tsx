@@ -18,6 +18,8 @@ interface ActivationRequest {
     activation_date: string;
     status: string;
     created_at: string;
+    approved_until: string | null;
+    duration_hours: number | null;
     profiles: {
         full_name: string | null;
         phone: string | null;
@@ -90,6 +92,8 @@ export default function AdminDeliveryActivations() {
                 activation_date: a.activation_date,
                 status: a.status || 'pending',
                 created_at: a.created_at || new Date().toISOString(),
+                approved_until: (a as any).approved_until || null,
+                duration_hours: (a as any).duration_hours || null,
                 profiles: profilesMap.get(a.delivery_partner_id) || null
             }));
 
@@ -131,6 +135,36 @@ export default function AdminDeliveryActivations() {
 
     const openApprovalDialog = (requestId: string) => {
         setApprovalDialog({ open: true, requestId, hours: 8 });
+    };
+
+    // Stop/deactivate a partner
+    const stopActivation = async (id: string) => {
+        try {
+            await supabase
+                .from('delivery_activations')
+                .update({
+                    status: 'rejected',
+                    approved_until: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id);
+            toast.success('Activation stopped');
+            fetchRequests();
+        } catch (error) {
+            toast.error('Failed to stop activation');
+        }
+    };
+
+    // Calculate remaining time
+    const getRemainingTime = (approvedUntil: string | null) => {
+        if (!approvedUntil) return null;
+        const end = new Date(approvedUntil);
+        const now = new Date();
+        const diff = end.getTime() - now.getTime();
+        if (diff <= 0) return 'Expired';
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        return `${hours}h ${mins}m left`;
     };
 
     if (loading) {
@@ -243,30 +277,53 @@ export default function AdminDeliveryActivations() {
                             Processed Today
                         </h2>
                         <div className="space-y-2">
-                            {processedRequests.map(req => (
-                                <Card key={req.id} className="opacity-75">
-                                    <CardContent className="p-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${req.status === 'approved' ? 'bg-green-500' : 'bg-red-500'
-                                                    }`}>
-                                                    {req.status === 'approved' ? (
-                                                        <Check className="h-4 w-4 text-white" />
-                                                    ) : (
-                                                        <X className="h-4 w-4 text-white" />
-                                                    )}
+                            {processedRequests.map(req => {
+                                const remainingTime = req.status === 'approved' ? getRemainingTime(req.approved_until) : null;
+                                const isActive = remainingTime && remainingTime !== 'Expired';
+
+                                return (
+                                    <Card key={req.id} className={isActive ? 'border-green-500' : 'opacity-75'}>
+                                        <CardContent className="p-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${req.status === 'approved' ? 'bg-green-500' : 'bg-red-500'}`}>
+                                                        {req.status === 'approved' ? (
+                                                            <Check className="h-4 w-4 text-white" />
+                                                        ) : (
+                                                            <X className="h-4 w-4 text-white" />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-sm font-medium">
+                                                            {req.profiles?.full_name || 'Partner'}
+                                                        </span>
+                                                        {remainingTime && (
+                                                            <p className={`text-xs ${remainingTime === 'Expired' ? 'text-red-500' : 'text-green-600'}`}>
+                                                                {remainingTime}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <span className="text-sm">
-                                                    {req.profiles?.full_name || 'Partner'}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    {isActive && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="text-red-500 border-red-500 hover:bg-red-50 h-7"
+                                                            onClick={() => stopActivation(req.id)}
+                                                        >
+                                                            Stop
+                                                        </Button>
+                                                    )}
+                                                    <Badge variant={req.status === 'approved' ? (isActive ? 'default' : 'secondary') : 'destructive'}>
+                                                        {isActive ? 'Active' : req.status}
+                                                    </Badge>
+                                                </div>
                                             </div>
-                                            <Badge variant={req.status === 'approved' ? 'default' : 'destructive'}>
-                                                {req.status}
-                                            </Badge>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
