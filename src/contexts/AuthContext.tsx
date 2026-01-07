@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';
@@ -8,8 +8,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: string | null;
-  signUp: (email: string, password: string, phone: string, fullName?: string, username?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, phone: string, fullName?: string, username?: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', userId)
         .single();
 
-      const profileData = profile as any;
+      const profileData = profile as { phone?: string; username?: string } | null;
       const hasValidPhone = profileData?.phone && profileData.phone.replace(/\D/g, '').length >= 10;
       const hasUsername = profileData?.username && profileData.username.length >= 3;
 
@@ -40,7 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         navigate('/phone-setup');
       }
     } catch (e) {
-      // Silently fail - don't block app loading
+      // Profile check failed - log but don't block app loading
+      logger.debug('Profile setup check failed', { error: e });
     }
   }, [navigate]);
 

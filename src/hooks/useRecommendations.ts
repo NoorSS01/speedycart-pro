@@ -89,6 +89,7 @@ export function useRecommendations(): RecommendationResult {
             }
         } catch (e) {
             // Silent fail - tracking should never break UX
+            logger.debug('Product view tracking failed', { error: e });
         }
     }, [user]);
 
@@ -106,7 +107,7 @@ export function useRecommendations(): RecommendationResult {
                 .gte('created_at', sevenDaysAgo);
 
             if (recentOrders) {
-                recentOrders.forEach((item: any) => {
+                recentOrders.forEach((item: { product_id: string; quantity: number }) => {
                     const current = trendingScores.get(item.product_id) || 0;
                     trendingScores.set(item.product_id, current + item.quantity);
                 });
@@ -120,6 +121,7 @@ export function useRecommendations(): RecommendationResult {
 
         } catch (e) {
             // Return empty map on error
+            logger.debug('Trending calculation failed', { error: e });
         }
 
         return trendingScores;
@@ -223,17 +225,18 @@ export function useRecommendations(): RecommendationResult {
             const viewScores: Record<string, number> = {};
 
             if (viewHistory && Array.isArray(viewHistory)) {
-                viewHistory.forEach((view: any, index: number) => {
+                viewHistory.forEach((view, index: number) => {
                     // Recency decay for views
                     const recencyFactor = Math.exp(-index / 20); // More recent = higher weight
-                    const viewScore = Math.min(view.view_count * 5 * recencyFactor, 25);
+                    const viewCount = view.view_count ?? 1;
+                    const viewScore = Math.min(viewCount * 5 * recencyFactor, 25);
                     viewScores[view.product_id] = viewScore;
 
                     // Also boost related categories
                     const product = productsWithVariants.find(p => p.id === view.product_id);
                     if (product?.category_id) {
                         categoryScores[product.category_id] =
-                            (categoryScores[product.category_id] || 0) + (view.view_count * 2 * recencyFactor);
+                            (categoryScores[product.category_id] || 0) + (viewCount * 2 * recencyFactor);
                     }
                 });
             }

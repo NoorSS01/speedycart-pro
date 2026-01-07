@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,27 +11,46 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 
+interface DeliveryOrder {
+    id: string;
+    created_at: string | null;
+    status: string | null;
+    total_amount: number;
+    delivery_address: string;
+    payment_method?: string | null;
+    orderNumber?: number;
+}
+
+interface EnrichedOrderItem {
+    id: string;
+    quantity: number;
+    price: number;
+    product_id: string;
+    variant_id: string | null;
+    name: string;
+    image: string | null;
+    calculatedQty: string;
+    unit?: string;
+}
+
+interface DeliveryAssignment {
+    id: string;
+    marked_delivered_at: string | null;
+}
+
 export default function DeliveryOrderDetail() {
-    const { user, loading: authLoading } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const { orderId } = useParams<{ orderId: string }>();
-    const [order, setOrder] = useState<any>(null);
-    const [items, setItems] = useState<any[]>([]);
-    const [assignment, setAssignment] = useState<any>(null);
+    const [order, setOrder] = useState<DeliveryOrder | null>(null);
+    const [items, setItems] = useState<EnrichedOrderItem[]>([]);
+    const [assignment, setAssignment] = useState<DeliveryAssignment | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
 
-    useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
-            navigate('/auth');
-            return;
-        }
-        if (orderId) fetchData();
-    }, [user, authLoading, orderId]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!orderId) return;
+        if (!user) return;
         setLoading(true);
 
         try {
@@ -48,7 +67,7 @@ export default function DeliveryOrderDetail() {
                 return;
             }
             // Calculate order number (platform-wide daily number)
-            const orderDate = new Date(orderData.created_at);
+            const orderDate = new Date(orderData.created_at || Date.now());
             const dayStart = new Date(orderDate);
             dayStart.setHours(0, 0, 0, 0);
 
@@ -59,9 +78,16 @@ export default function DeliveryOrderDetail() {
                 .order('created_at', { ascending: true });
 
             const orderIndex = (dayOrders || []).findIndex(o => o.id === orderId);
-            (orderData as any).orderNumber = orderIndex >= 0 ? orderIndex + 1 : 1;
+            const enrichedOrder: DeliveryOrder = {
+                id: orderData.id,
+                created_at: orderData.created_at,
+                status: orderData.status,
+                total_amount: orderData.total_amount,
+                delivery_address: orderData.delivery_address,
+                orderNumber: orderIndex >= 0 ? orderIndex + 1 : 1
+            };
 
-            setOrder(orderData);
+            setOrder(enrichedOrder);
 
             // Fetch items with variant_id
             const { data: itemsData, error: itemsError } = await supabase
@@ -71,17 +97,17 @@ export default function DeliveryOrderDetail() {
 
             logger.debug('Fetched delivery order items', { itemsData, error: itemsError });
 
-            if (itemsData && (itemsData as any[]).length > 0) {
+            if (itemsData && itemsData.length > 0) {
                 // Fetch product names, images, and units
-                const productIds = (itemsData as any[]).map(i => i.product_id);
+                const productIds = itemsData.map(i => i.product_id);
                 const { data: products } = await supabase
                     .from('products')
                     .select('id, name, image_url, unit')
                     .in('id', productIds);
 
                 // Fetch variants if any
-                const variantIds = (itemsData as any[]).map(i => i.variant_id).filter(Boolean);
-                let variantMap = new Map();
+                const variantIds = itemsData.map(i => i.variant_id).filter((id): id is string => id !== null);
+                let variantMap = new Map<string, { id: string; variant_name: string; variant_value: number; variant_unit: string }>();
                 if (variantIds.length > 0) {
                     const { data: variants } = await supabase
                         .from('product_variants')
@@ -92,15 +118,19 @@ export default function DeliveryOrderDetail() {
 
                 const productMap = new Map((products || []).map(p => [p.id, p]));
 
-                const enrichedItems = (itemsData as any[]).map(item => {
-                    const variant = variantMap.get(item.variant_id);
-                    const productUnit = productMap.get(item.product_id)?.unit;
+                const enrichedItems: EnrichedOrderItem[] = itemsData.map(item => {
+                    const variant = item.variant_id ? variantMap.get(item.variant_id) : undefined;
+                    const productUnit = productMap.get(item.product_id)?.unit ?? undefined;
 
                     // Use the universal formatting utility
                     const calculatedQty = formatOrderQuantity(item.quantity, variant || null, productUnit);
 
                     return {
-                        ...item,
+                        id: item.id,
+                        quantity: item.quantity,
+                        price: item.price,
+                        product_id: item.product_id,
+                        variant_id: item.variant_id,
                         name: productMap.get(item.product_id)?.name || 'Product',
                         image: productMap.get(item.product_id)?.image_url || null,
                         calculatedQty
@@ -123,7 +153,16 @@ export default function DeliveryOrderDetail() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [orderId, user, navigate]);
+
+    // Effect to fetch data on mount and when dependencies change
+    useEffect(() => {
+        if (!user) {
+            navigate('/auth');
+            return;
+        }
+        if (orderId) fetchData();
+    }, [user, orderId, navigate, fetchData]);
 
     const pickOrder = async () => {
         if (!order) return;
@@ -192,7 +231,7 @@ export default function DeliveryOrderDetail() {
                                 Order #{order.orderNumber || '—'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                {format(new Date(order.created_at), 'dd MMM yyyy, hh:mm a')}
+                                {format(new Date(order.created_at || Date.now()), 'dd MMM yyyy, hh:mm a')}
                             </p>
                         </div>
 

@@ -110,7 +110,7 @@ export function usePushNotifications() {
             // Subscribe to push with timeout
             const subscribePromise = registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as any,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
             });
             const subscribeTimeout = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error('Push subscription timed out')), 10000)
@@ -164,9 +164,9 @@ export function usePushNotifications() {
             setLoading(false);
             return true;
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error subscribing to push:', error);
-            const errorMessage = error?.message || 'Unknown error';
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             if (errorMessage.includes('timed out')) {
                 toast.error('Connection timed out. Please try again.');
             } else if (errorMessage.includes('permission')) {
@@ -217,7 +217,19 @@ export function usePushNotifications() {
         setPreferences(updatedPrefs);
 
         try {
-            const updateData: any = {};
+            interface UpdateData {
+                daily_reminders?: boolean;
+                profit_alerts?: boolean;
+                order_updates?: boolean;
+                low_stock_alerts?: boolean;
+                new_order_alerts?: boolean;
+                delivery_updates?: boolean;
+                promotional_alerts?: boolean;
+                sound_enabled?: boolean;
+                vibration_enabled?: boolean;
+                reminder_time?: string;
+            }
+            const updateData: UpdateData = {};
 
             if ('dailyReminders' in newPreferences) updateData.daily_reminders = newPreferences.dailyReminders;
             if ('profitAlerts' in newPreferences) updateData.profit_alerts = newPreferences.profitAlerts;

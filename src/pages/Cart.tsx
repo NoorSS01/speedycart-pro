@@ -392,8 +392,8 @@ export default function Cart() {
             setPromoCode('');
             setShowOrderSuccess(true);
 
-        } catch (error: any) {
-            logger.error('Order placement error', { error });
+        } catch (error: unknown) {
+            logger.error('Order placement error', { error: error instanceof Error ? error.message : String(error) });
             toast.error('Failed to place order. Please try again.');
         } finally {
             setPlacingOrder(false);

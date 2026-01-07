@@ -3,9 +3,12 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  // Base path for Hostinger - app is served from /dist/ under document root
-  base: "/dist/",
+export default defineConfig(({ command, mode }) => ({
+  // Base path configuration:
+  // - Development (npm run dev): Use "/" for local dev server
+  // - Production (npm run build): Use "/dist/" for Hostinger deployment
+  // This fixes the 404 error on local development while keeping Hostinger working
+  base: command === 'serve' ? '/' : '/dist/',
   build: {
     outDir: "dist",
     emptyOutDir: true,
@@ -26,3 +29,4 @@ export default defineConfig(({ mode }) => ({
   },
   publicDir: "public",
 }));
+

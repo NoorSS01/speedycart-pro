@@ -55,12 +55,12 @@ interface BroadcastNotification {
     id: string;
     title: string;
     body: string;
-    url: string;
+    url: string | null;
     target_audience: string;
-    status: string;
-    sent_count: number;
-    failed_count: number;
-    created_at: string;
+    status: string | null;
+    sent_count: number | null;
+    failed_count: number | null;
+    created_at: string | null;
     sent_at: string | null;
 }
 
@@ -68,6 +68,11 @@ interface NotificationStats {
     total_sent: number;
     total_failed: number;
     by_type: Record<string, number>;
+}
+
+interface NotificationLogEntry {
+    notification_type: string;
+    status: string;
 }
 
 const NOTIFICATION_TEMPLATES = [
@@ -163,16 +168,17 @@ export function AdminBroadcastNotifications() {
     };
 
     const fetchStats = async () => {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('notification_logs')
             .select('notification_type, status')
             .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
         if (data && !error) {
-            const total_sent = data.filter((n: any) => n.status === 'sent').length;
-            const total_failed = data.filter((n: any) => n.status === 'failed').length;
+            const logs = data as NotificationLogEntry[];
+            const total_sent = logs.filter(n => n.status === 'sent').length;
+            const total_failed = logs.filter(n => n.status === 'failed').length;
             const by_type: Record<string, number> = {};
-            data.forEach((n: any) => {
+            logs.forEach(n => {
                 by_type[n.notification_type] = (by_type[n.notification_type] || 0) + 1;
             });
             setStats({ total_sent, total_failed, by_type });
@@ -247,9 +253,10 @@ export function AdminBroadcastNotifications() {
             fetchBroadcasts();
             fetchStats();
 
-        } catch (error: any) {
-            logger.error('Error sending broadcast', { error });
-            toast.error('Failed to send broadcast: ' + error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            logger.error('Error sending broadcast', { error: errorMessage });
+            toast.error('Failed to send broadcast: ' + errorMessage);
         } finally {
             setLoading(false);
         }
@@ -307,8 +314,9 @@ export function AdminBroadcastNotifications() {
             if (error) throw error;
 
             toast.success(`✅ Test ${type} notification sent!`);
-        } catch (error: any) {
-            toast.error('Failed to send test: ' + error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            toast.error('Failed to send test: ' + errorMessage);
         } finally {
             setSendingTest(false);
         }
@@ -761,7 +769,7 @@ export function AdminBroadcastNotifications() {
                                                         <p className="font-medium truncate">{broadcast.title}</p>
                                                         <p className="text-sm text-muted-foreground line-clamp-1">{broadcast.body}</p>
                                                     </div>
-                                                    {getStatusBadge(broadcast.status)}
+                                                    {getStatusBadge(broadcast.status || 'unknown')}
                                                 </div>
                                                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                                     <span className="flex items-center gap-1">
@@ -772,14 +780,14 @@ export function AdminBroadcastNotifications() {
                                                         <CheckCircle className="h-3 w-3 text-green-500" />
                                                         {broadcast.sent_count} sent
                                                     </span>
-                                                    {broadcast.failed_count > 0 && (
+                                                    {(broadcast.failed_count || 0) > 0 && (
                                                         <span className="flex items-center gap-1">
                                                             <XCircle className="h-3 w-3 text-red-500" />
                                                             {broadcast.failed_count} failed
                                                         </span>
                                                     )}
                                                     <span>
-                                                        {format(new Date(broadcast.created_at), 'MMM d, h:mm a')}
+                                                        {format(new Date(broadcast.created_at || Date.now()), 'MMM d, h:mm a')}
                                                     </span>
                                                 </div>
                                             </div>
