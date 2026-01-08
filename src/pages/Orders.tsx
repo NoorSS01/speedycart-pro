@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck, Star, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Package, Clock, CheckCircle, XCircle, Truck, Star, MessageSquare, LogIn } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -116,10 +116,7 @@ export default function Orders() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    if (!user) return; // Don't redirect, we'll show auth screen
     fetchOrders();
 
     const channel = supabase
@@ -144,7 +141,7 @@ export default function Orders() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, authLoading, navigate, fetchOrders]);
+  }, [user, authLoading, fetchOrders]);
 
   const confirmDelivery = async () => {
     if (!confirmDialog.assignmentId) return;
@@ -275,6 +272,34 @@ export default function Orders() {
     );
   };
 
+  // Auth required screen for guests
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background flex flex-col">
+        <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
+          <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}><ArrowLeft className="h-5 w-5" /></Button>
+            <h1 className="text-xl font-bold">My Orders</h1>
+          </div>
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+            <LogIn className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Sign in to view orders</h2>
+          <p className="text-muted-foreground text-center mb-6">
+            Please sign in to access your order history and track deliveries
+          </p>
+          <Button size="lg" onClick={() => navigate('/auth')} className="px-8">
+            <LogIn className="h-5 w-5 mr-2" />
+            Sign In
+          </Button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-background pb-20">
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
@@ -383,12 +408,15 @@ export default function Orders() {
                           variant="outline"
                           size="sm"
                           className="w-full mt-3"
-                          onClick={() => setReviewDialog({
-                            open: true,
-                            productId: order.order_items[0].products.id,
-                            productName: order.order_items[0].products.name,
-                            orderId: order.id
-                          })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReviewDialog({
+                              open: true,
+                              productId: order.order_items[0].products.id,
+                              productName: order.order_items[0].products.name,
+                              orderId: order.id
+                            });
+                          }}
                         >
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Write a Review

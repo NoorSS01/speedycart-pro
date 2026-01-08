@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Package, User } from 'lucide-react';
+import { Package, User } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
 interface Category {
@@ -20,14 +20,10 @@ export default function Categories() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Fetch categories for all users (guests and authenticated)
     useEffect(() => {
-        if (authLoading) return;
-        if (!user) {
-            navigate('/auth');
-            return;
-        }
         fetchCategories();
-    }, [user, authLoading, navigate]);
+    }, []);
 
     const fetchCategories = async () => {
         const { data, error } = await supabase
@@ -44,6 +40,15 @@ export default function Categories() {
 
     const handleCategoryClick = (categoryId: string) => {
         navigate(`/shop?category=${categoryId}`);
+    };
+
+    // Handle profile button - redirect to auth if guest, profile if authenticated
+    const handleProfileClick = () => {
+        if (user) {
+            navigate('/profile');
+        } else {
+            navigate('/auth');
+        }
     };
 
     if (loading || authLoading) {
@@ -99,7 +104,7 @@ export default function Categories() {
                             variant="ghost"
                             size="icon"
                             className="h-10 w-10 rounded-full bg-primary/10 hover:bg-primary/20"
-                            onClick={() => navigate('/profile')}
+                            onClick={handleProfileClick}
                             aria-label="View Profile"
                         >
                             <User className="h-5 w-5 text-primary" />

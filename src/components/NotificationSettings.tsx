@@ -105,70 +105,29 @@ export function NotificationSettings() {
         );
     }
 
-    // Simple notification card for regular users
+    // Simple notification toggle for regular users (non-admin)
     if (!isAdmin) {
         return (
-            <Card className="overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent pb-4">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${isSubscribed
-                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                                }`}>
-                                {isSubscribed ? (
-                                    <BellRing className="h-6 w-6 text-white" />
-                                ) : (
-                                    <BellOff className="h-6 w-6 text-white" />
-                                )}
-                            </div>
-                            <div>
-                                <CardTitle className="text-lg flex items-center gap-2">
-                                    Push Notifications
-                                    <Badge variant={isSubscribed ? 'default' : 'secondary'} className="font-normal">
-                                        {isSubscribed ? (
-                                            <><CheckCircle className="h-3 w-3 mr-1" />Enabled</>
-                                        ) : 'Disabled'}
-                                    </Badge>
-                                </CardTitle>
-                                <CardDescription>
-                                    Get alerts for order updates and delivery status
-                                </CardDescription>
-                            </div>
-                        </div>
-                    </div>
-                </CardHeader>
-
-                <CardContent className="p-6">
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-                        <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between py-4 px-1">
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSubscribed
+                            ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                            : 'bg-muted'
+                        }`}>
+                        {isSubscribed ? (
+                            <BellRing className="h-5 w-5 text-white" />
+                        ) : (
                             <Bell className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                                <Label className="text-base font-medium">
-                                    {isSubscribed ? 'Notifications are enabled' : 'Enable notifications'}
-                                </Label>
-                                <p className="text-sm text-muted-foreground">
-                                    {isSubscribed
-                                        ? 'You will receive order and delivery updates'
-                                        : 'Turn on to receive important updates'}
-                                </p>
-                            </div>
-                        </div>
-                        <Switch
-                            checked={isSubscribed}
-                            onCheckedChange={handleToggleNotifications}
-                            disabled={loading}
-                        />
+                        )}
                     </div>
-
-                    {loading && (
-                        <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Processing...</span>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                    <span className="font-medium">Notifications</span>
+                </div>
+                <Switch
+                    checked={isSubscribed}
+                    onCheckedChange={handleToggleNotifications}
+                    disabled={loading}
+                />
+            </div>
         );
     }
 

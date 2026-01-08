@@ -66,17 +66,21 @@ export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { refreshCart } = useCart();
+    const { refreshCart, addToCart: contextAddToCart } = useCart();
     const [product, setProduct] = useState<Product | null>(null);
     const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
     const [reviews, setReviews] = useState<ProductReview[]>([]);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
     const [addingToCart, setAddingToCart] = useState(false);
+    const [dialogMode, setDialogMode] = useState<'address' | 'buynow'>('address');
     const [showAddressDialog, setShowAddressDialog] = useState(false);
     const [savedAddress, setSavedAddress] = useState('');
     const [addressOption, setAddressOption] = useState<'saved' | 'new'>('saved');
     const [newAddress, setNewAddress] = useState('');
+    const [selectedApartment, setSelectedApartment] = useState<string>('');
+    const [blockNumber, setBlockNumber] = useState('');
+    const [roomNumber, setRoomNumber] = useState('');
     const [showInfo, setShowInfo] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -375,13 +379,69 @@ export default function ProductDetail() {
             toast.error('Out of stock');
             return;
         }
+        setDialogMode('buynow');
         setShowAddressDialog(true);
+    };
+
+    const saveAddressOnly = async () => {
+        let deliveryAddress = '';
+        if (addressOption === 'saved') {
+            deliveryAddress = savedAddress;
+        } else {
+            if (selectedApartment && selectedApartment !== 'Other') {
+                // Build structured address
+                const parts = [];
+                if (blockNumber) parts.push(`Block ${blockNumber}`);
+                if (roomNumber) parts.push(`Room ${roomNumber}`);
+                const complexDetails = parts.length > 0 ? parts.join(', ') : '';
+                deliveryAddress = `${complexDetails ? complexDetails + ', ' : ''}${selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106`;
+            } else {
+                deliveryAddress = newAddress.trim();
+            }
+        }
+        if (!deliveryAddress) {
+            toast.error('Please provide a delivery address');
+            return;
+        }
+
+        // If user is logged in, save to profile
+        if (user) {
+            const { error } = await supabase.from('profiles').update({ address: deliveryAddress }).eq('id', user.id);
+            if (error) {
+                toast.error('Failed to save address');
+                return;
+            }
+        }
+
+        // Update local state
+        setSavedAddress(deliveryAddress);
+        setNewAddress('');
+        setSelectedApartment('');
+        setBlockNumber('');
+        setRoomNumber('');
+        setShowAddressDialog(false);
+        toast.success('Delivery address saved');
     };
 
     const confirmOrder = async () => {
         if (!user || !product) return;
 
-        const deliveryAddress = addressOption === 'saved' ? savedAddress : newAddress.trim();
+        let deliveryAddress = '';
+        if (addressOption === 'saved') {
+            deliveryAddress = savedAddress;
+        } else {
+            if (selectedApartment && selectedApartment !== 'Other') {
+                // Build structured address
+                const parts = [];
+                if (blockNumber) parts.push(`Block ${blockNumber}`);
+                if (roomNumber) parts.push(`Room ${roomNumber}`);
+                const complexDetails = parts.length > 0 ? parts.join(', ') : '';
+                deliveryAddress = `${complexDetails ? complexDetails + ', ' : ''}${selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106`;
+            } else {
+                deliveryAddress = newAddress.trim();
+            }
+        }
+
         if (!deliveryAddress) {
             toast.error('Please provide a delivery address');
             return;
@@ -598,7 +658,10 @@ export default function ProductDetail() {
                         </div>
                     ) : (
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => setShowAddressDialog(true)}>
+                            <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => {
+                                setDialogMode('address');
+                                setShowAddressDialog(true);
+                            }}>
                                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(-1); }}>
                                     <ArrowLeft className="h-5 w-5" />
                                 </Button>
@@ -1100,9 +1163,7 @@ export default function ProductDetail() {
                                         mrp: relProduct.mrp ?? null,
                                         default_variant: null
                                     }}
-                                    onAddToCart={(id) => {
-                                        navigate(`/product/${id}`);
-                                    }}
+                                    onAddToCart={(productId) => contextAddToCart(productId, null)}
                                     compact={true}
                                 />
                             ))}
@@ -1111,43 +1172,112 @@ export default function ProductDetail() {
                 )}
             </div>
 
-            {/* Address Dialog for Buy Now */}
+            {/* Address Dialog for Buy Now & Address Update */}
             <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <MapPin className="h-5 w-5 text-primary" /> Delivery Address
+                            <MapPin className="h-5 w-5 text-primary" />
+                            {dialogMode === 'buynow' ? 'Confirm Order' : 'Delivery Address'}
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="p-3 bg-muted/50 rounded-lg">
-                            <p className="text-sm font-medium">{product?.name}</p>
-                            <p className="text-xs text-muted-foreground">Qty: {quantity} × ₹{product?.price} = ₹{(quantity * (product?.price || 0)).toFixed(0)}</p>
-                        </div>
+                        {dialogMode === 'buynow' && (
+                            <div className="p-3 bg-muted/50 rounded-lg">
+                                <p className="text-sm font-medium">{product?.name}</p>
+                                <p className="text-xs text-muted-foreground">Qty: {quantity} × ₹{product?.price} = ₹{(quantity * (product?.price || 0)).toFixed(0)}</p>
+                            </div>
+                        )}
                         <RadioGroup value={addressOption} onValueChange={(v) => setAddressOption(v as 'saved' | 'new')}>
                             {savedAddress && (
                                 <div className="flex items-start gap-2 p-3 border rounded-lg">
                                     <RadioGroupItem value="saved" id="saved" className="mt-1" />
                                     <Label htmlFor="saved" className="flex-1 cursor-pointer">
                                         <p className="text-sm font-medium">Saved Address</p>
-                                        <p className="text-xs text-muted-foreground mt-1">{savedAddress}</p>
+                                        <p className="text-xs text-muted-foreground mt-1 text-wrap break-words">{savedAddress}</p>
                                     </Label>
                                 </div>
                             )}
                             <div className="flex items-start gap-2 p-3 border rounded-lg">
                                 <RadioGroupItem value="new" id="new" className="mt-1" />
-                                <Label htmlFor="new" className="flex-1 cursor-pointer">
-                                    <p className="text-sm font-medium">New Address</p>
-                                </Label>
+                                <div className="flex-1">
+                                    <Label htmlFor="new" className="cursor-pointer font-medium">New Address</Label>
+                                    {addressOption === 'new' && (
+                                        <div className="space-y-3 mt-3">
+                                            <div>
+                                                <Label className="text-xs">Apartment Complex</Label>
+                                                <select
+                                                    value={selectedApartment}
+                                                    onChange={(e) => setSelectedApartment(e.target.value)}
+                                                    className="w-full mt-1.5 p-2.5 border rounded-md bg-background text-sm"
+                                                >
+                                                    <option value="">Select your apartment...</option>
+                                                    <option value="VBHC Vaibhava">VBHC Vaibhava</option>
+                                                    <option value="Symphony">Symphony</option>
+                                                    <option value="Other">Other (Enter manually)</option>
+                                                </select>
+                                                {selectedApartment && selectedApartment !== 'Other' && (
+                                                    <p className="text-[10px] text-muted-foreground mt-1">
+                                                        📍 {selectedApartment}, Chandapura-Anekal Road, Bangalore - 562106
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {selectedApartment === 'Other' ? (
+                                                <Textarea
+                                                    placeholder="Enter full address"
+                                                    value={newAddress}
+                                                    onChange={(e) => setNewAddress(e.target.value)}
+                                                    className="min-h-[80px]"
+                                                />
+                                            ) : (
+                                                <>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <Label className="text-xs">Block/Tower</Label>
+                                                            <Input
+                                                                placeholder="e.g. 51"
+                                                                value={blockNumber}
+                                                                onChange={(e) => setBlockNumber(e.target.value)}
+                                                                className="mt-1 h-9"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-xs">Room No.</Label>
+                                                            <Input
+                                                                placeholder="e.g. 603"
+                                                                value={roomNumber}
+                                                                onChange={(e) => setRoomNumber(e.target.value)}
+                                                                className="mt-1 h-9"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    {/* Preview */}
+                                                    {(selectedApartment && (blockNumber || roomNumber)) && (
+                                                        <div className="p-2 bg-muted/50 rounded-lg text-xs">
+                                                            <p className="font-medium">Delivery to:</p>
+                                                            <p className="text-muted-foreground">
+                                                                {blockNumber && `Block ${blockNumber}`}{roomNumber && `, Room ${roomNumber}`}
+                                                                <br />
+                                                                {selectedApartment}, Chandapura-Anekal Road...
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </RadioGroup>
-                        {addressOption === 'new' && (
-                            <Textarea placeholder="Enter full delivery address" value={newAddress} onChange={(e) => setNewAddress(e.target.value)} className="min-h-[80px]" />
-                        )}
                     </div>
                     <DialogFooter>
-                        <Button onClick={confirmOrder} className="w-full h-12">
-                            <Zap className="h-4 w-4 mr-2" /> Confirm Order • ₹{(quantity * (product?.price || 0)).toFixed(0)}
+                        <Button onClick={dialogMode === 'buynow' ? confirmOrder : saveAddressOnly} className="w-full h-12">
+                            {dialogMode === 'buynow' ? (
+                                <><Zap className="h-4 w-4 mr-2" /> Confirm Order • ₹{(quantity * (product?.price || 0)).toFixed(0)}</>
+                            ) : (
+                                "Save Address"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

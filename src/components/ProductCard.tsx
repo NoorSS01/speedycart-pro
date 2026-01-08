@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Package } from 'lucide-react';
+import { Package, Minus, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatVariantDisplay } from '@/lib/formatUnit';
 
@@ -22,12 +22,21 @@ interface ProductCardProps {
         unit: string | null;
         discount_percent?: number | null;
         default_variant?: ProductVariant | null;
+        stock_quantity?: number;
     };
     onAddToCart: (productId: string) => void;
     compact?: boolean;
+    cartQuantity?: number;
+    onQuantityChange?: (productId: string, newQuantity: number) => void;
 }
 
-export default function ProductCard({ product, onAddToCart, compact = false }: ProductCardProps) {
+export default function ProductCard({
+    product,
+    onAddToCart,
+    compact = false,
+    cartQuantity = 0,
+    onQuantityChange,
+}: ProductCardProps) {
     const navigate = useNavigate();
     const [isAdding, setIsAdding] = useState(false);
 
@@ -35,9 +44,15 @@ export default function ProductCard({ product, onAddToCart, compact = false }: P
     const displayPrice = variant?.price ?? product.price;
     const displayMrp = variant?.mrp ?? product.mrp;
 
-    const discountAmount = displayMrp && displayMrp > displayPrice
-        ? displayMrp - displayPrice
-        : 0;
+    // Calculate discount percentage
+    const discountPercent = displayMrp && displayMrp > displayPrice
+        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
+        : product.discount_percent || 0;
+
+    // Stock status
+    const stockQty = product.stock_quantity ?? 999;
+    const isLowStock = stockQty > 0 && stockQty <= 5;
+    const isLimitedStock = stockQty > 5 && stockQty <= 10;
 
     // Display unit info
     const unitDisplay = variant
@@ -48,14 +63,28 @@ export default function ProductCard({ product, onAddToCart, compact = false }: P
         e.stopPropagation();
         setIsAdding(true);
         onAddToCart(product.id);
-
-        // Reset animation after 200ms
         setTimeout(() => setIsAdding(false), 200);
+    };
+
+    const handleDecrement = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onQuantityChange && cartQuantity > 0) {
+            onQuantityChange(product.id, cartQuantity - 1);
+        }
+    };
+
+    const handleIncrement = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onQuantityChange) {
+            onQuantityChange(product.id, cartQuantity + 1);
+        } else {
+            onAddToCart(product.id);
+        }
     };
 
     return (
         <Card
-            className={`overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card ${compact ? 'min-w-[120px] max-w-[120px]' : 'min-w-[140px] max-w-[140px]'
+            className={`overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card w-full ${compact ? 'min-w-[120px] max-w-[140px]' : 'min-w-[140px] max-w-[160px]'
                 }`}
             onClick={() => navigate(`/product/${product.id}`)}
         >
@@ -74,19 +103,59 @@ export default function ProductCard({ product, onAddToCart, compact = false }: P
                     </div>
                 )}
 
-                {/* ADD Button - Pill style on image bottom-right */}
-                <button
-                    onClick={handleAdd}
-                    className={`absolute bottom-2 right-2 px-4 py-1.5 rounded-lg font-bold text-sm
-                        bg-primary text-white shadow-lg border border-primary
-                        transition-all duration-150 ease-out
-                        hover:bg-primary/90 hover:scale-105
-                        active:scale-95
-                        ${isAdding ? 'scale-90 bg-primary/80' : ''}
-                    `}
-                >
-                    ADD
-                </button>
+                {/* Discount Badge - Top Left */}
+                {discountPercent > 0 && (
+                    <div className="absolute top-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white text-[10px] font-bold shadow-md">
+                        {discountPercent}% OFF
+                    </div>
+                )}
+
+                {/* Stock Badge - Top Right */}
+                {(isLowStock || isLimitedStock) && (
+                    <div className={`absolute top-1.5 right-1.5 z-10 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isLowStock ? 'bg-red-500 text-white animate-pulse' : 'bg-orange-500 text-white'
+                        }`}>
+                        {isLowStock ? `${stockQty} left!` : `${stockQty} left`}
+                    </div>
+                )}
+
+                {/* Cart Controls */}
+                {cartQuantity > 0 ? (
+                    <div
+                        className="absolute bottom-2 right-2 flex items-center gap-0 rounded-lg overflow-hidden shadow-lg bg-primary"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={handleDecrement}
+                            className="p-1.5 text-white hover:bg-primary/80 transition-colors"
+                            aria-label="Decrease quantity"
+                        >
+                            <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="px-2 text-white font-bold text-sm min-w-[24px] text-center">
+                            {cartQuantity}
+                        </span>
+                        <button
+                            onClick={handleIncrement}
+                            className="p-1.5 text-white hover:bg-primary/80 transition-colors"
+                            aria-label="Increase quantity"
+                        >
+                            <Plus className="h-4 w-4" />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={handleAdd}
+                        className={`absolute bottom-2 right-2 px-4 py-1.5 rounded-lg font-bold text-sm
+                            bg-primary text-white shadow-lg border border-primary
+                            transition-all duration-150 ease-out
+                            hover:bg-primary/90 hover:scale-105
+                            active:scale-95
+                            ${isAdding ? 'scale-90 bg-primary/80' : ''}
+                        `}
+                    >
+                        ADD
+                    </button>
+                )}
             </div>
 
             {/* Content */}
@@ -98,13 +167,6 @@ export default function ProductCard({ product, onAddToCart, compact = false }: P
                         <span className="text-[10px] line-through text-muted-foreground">₹{displayMrp}</span>
                     )}
                 </div>
-
-                {/* Discount Badge */}
-                {discountAmount > 0 && (
-                    <div className="text-[10px] text-green-600 font-semibold mt-0.5">
-                        ₹{discountAmount} OFF
-                    </div>
-                )}
 
                 {/* Product Name */}
                 <p className={`text-xs font-medium line-clamp-2 mt-1 ${compact ? 'line-clamp-1' : ''}`}>

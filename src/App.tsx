@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { AdminLockoutProvider } from "@/contexts/AdminLockoutContext";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import AuthRecommendationPopup from "@/components/AuthRecommendationPopup";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ScrollToTop from "@/components/ScrollToTop";
 
@@ -64,6 +65,7 @@ const AdminOrders = lazy(() => import("./pages/AdminOrders"));
 const AdminOrderDetail = lazy(() => import("./pages/AdminOrderDetail"));
 const AdminProfile = lazy(() => import("./pages/AdminProfile"));
 const AddProduct = lazy(() => import("./pages/AddProduct"));
+const AdminCategorySections = lazy(() => import("./pages/AdminCategorySections"));
 const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 
 // Loading fallback component
@@ -212,6 +214,11 @@ const App = () => (
                         <AddProduct />
                       </ProtectedRoute>
                     } />
+                    <Route path="/admin/category-sections" element={
+                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                        <AdminCategorySections />
+                      </ProtectedRoute>
+                    } />
                     {/* Super Admin - protected for super_admin only */}
                     <Route path="/super-admin" element={
                       <ProtectedRoute requiredRoles={['super_admin']}>
@@ -236,6 +243,8 @@ const App = () => (
                 </Suspense>
                 {/* PWA Install Prompt */}
                 <PWAInstallPrompt />
+                {/* Auth Recommendation Popup for guests */}
+                <AuthRecommendationPopup />
               </CartProvider>
             </AdminLockoutProvider>
           </AuthProvider>

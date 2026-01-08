@@ -49,6 +49,7 @@ interface Category {
   id: string;
   name: string;
   image_url: string | null;
+  shop_section_visible?: boolean;
 }
 
 interface ProductVariant {
@@ -86,7 +87,7 @@ interface CartItem {
 
 export default function Shop() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { refreshCart } = useCart();
+  const { refreshCart, addToCart: contextAddToCart, getItemQuantity, updateQuantity } = useCart();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -204,111 +205,49 @@ export default function Shop() {
     setSelectedCategory(categoryFromUrl);
   }, [searchParams]);
 
-  // Fetch products when selectedCategory changes or user loads
+  // Fetch products when selectedCategory changes (works for guests too)
   useEffect(() => {
-    if (user && !authLoading) {
+    if (!authLoading) {
       fetchProducts();
     }
-  }, [selectedCategory, user, authLoading, fetchProducts]);
+  }, [selectedCategory, authLoading, fetchProducts]);
 
+  // Load data on mount - no auth redirect, allow guests to browse
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+
+    // Always fetch categories and products for all users
     fetchCategories();
     // fetchProducts() is called by the selectedCategory useEffect
-    fetchCart();
-    fetchSavedAddress();
+
+    // Only fetch user-specific data if authenticated
+    if (user) {
+      fetchCart();
+      fetchSavedAddress();
+    }
 
     // Listen for cart open event from bottom nav
     const handleOpenCart = () => setShowCartSheet(true);
     window.addEventListener('openCart', handleOpenCart);
 
     return () => window.removeEventListener('openCart', handleOpenCart);
-  }, [user, authLoading, navigate, fetchCategories, fetchCart, fetchSavedAddress]);
+  }, [user, authLoading, fetchCategories, fetchCart, fetchSavedAddress]);
 
 
 
   const addToCart = async (productId: string) => {
-    if (!user) return;
-
-    // Fetch fresh product data to get current stock
-    const { data: freshProduct, error: fetchError } = await supabase
-      .from('products')
-      .select('stock_quantity, name')
-      .eq('id', productId)
-      .single();
-
-    if (fetchError || !freshProduct) {
-      toast.error('Failed to check stock availability');
-      return;
-    }
-
-    // Fetch default variant for this product (if exists)
-    const { data: defaultVariant } = await supabase
-      .from('product_variants')
-      .select('id')
-      .eq('product_id', productId)
-      .eq('is_default', true)
-      .single();
-
-    const existingItem = cartItems.find(item => item.product_id === productId);
-    const currentCartQty = existingItem ? existingItem.quantity : 0;
-    const requestedQty = currentCartQty + 1;
-
-    // Check if we have enough stock
-    const stock = freshProduct.stock_quantity ?? 0;
-    if (requestedQty > stock) {
-      if (stock === 0) {
-        toast.error(`${freshProduct.name} is out of stock`);
-      } else if (currentCartQty >= stock) {
-        toast.error(`Only ${stock} ${freshProduct.name} available. You already have ${currentCartQty} in cart.`);
-      } else {
-        toast.error(`Only ${stock} ${freshProduct.name} available`);
-      }
-      return;
-    }
-
-    if (existingItem) {
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity: existingItem.quantity + 1 })
-        .eq('id', existingItem.id);
-
-      if (error) {
-        toast.error('Failed to update cart');
-      } else {
-        fetchCart();
-        refreshCart(); // Instant badge update
-        toast.success('Cart updated');
+    // Use CartContext's addToCart which handles both guest and authenticated users
+    const success = await contextAddToCart(productId, null);
+    if (success) {
+      toast.success('Added to cart');
+      if (user) {
+        fetchCart(); // Refresh local cart state for authenticated users
       }
     } else {
-      // Include variant_id if default variant exists
-      const cartData: any = {
-        user_id: user.id,
-        product_id: productId,
-        quantity: 1
-      };
-
-      if (defaultVariant?.id) {
-        cartData.variant_id = defaultVariant.id;
-      }
-
-      const { error } = await supabase
-        .from('cart_items')
-        .insert(cartData);
-
-      if (error) {
-        toast.error('Failed to add to cart');
-      } else {
-        fetchCart();
-        refreshCart(); // Instant badge update
-        toast.success('Added to cart');
-      }
+      toast.error('Failed to add to cart');
     }
   };
+
 
   const updateCartQuantity = async (cartItemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -566,7 +505,7 @@ export default function Shop() {
               variant="ghost"
               size="icon"
               className="h-10 w-10 rounded-full bg-primary/10 hover:bg-primary/20"
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate(user ? '/profile' : '/auth')}
               aria-label="View Profile"
             >
               <User className="h-5 w-5 text-primary" />
@@ -726,6 +665,55 @@ export default function Shop() {
         </div>
       )}
 
+      {/* Category Sections - Horizontal scroll per category */}
+      {!searchQuery && !selectedCategory && categories
+        .filter(cat => cat.shop_section_visible !== false) // Only show visible categories (default true)
+        .map(category => {
+          const categoryProducts = products.filter(p => p.category_id === category.id);
+          if (categoryProducts.length === 0) return null;
+
+          return (
+            <div key={category.id} className="container mx-auto px-4 pb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold">{category.name}</h2>
+                <button
+                  onClick={() => {
+                    setSelectedCategory(category.id);
+                    setSearchParams({ category: category.id });
+                  }}
+                  className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
+                >
+                  See all
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <HorizontalScrollContainer className="gap-3">
+                {categoryProducts.slice(0, 8).map(product => (
+                  <div key={product.id} className="flex-shrink-0 w-[150px]">
+                    <ProductCard
+                      product={{
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        mrp: product.mrp ?? null,
+                        image_url: product.image_url,
+                        unit: product.unit,
+                        discount_percent: product.discount_percent,
+                        default_variant: product.default_variant,
+                        stock_quantity: product.stock_quantity,
+                      }}
+                      onAddToCart={() => addToCart(product.id)}
+                      cartQuantity={getItemQuantity(product.id, null)}
+                      onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                      compact={false}
+                    />
+                  </div>
+                ))}
+              </HorizontalScrollContainer>
+            </div>
+          );
+        })}
+
       {/* Products Grid */}
       <div className="container mx-auto px-4 pb-8">
         {filteredProducts.length === 0 ? (
@@ -844,14 +832,44 @@ export default function Shop() {
                             }
                           })()}
                         </div>
-                        <Button
-                          size="icon"
-                          className={`h-9 w-9 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
-                          onClick={() => addToCart(product.id)}
-                          disabled={isOutOfStock}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
+                        {/* Quantity Controls or Add Button */}
+                        {(() => {
+                          const qty = getItemQuantity(product.id, null);
+                          if (qty > 0) {
+                            return (
+                              <div className="flex items-center gap-0 rounded-full overflow-hidden border border-primary">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 rounded-none"
+                                  onClick={() => updateQuantity(product.id, null, qty - 1)}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="px-2 font-bold text-sm min-w-[24px] text-center">{qty}</span>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 rounded-none"
+                                  onClick={() => updateQuantity(product.id, null, qty + 1)}
+                                  disabled={isOutOfStock}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <Button
+                              size="icon"
+                              className={`h-9 w-9 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
+                              onClick={() => addToCart(product.id)}
+                              disabled={isOutOfStock}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          );
+                        })()}
                       </div>
                       {isOutOfStock && (
                         <Badge variant="destructive" className="w-full mt-2 justify-center">

@@ -89,12 +89,9 @@ export default function Profile() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    if (!user) return; // Don't redirect, we'll show auth screen
     fetchProfile();
-  }, [user, authLoading, navigate, fetchProfile]);
+  }, [user, authLoading, fetchProfile]);
 
   const saveProfile = async () => {
     if (!user) return;
@@ -132,6 +129,35 @@ export default function Profile() {
     if (!name) return user?.email?.[0]?.toUpperCase() || 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
+  // Auth required screen for guests
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
+        <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+          <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold">My Profile</h1>
+          </div>
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+            <User className="h-10 w-10 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Sign in to view your profile</h2>
+          <p className="text-muted-foreground text-center mb-6">
+            Please sign in to access your account settings
+          </p>
+          <Button size="lg" onClick={() => navigate('/auth')} className="px-8">
+            Sign In
+          </Button>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

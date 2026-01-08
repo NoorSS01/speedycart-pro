@@ -30,7 +30,8 @@ import {
   Image,
   Layers,
   Power,
-  Palette
+  Palette,
+  LayoutGrid
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -71,8 +72,8 @@ const dateRangeLabels: Record<DateRange, string> = {
 
 interface Order {
   id: string;
-  created_at: string;
-  status: string;
+  created_at: string | null;
+  status: string | null;
   total_amount: number;
   delivery_address: string;
   user_id: string;
@@ -386,6 +387,21 @@ export default function Admin() {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
+            {/* Category Sections */}
+            <button
+              onClick={() => navigate('/admin/category-sections')}
+              className="flex items-center gap-3 p-3 bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-900/20 dark:to-slate-900 border border-cyan-100 rounded-xl text-left hover:shadow-md transition-shadow"
+            >
+              <div className="p-2 bg-cyan-100 dark:bg-cyan-900/40 rounded-lg">
+                <LayoutGrid className="w-5 h-5 text-cyan-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">Category Sections</p>
+                <p className="text-xs text-muted-foreground truncate">Shop page visibility</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
             {/* Promotional Banners */}
             <button
               onClick={() => navigate('/admin/banners')}
@@ -579,7 +595,7 @@ export default function Admin() {
                     <div>
                       <p className="font-medium text-sm">Order #{order.id.slice(0, 8)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(order.created_at), 'MMM dd, HH:mm')}
+                        {order.created_at ? format(new Date(order.created_at), 'MMM dd, HH:mm') : 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -594,7 +610,7 @@ export default function Admin() {
                               'border-blue-500 text-blue-600'}
                       `}
                     >
-                      {order.status}
+                      {order.status || 'unknown'}
                     </Badge>
                   </div>
                 </div>

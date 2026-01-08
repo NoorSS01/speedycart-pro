@@ -4,6 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatVariantDisplay } from '@/lib/formatUnit';
+import { getGuestCart, GuestCartItem } from '@/lib/guestCart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +31,7 @@ import {
     MapPin,
     Ticket,
     X,
+    LogIn,
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 import OrderConfirmation from '@/components/OrderConfirmation';
@@ -105,10 +107,41 @@ export default function Cart() {
     const [discountAmount, setDiscountAmount] = useState(0);
 
 
-
+    // Fetch cart - works for both authenticated (DB) and guest (localStorage) users
     const fetchCart = useCallback(async () => {
-        if (!user) return;
+        if (!user) {
+            // Guest user: load from localStorage via guestCart
+            const guestCart = getGuestCart();
+            // Convert GuestCartItems to CartItems for display
+            const guestItems: CartItem[] = guestCart.items.map((item, index) => ({
+                id: `guest-${index}`,
+                product_id: item.productId,
+                quantity: item.quantity,
+                variant_id: item.variantId,
+                products: {
+                    id: item.productId,
+                    name: item.productData?.name || 'Product',
+                    price: item.productData?.price || 0,
+                    mrp: item.productData?.mrp || null,
+                    image_url: item.productData?.image_url || null,
+                    stock_quantity: item.productData?.stock_quantity || 0,
+                    unit: item.productData?.unit || 'unit',
+                },
+                product_variants: item.variantData ? {
+                    id: item.variantId || '',
+                    variant_name: item.variantData.variant_name,
+                    variant_value: item.variantData.variant_value,
+                    variant_unit: item.variantData.variant_unit,
+                    price: item.variantData.price,
+                    mrp: item.variantData.mrp,
+                } : null,
+            }));
+            setCartItems(guestItems);
+            setLoading(false);
+            return;
+        }
 
+        // Authenticated user: fetch from database
         const { data, error } = await supabase
             .from('cart_items')
             .select(`
@@ -168,16 +201,19 @@ export default function Cart() {
         }
     }, [user]);
 
+    // Load cart on mount and when user changes
     useEffect(() => {
         if (authLoading) return;
-        if (!user) {
-            navigate('/auth');
-            return;
-        }
+
+        // Always fetch cart (works for both guests and authenticated users)
         fetchCart();
-        fetchSavedAddress();
-        fetchCoupons();
-    }, [user, authLoading, navigate, fetchCart, fetchSavedAddress, fetchCoupons]);
+
+        // Only fetch these for authenticated users
+        if (user) {
+            fetchSavedAddress();
+            fetchCoupons();
+        }
+    }, [user, authLoading, fetchCart, fetchSavedAddress, fetchCoupons]);
 
     // Apply coupon using server-side validation
     const applyCoupon = async (coupon: Coupon) => {
@@ -249,6 +285,23 @@ export default function Cart() {
             return;
         }
 
+        // Check if this is a guest cart item
+        if (itemId.startsWith('guest-') || !user) {
+            // Guest cart: update localStorage
+            if (item) {
+                const { updateGuestCartQuantity } = await import('@/lib/guestCart');
+                updateGuestCartQuantity(item.product_id, item.variant_id, newQuantity);
+                setCartItems(prev =>
+                    prev.map(i =>
+                        i.id === itemId ? { ...i, quantity: newQuantity } : i
+                    )
+                );
+                refreshCart();
+            }
+            return;
+        }
+
+        // Authenticated: update database
         const { error } = await supabase
             .from('cart_items')
             .update({ quantity: newQuantity })
@@ -264,6 +317,22 @@ export default function Cart() {
     };
 
     const removeItem = async (itemId: string) => {
+        const item = cartItems.find(i => i.id === itemId);
+
+        // Check if this is a guest cart item
+        if (itemId.startsWith('guest-') || !user) {
+            // Guest cart: remove from localStorage
+            if (item) {
+                const { removeFromGuestCart } = await import('@/lib/guestCart');
+                removeFromGuestCart(item.product_id, item.variant_id);
+                setCartItems(prev => prev.filter(i => i.id !== itemId));
+                refreshCart();
+                toast.success('Item removed');
+            }
+            return;
+        }
+
+        // Authenticated: remove from database
         const { error } = await supabase
             .from('cart_items')
             .delete()
@@ -292,6 +361,18 @@ export default function Cart() {
     const handleCheckout = () => {
         if (cartItems.length === 0) {
             toast.error('Your cart is empty');
+            return;
+        }
+
+        // Guest users must sign in to checkout
+        if (!user) {
+            toast('Please sign in to complete your order', {
+                description: 'Your cart items will be saved',
+                action: {
+                    label: 'Sign In',
+                    onClick: () => navigate('/auth'),
+                },
+            });
             return;
         }
 
@@ -449,6 +530,36 @@ export default function Cart() {
                     ))}
                     <div className="h-48 w-full rounded-xl bg-muted/80 animate-pulse" />
                 </main>
+                <BottomNav />
+            </div>
+        );
+    }
+
+    // Auth required screen for guests - blank page with only sign in button
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
+                <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl">
+                    <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+                        <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                        <h1 className="text-lg font-bold">Your Cart</h1>
+                    </div>
+                </header>
+                <div className="flex-1 flex flex-col items-center justify-center px-4">
+                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+                        <LogIn className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <h2 className="text-xl font-bold mb-2">Sign in to view your cart</h2>
+                    <p className="text-muted-foreground text-center mb-6">
+                        Please sign in to access your cart and complete your purchase
+                    </p>
+                    <Button size="lg" onClick={() => navigate('/auth')} className="px-8">
+                        <LogIn className="h-5 w-5 mr-2" />
+                        Sign In
+                    </Button>
+                </div>
                 <BottomNav />
             </div>
         );

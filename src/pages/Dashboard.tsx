@@ -10,7 +10,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        navigate('/auth');
+        navigate('/shop');
       } else if (userRole) {
         switch (userRole) {
           case 'super_admin':
