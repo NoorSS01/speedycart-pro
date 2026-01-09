@@ -50,6 +50,42 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 142 76% 36%;
     --sidebar-border: 142 20% 90%;
     --sidebar-ring: 142 76% 36%;
+
+    /* ===== THEME MICROINTERACTION VARIABLES ===== */
+    /* Timing durations */
+    --theme-duration-instant: 50ms;
+    --theme-duration-fast: 150ms;
+    --theme-duration-normal: 250ms;
+    --theme-duration-slow: 400ms;
+    --theme-duration-atmospheric: 1500ms;
+
+    /* Timing functions */
+    --theme-timing: ease-out;
+    --theme-timing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Button interactions */
+    --theme-button-hover-scale: 1.02;
+    --theme-button-hover-lift: -2px;
+    --theme-button-press-scale: 0.98;
+
+    /* Card interactions */
+    --theme-card-hover-scale: 1.01;
+    --theme-card-hover-lift: -4px;
+    --theme-card-hover-shadow-blur: 16px;
+
+    /* Focus ring */
+    --theme-focus-ring-width: 2px;
+    --theme-focus-ring-offset: 2px;
+
+    /* Shimmer animation */
+    --theme-shimmer-duration: 2000ms;
+
+    /* Shadows with theme tint */
+    --theme-shadow-color: 142 20% 50%;
+    --theme-shadow-sm: 0 1px 2px hsl(var(--theme-shadow-color) / 0.05);
+    --theme-shadow-md: 0 4px 6px hsl(var(--theme-shadow-color) / 0.07);
+    --theme-shadow-lg: 0 10px 15px hsl(var(--theme-shadow-color) / 0.1);
+    --theme-shadow-hover: 0 8px 25px hsl(var(--primary) / 0.15);
   }
 
   .dark {
@@ -93,6 +129,13 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 140 8% 20%;
     --sidebar-ring: 142 76% 36%;
+
+    /* Dark mode shadow adjustments */
+    --theme-shadow-color: 0 0% 0%;
+    --theme-shadow-sm: 0 1px 3px hsl(var(--theme-shadow-color) / 0.3);
+    --theme-shadow-md: 0 4px 8px hsl(var(--theme-shadow-color) / 0.4);
+    --theme-shadow-lg: 0 10px 20px hsl(var(--theme-shadow-color) / 0.5);
+    --theme-shadow-hover: 0 8px 25px hsl(var(--primary) / 0.25);
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/integrations/supabase/client';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -35,13 +35,13 @@ export default function PromotionalBanners() {
         }
     };
 
-    const nextSlide = () => {
+    const nextSlide = useCallback(() => {
         setCurrentIndex((prev) => (prev + 1) % Math.max(banners.length, 1));
-    };
+    }, [banners.length]);
 
-    const prevSlide = () => {
+    const prevSlide = useCallback(() => {
         setCurrentIndex((prev) => (prev - 1 + banners.length) % Math.max(banners.length, 1));
-    };
+    }, [banners.length]);
 
     // HOOKS MUST ALL BE CALLED BEFORE ANY EARLY RETURNS!
     useEffect(() => {
@@ -53,7 +53,7 @@ export default function PromotionalBanners() {
         if (banners.length <= 1) return;
         const interval = setInterval(nextSlide, 5000);
         return () => clearInterval(interval);
-    }, [banners.length]);
+    }, [banners.length, nextSlide]);
 
     // NOW we can do early return - after all hooks
     if (banners.length === 0) return null;

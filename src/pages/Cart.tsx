@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
@@ -15,13 +15,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
+import { QuantityControls } from '@/components/ui/QuantityControls';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import {
     ArrowLeft,
     ShoppingCart,
-    Plus,
-    Minus,
     Trash2,
     Package,
     Clock,
@@ -106,6 +105,25 @@ export default function Cart() {
     const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
     const [discountAmount, setDiscountAmount] = useState(0);
 
+    // Sticky checkout bar visibility - only show when main checkout button is NOT visible
+    const mainCheckoutRef = useRef<HTMLButtonElement>(null);
+    const [isMainCheckoutVisible, setIsMainCheckoutVisible] = useState(true);
+
+    // IntersectionObserver for main checkout button visibility
+    useEffect(() => {
+        const button = mainCheckoutRef.current;
+        if (!button) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                setIsMainCheckoutVisible(entry.isIntersecting);
+            },
+            { threshold: 0.5 }
+        );
+
+        observer.observe(button);
+        return () => observer.disconnect();
+    }, [cartItems.length]); // Re-observe when cart items change
 
     // Fetch cart - works for both authenticated (DB) and guest (localStorage) users
     const fetchCart = useCallback(async () => {
@@ -711,28 +729,16 @@ export default function Cart() {
                                                     <Badge variant="destructive" className="text-xs mt-1">Out of Stock</Badge>
                                                 )}
 
-                                                {/* Quantity controls */}
+                                                {/* Quantity controls - Using unified QuantityControls */}
                                                 <div className="flex items-center justify-between mt-2">
-                                                    <div className="flex items-center gap-1">
-                                                        <Button
-                                                            size="icon"
-                                                            variant="outline"
-                                                            className="h-7 w-7"
-                                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                        >
-                                                            <Minus className="h-3 w-3" />
-                                                        </Button>
-                                                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                                                        <Button
-                                                            size="icon"
-                                                            variant="outline"
-                                                            className="h-7 w-7"
-                                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                            disabled={item.quantity >= item.products.stock_quantity}
-                                                        >
-                                                            <Plus className="h-3 w-3" />
-                                                        </Button>
-                                                    </div>
+                                                    <QuantityControls
+                                                        quantity={item.quantity}
+                                                        maxQuantity={item.products.stock_quantity}
+                                                        onIncrement={() => updateQuantity(item.id, item.quantity + 1)}
+                                                        onDecrement={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        variant="full"
+                                                        disabled={isOutOfStock}
+                                                    />
                                                     <div className="flex gap-1">
                                                         <Button
                                                             size="icon"
@@ -896,6 +902,7 @@ export default function Cart() {
 
                             {/* Checkout button */}
                             <Button
+                                ref={mainCheckoutRef}
                                 className="w-full h-12 text-base font-semibold mt-2"
                                 onClick={handleCheckout}
                             >
@@ -912,33 +919,34 @@ export default function Cart() {
                 )}
             </main>
 
-            {/* Sticky Checkout Bar */}
-            {
-                cartItems.length > 0 && (
-                    <div className="fixed bottom-16 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
-                        <div className="container mx-auto px-4 py-3 max-w-2xl">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Total Amount</p>
-                                    <p className="text-xl font-bold text-primary">₹{finalTotal.toFixed(0)}</p>
-                                    {totalSavings > 0 && (
-                                        <p className="text-xs text-green-600 font-medium">
-                                            You save ₹{totalSavings.toFixed(0)}!
-                                        </p>
-                                    )}
-                                </div>
-                                <Button
-                                    className="h-12 px-8 text-base font-semibold"
-                                    onClick={handleCheckout}
-                                >
-                                    <ShieldCheck className="h-5 w-5 mr-2" />
-                                    Checkout
-                                </Button>
+            {/* Sticky Checkout Bar - Only show when main checkout button is NOT visible */}
+            {cartItems.length > 0 && (
+                <div
+                    className={`fixed bottom-16 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] transition-all duration-300 ${isMainCheckoutVisible ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0'
+                        }`}
+                >
+                    <div className="container mx-auto px-4 py-3 max-w-2xl">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs text-muted-foreground">Total Amount</p>
+                                <p className="text-xl font-bold text-primary">₹{finalTotal.toFixed(0)}</p>
+                                {totalSavings > 0 && (
+                                    <p className="text-xs text-green-600 font-medium">
+                                        You save ₹{totalSavings.toFixed(0)}!
+                                    </p>
+                                )}
                             </div>
+                            <Button
+                                className="h-12 px-8 text-base font-semibold"
+                                onClick={handleCheckout}
+                            >
+                                <ShieldCheck className="h-5 w-5 mr-2" />
+                                Checkout
+                            </Button>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
             {/* Address Dialog */}
             <Dialog open={showAddressDialog} onOpenChange={setShowAddressDialog}>

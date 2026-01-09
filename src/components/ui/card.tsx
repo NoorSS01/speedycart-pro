@@ -2,8 +2,39 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Card component with enterprise theme system integration
+ * 
+ * Microinteraction features:
+ * - Hover lift and subtle scale
+ * - Theme-aware shadow enhancement on hover
+ * - Smooth transitions via CSS variables
+ * - Reduced motion support
+ */
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+  <div
+    ref={ref}
+    className={cn(
+      // Base card styles
+      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      // Transition for smooth hover effects
+      "transition-all duration-[var(--theme-duration-normal)] ease-out",
+      // Origin for transform
+      "origin-center",
+      // Hover microinteractions (optional - apply via data attribute or variant)
+      // Removed auto-hover to avoid overwhelming UI with too many hovering cards
+      // Use data-interactive="true" for interactive cards
+      "data-[interactive=true]:hover:-translate-y-[var(--theme-card-hover-lift)]",
+      "data-[interactive=true]:hover:scale-[var(--theme-card-hover-scale)]",
+      "data-[interactive=true]:hover:shadow-[var(--theme-shadow-hover)]",
+      // Focus visible for keyboard navigation
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      // Reduced motion support
+      "motion-reduce:transform-none motion-reduce:transition-colors",
+      className
+    )}
+    {...props}
+  />
 ));
 Card.displayName = "Card";
 

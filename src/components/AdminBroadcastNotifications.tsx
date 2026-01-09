@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
@@ -153,9 +153,9 @@ export function AdminBroadcastNotifications() {
     useEffect(() => {
         fetchBroadcasts();
         fetchStats();
-    }, []);
+    }, [fetchBroadcasts, fetchStats]);
 
-    const fetchBroadcasts = async () => {
+    const fetchBroadcasts = useCallback(async () => {
         const { data, error } = await supabase
             .from('broadcast_notifications')
             .select('*')
@@ -165,9 +165,9 @@ export function AdminBroadcastNotifications() {
         if (data && !error) {
             setBroadcasts(data);
         }
-    };
+    }, []);
 
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         const { data, error } = await supabase
             .from('notification_logs')
             .select('notification_type, status')
@@ -183,7 +183,7 @@ export function AdminBroadcastNotifications() {
             });
             setStats({ total_sent, total_failed, by_type });
         }
-    };
+    }, []);
 
     const handleTemplateChange = (templateId: string) => {
         setSelectedTemplate(templateId);

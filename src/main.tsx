@@ -4,9 +4,13 @@ import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import "./index.css";
 import { logger } from "./lib/logger";
 import { initWebVitals } from "./lib/webVitals";
+import { initExternalLoggers } from "./lib/integrations/external-loggers";
 
 // Initialize Core Web Vitals tracking
 initWebVitals();
+
+// Initialize External Logging (Sentry/LogTail)
+initExternalLoggers().forEach(handler => logger.addExternalHandler(handler));
 
 // PWA Version - Change this on each deploy to force SW update
 const SW_VERSION = '2.0.4';

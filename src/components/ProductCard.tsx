@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Package, Minus, Plus } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatVariantDisplay } from '@/lib/formatUnit';
+import { useTheme } from '@/contexts/ThemeContext';
+import { QuantityControls } from '@/components/ui/QuantityControls';
+import { toast } from 'sonner';
 
 interface ProductVariant {
     price: number;
@@ -28,6 +31,8 @@ interface ProductCardProps {
     compact?: boolean;
     cartQuantity?: number;
     onQuantityChange?: (productId: string, newQuantity: number) => void;
+    /** Show seasonal badge from theme if available */
+    showSeasonalBadge?: boolean;
 }
 
 export default function ProductCard({
@@ -36,8 +41,10 @@ export default function ProductCard({
     compact = false,
     cartQuantity = 0,
     onQuantityChange,
+    showSeasonalBadge = true,
 }: ProductCardProps) {
     const navigate = useNavigate();
+    const { theme } = useTheme();
     const [isAdding, setIsAdding] = useState(false);
 
     const variant = product.default_variant;
@@ -49,36 +56,54 @@ export default function ProductCard({
         ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
         : product.discount_percent || 0;
 
-    // Stock status
+    // Stock status - use actual stock or default to high value
     const stockQty = product.stock_quantity ?? 999;
     const isLowStock = stockQty > 0 && stockQty <= 5;
     const isLimitedStock = stockQty > 5 && stockQty <= 10;
+    const isOutOfStock = stockQty <= 0;
 
     // Display unit info
     const unitDisplay = variant
         ? formatVariantDisplay(variant)
         : product.unit;
 
+    // Get seasonal promo badge from theme
+    const promo = theme?.contentEmphasis?.promo;
+    const seasonalBadge = showSeasonalBadge && promo?.badgeEnabled && promo?.badgeText
+        ? { text: promo.badgeText, color: promo.badgeColor }
+        : null;
+
     const handleAdd = (e: React.MouseEvent) => {
         e.stopPropagation();
+
+        // Check stock before adding
+        if (isOutOfStock) {
+            toast.error('This product is out of stock');
+            return;
+        }
+
+        if (cartQuantity >= stockQty) {
+            toast.error(`Only ${stockQty} available in stock`);
+            return;
+        }
+
         setIsAdding(true);
         onAddToCart(product.id);
         setTimeout(() => setIsAdding(false), 200);
     };
 
-    const handleDecrement = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (onQuantityChange && cartQuantity > 0) {
-            onQuantityChange(product.id, cartQuantity - 1);
-        }
-    };
-
-    const handleIncrement = (e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleIncrement = () => {
+        // Stock check is handled by QuantityControls component
         if (onQuantityChange) {
             onQuantityChange(product.id, cartQuantity + 1);
         } else {
             onAddToCart(product.id);
+        }
+    };
+
+    const handleDecrement = () => {
+        if (onQuantityChange && cartQuantity > 0) {
+            onQuantityChange(product.id, cartQuantity - 1);
         }
     };
 
@@ -118,39 +143,39 @@ export default function ProductCard({
                     </div>
                 )}
 
-                {/* Cart Controls */}
-                {cartQuantity > 0 ? (
+                {/* Seasonal/Theme Badge - Bottom Left */}
+                {seasonalBadge && !discountPercent && (
                     <div
-                        className="absolute bottom-2 right-2 flex items-center gap-0 rounded-lg overflow-hidden shadow-lg bg-primary"
-                        onClick={(e) => e.stopPropagation()}
+                        className="absolute bottom-1.5 left-1.5 z-10 px-1.5 py-0.5 rounded-md text-[10px] font-bold shadow-md text-white"
+                        style={{ backgroundColor: seasonalBadge.color ? `hsl(${seasonalBadge.color})` : 'hsl(var(--primary))' }}
                     >
-                        <button
-                            onClick={handleDecrement}
-                            className="p-1.5 text-white hover:bg-primary/80 transition-colors"
-                            aria-label="Decrease quantity"
-                        >
-                            <Minus className="h-4 w-4" />
-                        </button>
-                        <span className="px-2 text-white font-bold text-sm min-w-[24px] text-center">
-                            {cartQuantity}
-                        </span>
-                        <button
-                            onClick={handleIncrement}
-                            className="p-1.5 text-white hover:bg-primary/80 transition-colors"
-                            aria-label="Increase quantity"
-                        >
-                            <Plus className="h-4 w-4" />
-                        </button>
+                        {seasonalBadge.text}
+                    </div>
+                )}
+
+                {/* Cart Controls - Using unified QuantityControls */}
+                {cartQuantity > 0 ? (
+                    <div className="absolute bottom-2 right-2">
+                        <QuantityControls
+                            quantity={cartQuantity}
+                            maxQuantity={stockQty}
+                            onIncrement={handleIncrement}
+                            onDecrement={handleDecrement}
+                            variant="compact"
+                            disabled={isOutOfStock}
+                        />
                     </div>
                 ) : (
                     <button
                         onClick={handleAdd}
+                        disabled={isOutOfStock}
                         className={`absolute bottom-2 right-2 px-4 py-1.5 rounded-lg font-bold text-sm
                             bg-primary text-white shadow-lg border border-primary
                             transition-all duration-150 ease-out
                             hover:bg-primary/90 hover:scale-105
                             active:scale-95
                             ${isAdding ? 'scale-90 bg-primary/80' : ''}
+                            ${isOutOfStock ? 'opacity-50 cursor-not-allowed' : ''}
                         `}
                     >
                         ADD

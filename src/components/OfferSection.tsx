@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { ChevronRight } from 'lucide-react';
@@ -15,12 +15,19 @@ interface OfferSection {
     text_color: string;
     image_url: string | null;
     filter_type: string;
-    filter_config: Record<string, any>;
+    filter_config: FilterConfig;
     max_products: number;
     show_see_all: boolean;
     see_all_link: string | null;
 }
 
+interface FilterConfig {
+    min_discount?: number;
+    max_discount?: number;
+    category_ids?: string[];
+    product_ids?: string[];
+    [key: string]: unknown;
+}
 interface Product {
     id: string;
     name: string;
@@ -49,11 +56,7 @@ export default function OfferSectionComponent({ section, onAddToCart }: OfferSec
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchProducts();
-    }, [section]);
-
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
         try {
             let query = supabase
                 .from('products')
@@ -96,13 +99,17 @@ export default function OfferSectionComponent({ section, onAddToCart }: OfferSec
                     ...p,
                     default_variant: p.product_variants?.find(v => v.is_default) || p.product_variants?.[0] || null
                 }));
-                setProducts(processed);
+                setProducts(processed as unknown as Product[]);
             }
         } catch (error) {
             logger.error('Error fetching offer products', { error });
         }
         setLoading(false);
-    };
+    }, [section]);
+
+    useEffect(() => {
+        fetchProducts();
+    }, [fetchProducts]);
 
     const getBackgroundStyle = () => {
         switch (section.background_type) {

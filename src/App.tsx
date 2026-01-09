@@ -41,6 +41,8 @@ import GrievancePolicy from "./pages/GrievancePolicy";
 import OfflineBanner from "@/components/OfflineBanner";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ThemeAnimations from "@/components/ThemeAnimations";
+import AtmosphereCanvas from "@/components/theme/AtmosphereCanvas";
+import AmbientOverlay from "@/components/theme/AmbientOverlay";
 
 // Lazy loaded pages (admin-only, delivery-only, heavy pages)
 // These will be code-split into separate chunks
@@ -59,6 +61,7 @@ const AdminNotifications = lazy(() => import("./pages/AdminNotifications"));
 const AdminDeliveryApps = lazy(() => import("./pages/AdminDeliveryApps"));
 const AdminDeliveryActivations = lazy(() => import("./pages/AdminDeliveryActivations"));
 const AdminThemes = lazy(() => import("./pages/AdminThemes"));
+const AdminThemeBuilder = lazy(() => import("./pages/AdminThemeBuilder"));
 const AdminSecurity = lazy(() => import("./pages/AdminSecurity"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const AdminOrders = lazy(() => import("./pages/AdminOrders"));
@@ -88,6 +91,8 @@ const App = () => (
       <TooltipProvider>
         <OfflineBanner />
         <ThemeAnimations />
+        <AtmosphereCanvas />
+        <AmbientOverlay />
         <Toaster />
         <Sonner />
         <BrowserRouter basename={basename}>
@@ -182,6 +187,11 @@ const App = () => (
                     <Route path="/admin/themes" element={
                       <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
                         <AdminThemes />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/admin/theme-builder" element={
+                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                        <AdminThemeBuilder />
                       </ProtectedRoute>
                     } />
                     <Route path="/admin/security" element={

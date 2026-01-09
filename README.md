@@ -1,102 +1,104 @@
-# Welcome to your Lovable project
+# SpeedyCart Pro - Enterprise E-Commerce Platform
 
-## Project info
+A production-ready, feature-rich e-commerce application built with modern web technologies. Designed for performance, scalability, and an exceptional user experience.
 
-**URL**: https://lovable.dev/projects/016e7b5f-81e0-48be-8fae-0d9acbed6010
+![Project Status](https://img.shields.io/badge/status-production--ready-green)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-high-blue)
 
-## How can I edit this code?
+## 🚀 Key Features
 
-There are several ways of editing your application.
+*   **PWA Ready**: Installable on mobile devices with rich offline capabilities.
+*   **Performance First**: Optimized for Core Web Vitals with code-splitting, lazy loading, and asset optimization.
+*   **Enterprise Administration**: Comprehensive dashboard for managing products, orders, delivery partners, and seasonal themes.
+*   **Water Refill System**: Dedicated workflow for 20L water bottle deposits and refills.
+*   **Delivery Management**: Dedicated portal for delivery partners with order assignment and routing.
+*   **Theme System**: Dynamic seasonal themes (Diwali, Christmas, Ramazan) configurable via admin panel.
 
-**Use Lovable**
+## 🛠 Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/016e7b5f-81e0-48be-8fae-0d9acbed6010) and start prompting.
+*   **Frontend**: React (Vite), TypeScript
+*   **UI Framework**: Shadcn UI, Tailwind CSS
+*   **State Management**: React Query, Context API
+*   **Backend / Database**: Supabase (PostgreSQL, Auth, Edge Functions)
+*   **Testing**: Vitest (Unit), Playwright (E2E)
+*   **Tooling**: ESLint, PostCSS
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🏁 Getting Started
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+*   Node.js (v18+)
+*   npm (v9+)
+*   Supabase Project
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Installation
 
-Follow these steps:
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/your-org/speedycart-pro.git
+    cd speedycart-pro
+    ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2.  **Install dependencies**
+    ```bash
+    npm install
+    ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3.  **Environment Setup**
+    Create a `.env` file in the root directory:
+    ```env
+    VITE_SUPABASE_URL=your_supabase_url
+    VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+    
+    # Optional - Observability
+    VITE_SENTRY_DSN=your_sentry_dsn
+    VITE_LOGTAIL_TOKEN=your_logtail_token
+    ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+4.  **Database Setup**
+    Run the SQL scripts located in `supabase/` in your Supabase SQL Editor in the following order:
+    1. `schema.sql` (Core schema)
+    2. `water_deposits.sql` (Water features)
+    3. `push_notifications.sql` (Notification system)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### Local Development
+
+Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🧪 Testing
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+We maintain high code quality standards through rigorous testing.
 
-**Use GitHub Codespaces**
+### Unit & Integration Tests (Vitest)
+Runs tests for components, hooks, and utilities.
+```bash
+npm run test
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### End-to-End Tests (Playwright)
+Tests critical user flows like checkout and authentication.
+*Requires local dev server running on port 5173.*
+```bash
+npm run e2e
+```
 
-## What technologies are used for this project?
+## 📦 Deployment
 
-This project is built with:
+### Hostinger (Advanced Git)
+The project is configured for Hostinger's Advanced Git deployment.
+*   **Build Command**: `npm run build`
+*   **Publish Directory**: `dist`
+*   **Routing**: `.htaccess` is automatically handled for client-side routing.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🔒 Security
 
-## How can I deploy this project?
+*   Row Level Security (RLS) enabled on all database tables.
+*   Protected Routes for Admin and Delivery interfaces.
+*   Secure HTTP-only cookie handling for sessions.
 
-Simply open [Lovable](https://lovable.dev/projects/016e7b5f-81e0-48be-8fae-0d9acbed6010) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-
-## Supabase database setup (one file)
-
-- Open `supabase/schema.sql` in this repo.
-- Copy **all** the SQL in that file.
-- In your Supabase project, go to **SQL editor** → **New query**.
-- Paste the SQL and click **Run**.
-
-This creates all required tables, enums, policies and triggers for the app.
-
-## Hostinger Advanced Git Deployment
-
-This project is configured for Hostinger Advanced Git deployment:
-
-1. **Build Configuration**: 
-   - Build output directory: `dist/`
-   - Base path: `/` (configured in `vite.config.ts`)
-   - The `.htaccess` file in `public/` is automatically copied to `dist/` during build for SPA routing
-
-2. **Setup in Hostinger**:
-   - Connect your GitHub repository in Hostinger's Advanced Git options
-   - Set build command: `npm run build`
-   - Set publish directory: `dist`
-   - The `.htaccess` file ensures all routes are properly handled for React Router
-
-3. **Important Notes**:
-   - The project uses Vite + React with `BrowserRouter`, so all non-file routes must rewrite to `index.html`
-   - The `.htaccess` file in `public/` handles this automatically
-   - After pushing to your main branch, Hostinger will automatically build and deploy
+---
+© 2026 SpeedyCart Pro. All rights reserved.

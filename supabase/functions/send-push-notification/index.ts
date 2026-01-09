@@ -315,66 +315,82 @@ serve(async (req) => {
         };
 
         // Send notifications
-        const results = await Promise.allSettled(
-            uniqueSubscriptions.map(async (sub) => {
-                try {
-                    await sendWebPush(
-                        {
-                            endpoint: sub.endpoint,
-                            keys: { p256dh: sub.p256dh, auth: sub.auth },
-                        },
-                        notificationPayload,
-                        vapidDetails
-                    );
+        // Send notifications in batches to respect rate limits
+        const BATCH_SIZE = 50;
+        const results: PromiseSettledResult<{ success: boolean; user_id: string; error?: string }>[] = [];
 
-                    // Log success
-                    await supabase.from('notification_logs').insert({
-                        user_id: sub.user_id,
-                        title,
-                        body,
-                        icon,
-                        url,
-                        image_url,
-                        notification_type: notification_type || 'general',
-                        status: 'sent',
-                        sent_at: new Date().toISOString(),
-                        broadcast_id,
-                    });
+        for (let i = 0; i < uniqueSubscriptions.length; i += BATCH_SIZE) {
+            const batch = uniqueSubscriptions.slice(i, i + BATCH_SIZE);
 
-                    // Update subscription stats
-                    await supabase
-                        .from('push_subscriptions')
-                        .update({
-                            last_notification_at: new Date().toISOString(),
-                            notification_count: sub.notification_count + 1,
-                        })
-                        .eq('id', sub.id);
+            // Process batch
+            const batchResults = await Promise.allSettled(
+                batch.map(async (sub) => {
+                    try {
+                        await sendWebPush(
+                            {
+                                endpoint: sub.endpoint,
+                                keys: { p256dh: sub.p256dh, auth: sub.auth },
+                            },
+                            notificationPayload,
+                            vapidDetails
+                        );
 
-                    return { success: true, user_id: sub.user_id };
-                } catch (error) {
-                    // Log failure
-                    await supabase.from('notification_logs').insert({
-                        user_id: sub.user_id,
-                        title,
-                        body,
-                        icon,
-                        url,
-                        image_url,
-                        notification_type: notification_type || 'general',
-                        status: 'failed',
-                        error_message: (error as Error).message,
-                        broadcast_id,
-                    });
+                        // Log success
+                        await supabase.from('notification_logs').insert({
+                            user_id: sub.user_id,
+                            title,
+                            body,
+                            icon,
+                            url,
+                            image_url,
+                            notification_type: notification_type || 'general',
+                            status: 'sent',
+                            sent_at: new Date().toISOString(),
+                            broadcast_id,
+                        });
 
-                    // If endpoint is invalid, remove subscription
-                    if (error.message.includes('410') || error.message.includes('404')) {
-                        await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+                        // Update subscription stats
+                        await supabase
+                            .from('push_subscriptions')
+                            .update({
+                                last_notification_at: new Date().toISOString(),
+                                notification_count: (sub.notification_count || 0) + 1,
+                            })
+                            .eq('id', sub.id);
+
+                        return { success: true, user_id: sub.user_id };
+                    } catch (error: any) {
+                        // Log failure
+                        await supabase.from('notification_logs').insert({
+                            user_id: sub.user_id,
+                            title,
+                            body,
+                            icon,
+                            url,
+                            image_url,
+                            notification_type: notification_type || 'general',
+                            status: 'failed',
+                            error_message: error.message || String(error),
+                            broadcast_id,
+                        });
+
+                        // If endpoint is invalid, remove subscription
+                        if (error.message?.includes('410') || error.message?.includes('404')) {
+                            await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+                        }
+
+                        return { success: false, user_id: sub.user_id, error: error.message || String(error) };
                     }
+                })
+            );
 
-                    return { success: false, user_id: sub.user_id, error: (error as Error).message };
-                }
-            })
-        );
+            results.push(...batchResults);
+
+            // Small delay between batches to be nice to VAPID services
+            if (i + BATCH_SIZE < uniqueSubscriptions.length) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
 
         const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
         const failed = results.length - successful;

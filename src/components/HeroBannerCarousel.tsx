@@ -33,25 +33,25 @@ export default function HeroBannerCarousel() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const fetchBanners = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('hero_banners')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('display_order', { ascending: true });
+
+                if (data && !error) {
+                    setBanners(data as unknown as HeroBanner[]);
+                }
+            } catch (error) {
+                logger.debug('Hero banners not available');
+            }
+            setLoading(false);
+        };
+
         fetchBanners();
     }, []);
-
-    const fetchBanners = async () => {
-        try {
-            const { data, error } = await supabase
-                .from('hero_banners')
-                .select('*')
-                .eq('is_active', true)
-                .order('display_order', { ascending: true });
-
-            if (data && !error) {
-                setBanners(data as unknown as HeroBanner[]);
-            }
-        } catch (error) {
-            logger.debug('Hero banners not available');
-        }
-        setLoading(false);
-    };
 
     const nextSlide = useCallback(() => {
         setCurrentIndex((prev) => (prev + 1) % Math.max(banners.length, 1));
