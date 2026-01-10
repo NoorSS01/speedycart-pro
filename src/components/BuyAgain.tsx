@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { Heart, ChevronRight } from 'lucide-react';
@@ -33,6 +34,7 @@ interface BuyAgainProps {
 
 export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
     const { user } = useAuth();
+    const { getItemQuantity, updateQuantity } = useCart();
     const navigate = useNavigate();
     const [products, setProducts] = useState<BuyAgainProduct[]>([]);
     const [loading, setLoading] = useState(true);
@@ -126,6 +128,8 @@ export default function BuyAgain({ onAddToCart }: BuyAgainProps) {
                         key={product.id}
                         product={product}
                         onAddToCart={onAddToCart}
+                        cartQuantity={getItemQuantity(product.id, null)}
+                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
                     />
                 ))}
             </div>

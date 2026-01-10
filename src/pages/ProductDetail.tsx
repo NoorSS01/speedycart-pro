@@ -1164,6 +1164,8 @@ export default function ProductDetail() {
                                         default_variant: null
                                     }}
                                     onAddToCart={(productId) => contextAddToCart(productId, null)}
+                                    cartQuantity={getItemQuantity(relProduct.id, null)}
+                                    onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
                                     compact={true}
                                 />
                             ))}

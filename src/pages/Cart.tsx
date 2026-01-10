@@ -109,6 +109,10 @@ export default function Cart() {
     const mainCheckoutRef = useRef<HTMLButtonElement>(null);
     const [isMainCheckoutVisible, setIsMainCheckoutVisible] = useState(true);
 
+    // Scroll-based header visibility
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+    const lastScrollY = useRef(0);
+
     // IntersectionObserver for main checkout button visibility
     useEffect(() => {
         const button = mainCheckoutRef.current;
@@ -116,14 +120,37 @@ export default function Cart() {
 
         const observer = new IntersectionObserver(
             ([entry]) => {
+                // Only hide sticky bar when button is fully visible (100% threshold)
                 setIsMainCheckoutVisible(entry.isIntersecting);
             },
-            { threshold: 0.5 }
+            { threshold: 0.1 } // Lower threshold - hide sticky bar as soon as main button starts appearing
         );
 
         observer.observe(button);
         return () => observer.disconnect();
     }, [cartItems.length]); // Re-observe when cart items change
+
+    // Scroll direction tracking for header visibility
+    useEffect(() => {
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+            const direction = currentScrollY > lastScrollY.current ? 'down' : 'up';
+
+            // Hide header when scrolling down and past 100px
+            if (direction === 'down' && currentScrollY > 100) {
+                setIsHeaderVisible(false);
+            }
+            // Show header when scrolling up OR near top of page
+            if (direction === 'up' || currentScrollY < 50) {
+                setIsHeaderVisible(true);
+            }
+
+            lastScrollY.current = currentScrollY;
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     // Fetch cart - works for both authenticated (DB) and guest (localStorage) users
     const fetchCart = useCallback(async () => {
@@ -592,8 +619,8 @@ export default function Cart() {
                 />
             )}
 
-            {/* Header + Savings Banner - Both sticky */}
-            <div className="sticky top-0 z-40">
+            {/* Header + Savings Banner - Both sticky, hide on scroll down */}
+            <div className={`sticky z-40 transition-all duration-300 ${isHeaderVisible ? 'top-0' : '-top-32'}`}>
                 <header className="border-b border-border/40 bg-background/40 backdrop-blur-xl supports-[backdrop-filter]:bg-background/20 shadow-sm">
                     <div className="container mx-auto px-4 py-4 flex items-center gap-3">
                         <Button variant="ghost" size="icon" onClick={() => navigate('/shop')}>
@@ -620,6 +647,15 @@ export default function Cart() {
                     </div>
                 )}
             </div>
+
+            {/* Floating Save Banner when header is hidden */}
+            {!isHeaderVisible && cartItems.length > 0 && totalSavings > 0 && (
+                <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 text-white py-2.5 text-center shadow-md transition-all duration-300">
+                    <p className="text-sm font-bold">
+                        🎉 You save ₹{totalSavings.toFixed(0)}
+                    </p>
+                </div>
+            )}
 
             <main className="container mx-auto px-4 py-4 space-y-4 max-w-2xl">
                 {/* Delivery estimate */}

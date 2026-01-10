@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useCart } from '@/contexts/CartContext';
 import { logger } from '@/lib/logger';
 import { ChevronRight, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -47,6 +48,7 @@ interface FlashDealsProps {
 
 export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
     const navigate = useNavigate();
+    const { getItemQuantity, updateQuantity } = useCart();
     const [deals, setDeals] = useState<FlashDeal[]>([]);
     const [products, setProducts] = useState<Record<string, Product[]>>({});
     const [countdowns, setCountdowns] = useState<Record<string, { h: number; m: number; s: number }>>({});
@@ -226,6 +228,8 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
                                         key={product.id}
                                         product={product}
                                         onAddToCart={onAddToCart}
+                                        cartQuantity={getItemQuantity(product.id, null)}
+                                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
                                     />
                                 ))}
                             </HorizontalScrollContainer>

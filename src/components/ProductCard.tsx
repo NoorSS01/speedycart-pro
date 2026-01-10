@@ -169,7 +169,7 @@ export default function ProductCard({
                     <button
                         onClick={handleAdd}
                         disabled={isOutOfStock}
-                        className={`absolute bottom-2 right-2 px-4 py-1.5 rounded-lg font-bold text-sm
+                        className={`absolute bottom-2 right-2 px-5 py-2 rounded-lg font-bold text-base
                             bg-primary text-white shadow-lg border border-primary
                             transition-all duration-150 ease-out
                             hover:bg-primary/90 hover:scale-105

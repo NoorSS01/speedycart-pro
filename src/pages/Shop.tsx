@@ -652,11 +652,17 @@ export default function Shop() {
             {recommendedProducts.slice(0, 8).map(product => (
               <div key={product.id} className="flex-shrink-0 w-40">
                 <ProductCard
-                  product={product}
+                  product={{
+                    ...product,
+                    mrp: product.mrp ?? null,
+                    stock_quantity: product.stock_quantity ?? undefined,
+                  }}
                   onAddToCart={() => {
                     trackView(product.id);
-                    navigate(`/product/${product.id}`);
+                    addToCart(product.id);
                   }}
+                  cartQuantity={getItemQuantity(product.id, null)}
+                  onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
                   compact={false}
                 />
               </div>

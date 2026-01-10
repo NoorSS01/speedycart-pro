@@ -96,14 +96,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // Authenticated: add to database
         try {
-            // Check if already in cart
-            const { data: existing } = await supabase
+            // Check if already in cart - handle null variant_id correctly
+            let existingQuery = supabase
                 .from('cart_items')
                 .select('id, quantity')
                 .eq('user_id', user.id)
-                .eq('product_id', productId)
-                .eq('variant_id', variantId || '')
-                .maybeSingle();
+                .eq('product_id', productId);
+
+            // CRITICAL: null in PostgreSQL requires .is() not .eq('')
+            if (variantId) {
+                existingQuery = existingQuery.eq('variant_id', variantId);
+            } else {
+                existingQuery = existingQuery.is('variant_id', null);
+            }
+
+            const { data: existing } = await existingQuery.maybeSingle();
 
             if (existing) {
                 // Update quantity
@@ -149,20 +156,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
         // Authenticated: update database
         try {
             if (quantity <= 0) {
-                // Remove item
-                await supabase
-                    .from('cart_items')
-                    .delete()
-                    .eq('user_id', user.id)
-                    .eq('product_id', productId)
-                    .eq('variant_id', variantId || '');
+                // Remove item - handle null variant_id correctly
+                if (variantId) {
+                    await supabase
+                        .from('cart_items')
+                        .delete()
+                        .eq('user_id', user.id)
+                        .eq('product_id', productId)
+                        .eq('variant_id', variantId);
+                } else {
+                    await supabase
+                        .from('cart_items')
+                        .delete()
+                        .eq('user_id', user.id)
+                        .eq('product_id', productId)
+                        .is('variant_id', null);
+                }
             } else {
-                await supabase
-                    .from('cart_items')
-                    .update({ quantity })
-                    .eq('user_id', user.id)
-                    .eq('product_id', productId)
-                    .eq('variant_id', variantId || '');
+                // Update quantity - handle null variant_id correctly
+                if (variantId) {
+                    await supabase
+                        .from('cart_items')
+                        .update({ quantity })
+                        .eq('user_id', user.id)
+                        .eq('product_id', productId)
+                        .eq('variant_id', variantId);
+                } else {
+                    await supabase
+                        .from('cart_items')
+                        .update({ quantity })
+                        .eq('user_id', user.id)
+                        .eq('product_id', productId)
+                        .is('variant_id', null);
+                }
             }
 
             await refreshCart();
@@ -187,12 +213,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-            await supabase
+            let deleteQuery = supabase
                 .from('cart_items')
                 .delete()
                 .eq('user_id', user.id)
-                .eq('product_id', productId)
-                .eq('variant_id', variantId || '');
+                .eq('product_id', productId);
+
+            // CRITICAL: null in PostgreSQL requires .is() not .eq('')
+            if (variantId) {
+                deleteQuery = deleteQuery.eq('variant_id', variantId);
+            } else {
+                deleteQuery = deleteQuery.is('variant_id', null);
+            }
+
+            await deleteQuery;
 
             await refreshCart();
             return true;

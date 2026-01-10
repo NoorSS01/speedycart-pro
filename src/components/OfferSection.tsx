@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useCart } from '@/contexts/CartContext';
 import { logger } from '@/lib/logger';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +54,7 @@ interface OfferSectionProps {
 
 export default function OfferSectionComponent({ section, onAddToCart }: OfferSectionProps) {
     const navigate = useNavigate();
+    const { getItemQuantity, updateQuantity } = useCart();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -168,6 +170,8 @@ export default function OfferSectionComponent({ section, onAddToCart }: OfferSec
                             key={product.id}
                             product={product}
                             onAddToCart={onAddToCart}
+                            cartQuantity={getItemQuantity(product.id, null)}
+                            onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
                         />
                     ))}
                 </div>
