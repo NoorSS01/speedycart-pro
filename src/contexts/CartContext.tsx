@@ -85,6 +85,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         productId: string,
         variantId: string | null = null
     ): Promise<boolean> => {
+        console.log('[CartContext] addToCart called', { productId, variantId, isAuthenticated: !!user, userId: user?.id });
+
         if (!user) {
             // Guest: add to localStorage
             const success = await addToGuestCartLib(productId, variantId, 1);
@@ -96,6 +98,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         // Authenticated: add to database
         try {
+            console.log('[CartContext] Checking for existing cart item...');
+
             // Check if already in cart - handle null variant_id correctly
             let existingQuery = supabase
                 .from('cart_items')
@@ -110,17 +114,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 existingQuery = existingQuery.is('variant_id', null);
             }
 
-            const { data: existing } = await existingQuery.maybeSingle();
+            const { data: existing, error: selectError } = await existingQuery.maybeSingle();
+
+            if (selectError) {
+                console.error('[CartContext] Error checking existing item:', selectError);
+                logger.error('Error checking existing cart item', { error: selectError });
+                return false;
+            }
+
+            console.log('[CartContext] Existing item check result:', { existing });
 
             if (existing) {
                 // Update quantity
-                await supabase
+                console.log('[CartContext] Updating existing item quantity...');
+                const { error: updateError } = await supabase
                     .from('cart_items')
                     .update({ quantity: existing.quantity + 1 })
                     .eq('id', existing.id);
+
+                if (updateError) {
+                    console.error('[CartContext] Update error:', updateError);
+                    logger.error('Error updating cart quantity', { error: updateError });
+                    return false;
+                }
+                console.log('[CartContext] Quantity updated successfully');
             } else {
                 // Insert new
-                await supabase
+                console.log('[CartContext] Inserting new cart item...', {
+                    user_id: user.id,
+                    product_id: productId,
+                    variant_id: variantId,
+                });
+                const { error: insertError } = await supabase
                     .from('cart_items')
                     .insert({
                         user_id: user.id,
@@ -128,11 +153,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
                         variant_id: variantId,
                         quantity: 1,
                     });
+
+                if (insertError) {
+                    console.error('[CartContext] INSERT ERROR:', insertError);
+                    console.error('[CartContext] INSERT ERROR CODE:', insertError.code);
+                    console.error('[CartContext] INSERT ERROR MESSAGE:', insertError.message);
+                    console.error('[CartContext] INSERT ERROR DETAILS:', insertError.details);
+                    console.error('[CartContext] INSERT ERROR HINT:', insertError.hint);
+                    logger.error('Error inserting to cart', { error: insertError });
+                    return false;
+                }
+                console.log('[CartContext] New item inserted successfully');
             }
 
             await refreshCart();
+            console.log('[CartContext] Cart refreshed');
             return true;
         } catch (e) {
+            console.error('[CartContext] Unexpected error:', e);
             logger.error('Error adding to cart', { error: e });
             return false;
         }
