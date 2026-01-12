@@ -66,7 +66,7 @@ export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { refreshCart, addToCart: contextAddToCart } = useCart();
+    const { refreshCart, addToCart: contextAddToCart, getItemQuantity, updateQuantity } = useCart();
     const [product, setProduct] = useState<Product | null>(null);
     const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
     const [reviews, setReviews] = useState<ProductReview[]>([]);
@@ -92,7 +92,7 @@ export default function ProductDetail() {
     const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
     const [lastOrderId, setLastOrderId] = useState('');
     const { trackView } = useRecommendations();
-    const { products: frequentlyBought, isLoading: frequentlyBoughtLoading } = useFrequentlyBoughtTogether(id);
+    const { products: frequentlyBought, isLoading: frequentlyBoughtLoading, error: frequentlyBoughtError } = useFrequentlyBoughtTogether(id);
 
 
 

@@ -37,6 +37,7 @@ import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import AdminShopStatus from '@/components/AdminShopStatus';
 
 type DateRange = 'today' | '7days' | '30days' | 'all';
 
@@ -266,6 +267,9 @@ export default function Admin() {
             </CardContent>
           </Card>
         )}
+
+        {/* Shop Status Toggle */}
+        <AdminShopStatus />
 
         {/* Primary Stats Grid */}
         <div className="grid grid-cols-2 gap-3">

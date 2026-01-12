@@ -140,6 +140,10 @@ export default function AdminDeliveryActivations() {
     // Stop/deactivate a partner
     const stopActivation = async (id: string) => {
         try {
+            // Get the delivery partner ID from the request
+            const request = requests.find(r => r.id === id);
+
+            // Update the activation status
             await supabase
                 .from('delivery_activations')
                 .update({
@@ -148,6 +152,24 @@ export default function AdminDeliveryActivations() {
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', id);
+
+            // Send notification to the delivery partner
+            if (request?.delivery_partner_id) {
+                try {
+                    await supabase.from('notifications' as any).insert({
+                        user_id: request.delivery_partner_id,
+                        type: 'activation_stopped',
+                        title: 'Activation Stopped',
+                        message: 'Your delivery activation has been stopped by admin. You will not receive new orders.',
+                        read: false,
+                        created_at: new Date().toISOString()
+                    });
+                } catch (notifyErr) {
+                    // Notification insert may fail if table doesn't exist, but continue
+                    logger.warn('Could not send notification to delivery partner', { error: notifyErr });
+                }
+            }
+
             toast.success('Activation stopped');
             fetchRequests();
         } catch (error) {

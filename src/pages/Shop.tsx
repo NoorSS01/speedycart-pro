@@ -99,6 +99,8 @@ export default function Shop() {
   // Initialize search from URL if coming from product page search
   const initialSearch = searchParams.get('search') || '';
   const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [searchSuggestions, setSearchSuggestions] = useState<Product[]>([]);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showAddressDialog, setShowAddressDialog] = useState(false);
   const [savedAddress, setSavedAddress] = useState<string>('');
@@ -116,6 +118,40 @@ export default function Shop() {
 
   // AI Recommendations
   const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
+
+  // Live search suggestions
+  useEffect(() => {
+    const searchProducts = async () => {
+      if (searchQuery.trim().length < 2) {
+        setSearchSuggestions([]);
+        setShowSearchSuggestions(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .ilike('name', `%${searchQuery.trim()}%`)
+        .eq('is_active', true)
+        .gt('stock_quantity', 0)
+        .limit(6);
+
+      if (data && data.length > 0) {
+        setSearchSuggestions(data.map(p => ({
+          ...p,
+          stock_quantity: p.stock_quantity ?? 0,
+          unit: p.unit || 'piece'
+        })));
+        setShowSearchSuggestions(true);
+      } else {
+        setSearchSuggestions([]);
+        setShowSearchSuggestions(false);
+      }
+    };
+
+    const timeoutId = setTimeout(searchProducts, 300); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
 
 
@@ -586,13 +622,61 @@ export default function Shop() {
         </SheetContent>
       </Sheet>
 
-      {/* Animated Search */}
+      {/* Animated Search with Suggestions */}
       <div className="container mx-auto px-4 py-4">
-        <AnimatedSearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          className="max-w-md mx-auto"
-        />
+        <div className="relative max-w-md mx-auto">
+          <AnimatedSearchBar
+            value={searchQuery}
+            onChange={(val) => {
+              setSearchQuery(val);
+              if (val.trim().length >= 2) {
+                setShowSearchSuggestions(true);
+              }
+            }}
+            onFocus={() => {
+              if (searchQuery.trim().length >= 2 && searchSuggestions.length > 0) {
+                setShowSearchSuggestions(true);
+              }
+            }}
+            onBlur={() => {
+              // Delay to allow click on suggestion
+              setTimeout(() => setShowSearchSuggestions(false), 200);
+            }}
+          />
+
+          {/* Search Suggestions Dropdown */}
+          {showSearchSuggestions && searchSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50 max-h-[300px] overflow-y-auto">
+              {searchSuggestions.map((product) => (
+                <button
+                  key={product.id}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
+                  onClick={() => {
+                    navigate(`/product/${product.id}`);
+                    setShowSearchSuggestions(false);
+                  }}
+                >
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-10 h-10 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{product.name}</p>
+                    <p className="text-xs text-primary font-semibold">₹{product.price}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Categories Pills */}

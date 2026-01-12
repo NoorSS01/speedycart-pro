@@ -7,10 +7,11 @@ interface AnimatedSearchBarProps {
     value: string;
     onChange: (value: string) => void;
     onFocus?: () => void;
+    onBlur?: () => void;
     className?: string;
 }
 
-export default function AnimatedSearchBar({ value, onChange, onFocus, className = '' }: AnimatedSearchBarProps) {
+export default function AnimatedSearchBar({ value, onChange, onFocus, onBlur, className = '' }: AnimatedSearchBarProps) {
     const [productNames, setProductNames] = useState<string[]>([
         'Milk',
         'Bread',
@@ -69,7 +70,8 @@ export default function AnimatedSearchBar({ value, onChange, onFocus, className 
 
     const handleBlur = useCallback(() => {
         setIsFocused(false);
-    }, []);
+        onBlur?.();
+    }, [onBlur]);
 
     const currentProduct = productNames[currentIndex] || 'products';
     const showPlaceholder = !isFocused && value.length === 0;

@@ -109,12 +109,11 @@ export default function ProductCard({
 
     return (
         <Card
-            className={`overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card w-full ${compact ? 'min-w-[120px] max-w-[140px]' : 'min-w-[140px] max-w-[160px]'
-                }`}
+            className={`overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card ${compact ? 'w-[130px]' : 'w-[150px]'}`}
             onClick={() => navigate(`/product/${product.id}`)}
         >
-            {/* Image Container */}
-            <div className={`relative bg-muted ${compact ? 'h-24' : 'aspect-square'}`}>
+            {/* Image Container - Consistent height for all cards */}
+            <div className={`relative bg-muted ${compact ? 'h-[100px]' : 'h-[130px]'}`}>
                 {product.image_url ? (
                     <img
                         src={product.image_url}

@@ -403,7 +403,7 @@ export default function Cart() {
         }
     };
 
-    const handleCheckout = () => {
+    const handleCheckout = async () => {
         if (cartItems.length === 0) {
             toast.error('Your cart is empty');
             return;
@@ -419,6 +419,29 @@ export default function Cart() {
                 },
             });
             return;
+        }
+
+        // Check if shop is open
+        try {
+            const { data: settings } = await supabase
+                .from('admin_settings')
+                .select('*')
+                .eq('id', '00000000-0000-0000-0000-000000000001')
+                .single();
+
+            // Handle the case where shop_status column might not exist yet
+            const shopStatus = (settings as Record<string, unknown>)?.shop_status as string | undefined;
+            const closedMessage = (settings as Record<string, unknown>)?.closed_message as string | undefined;
+
+            if (shopStatus === 'closed') {
+                toast.error(closedMessage || 'We are currently closed. Please try again later.', {
+                    duration: 5000,
+                });
+                return;
+            }
+        } catch (e) {
+            // If shop_status column doesn't exist, continue with order
+            logger.warn('Could not check shop status', { error: e });
         }
 
         // Check stock

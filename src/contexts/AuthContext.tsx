@@ -98,7 +98,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Re-check session when app becomes visible (fixes PWA auto-logout)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        logger.debug('App visibility restored, checking session...');
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) {
+            setSession(session);
+            setUser(session.user);
+            fetchUserRole(session.user.id);
+          }
+        });
+      }
+    };
+
+    // Also refresh on focus (for browser tabs)
+    const handleFocus = () => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          setSession(session);
+          setUser(session.user);
+        }
+      });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [checkProfileSetup, fetchUserRole]);
 
   const signUp = async (email: string, password: string, phone: string, fullName?: string, username?: string) => {

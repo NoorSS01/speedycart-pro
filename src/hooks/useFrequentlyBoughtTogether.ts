@@ -17,6 +17,7 @@ interface Product {
 interface FrequentlyBoughtResult {
     products: Product[];
     isLoading: boolean;
+    error: string | null;
 }
 
 /**
@@ -37,12 +38,16 @@ interface FrequentlyBoughtResult {
 export function useFrequentlyBoughtTogether(productId: string | undefined): FrequentlyBoughtResult {
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchRecommendations = useCallback(async () => {
         if (!productId) {
             setIsLoading(false);
+            setError(null);
             return;
         }
+
+        setError(null);
 
         try {
             // Step 1: Get current product details
@@ -188,6 +193,8 @@ export function useFrequentlyBoughtTogether(productId: string | undefined): Freq
             setProducts(recommendations);
         } catch (e) {
             logger.error('Frequently bought together error', { error: e });
+            setError('Failed to load recommendations');
+            setProducts([]); // Graceful fallback to empty
         } finally {
             setIsLoading(false);
         }
@@ -197,5 +204,5 @@ export function useFrequentlyBoughtTogether(productId: string | undefined): Freq
         fetchRecommendations();
     }, [fetchRecommendations]);
 
-    return { products, isLoading };
+    return { products, isLoading, error };
 }

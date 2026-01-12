@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Smartphone, TrendingUp, Wallet, Truck, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Smartphone, TrendingUp, Wallet, Truck, AlertCircle } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import PaymentDialog from '@/components/PaymentDialog';
@@ -45,6 +45,7 @@ const AdminToPay = () => {
 
   const [deliveryPartners, setDeliveryPartners] = useState<DeliveryPartnerStats[]>([]);
   const [loadingPage, setLoadingPage] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   // Payment Dialog State
@@ -82,10 +83,12 @@ const AdminToPay = () => {
 
   const fetchEverything = async () => {
     setLoadingPage(true);
+    setError(null);
     try {
       await Promise.all([fetchDeveloperStats(), fetchDeliveryPartnersStats()]);
     } catch (e) {
       logger.error('Failed to load payment data', { error: e });
+      setError('Failed to load payment data. Please try again.');
     } finally {
       setLoadingPage(false);
     }
@@ -256,6 +259,9 @@ const AdminToPay = () => {
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/40 backdrop-blur-xl shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/admin')} className="shrink-0">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
               <Wallet className="h-5 w-5 text-white" />
             </div>
@@ -268,6 +274,19 @@ const AdminToPay = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Error Display */}
+        {error && (
+          <Card className="border-red-500/50 bg-red-500/5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={fetchEverything}>Retry</Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Developer Section */}
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pl-1">Platform Fees</h2>
