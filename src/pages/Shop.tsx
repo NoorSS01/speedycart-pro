@@ -410,7 +410,7 @@ export default function Shop() {
         p_user_id: user.id,
         p_delivery_address: deliveryAddress,
         p_cart_items: cartItemsPayload,
-        p_coupon_id: null, // Shop page doesn't have coupon support yet
+        p_coupon_id: undefined, // Shop page doesn't have coupon support yet
         p_coupon_discount: 0
       });
 

@@ -151,9 +151,28 @@ export function AdminBroadcastNotifications() {
     const [scheduledTime, setScheduledTime] = useState('');
 
     useEffect(() => {
-        fetchBroadcasts();
-        fetchStats();
-    }, [fetchBroadcasts, fetchStats]);
+        const loadData = async () => {
+            // Fetch broadcasts
+            const { data: broadcastData } = await supabase
+                .from('broadcast_notifications')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(20);
+            if (broadcastData) setBroadcasts(broadcastData);
+
+            // Fetch stats
+            const { data: statsData } = await supabase
+                .from('notification_logs')
+                .select('notification_type, status')
+                .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+            if (statsData) {
+                const sent = statsData.filter((s) => s.status === 'sent').length;
+                const failed = statsData.filter((s) => s.status === 'failed').length;
+                setStats({ total_sent: sent, total_failed: failed, by_type: {} });
+            }
+        };
+        loadData();
+    }, []);
 
     const fetchBroadcasts = useCallback(async () => {
         const { data, error } = await supabase

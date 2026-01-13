@@ -52,7 +52,7 @@ export default function AdminDeliveryApps() {
         if (error) {
             toast.error('Failed to load applications');
         } else {
-            setApplications(data || []);
+            setApplications((data || []) as DeliveryApplication[]);
         }
         setLoading(false);
     };

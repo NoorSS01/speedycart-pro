@@ -40,4 +40,4 @@ Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 // Mock import.meta.env
 vi.stubEnv('VITE_SUPABASE_URL', 'https://test.supabase.co');
 vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'test-anon-key');
-vi.stubEnv('DEV', 'true');
+vi.stubEnv('DEV', true);

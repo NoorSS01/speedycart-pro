@@ -50,7 +50,7 @@ export default function AdminSecurity() {
         if (error) {
             toast.error('Failed to load security reports');
         } else {
-            setActivities(data || []);
+            setActivities((data || []) as MaliciousActivity[]);
         }
         setLoading(false);
     };
