@@ -32,14 +32,6 @@ interface Profile {
   full_name: string | null;
   address: string | null;
   avatar_url?: string | null;
-  username?: string | null;
-}
-
-interface SavedAddress {
-  id: string;
-  label: string;
-  address: string;
-  is_default: boolean;
 }
 
 export default function Profile() {
@@ -51,19 +43,8 @@ export default function Profile() {
     phone: '',
     full_name: '',
     address: '',
-    avatar_url: null,
-    username: null
+    avatar_url: null
   });
-
-  // Saved addresses
-  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
-  const [showAddressDialog, setShowAddressDialog] = useState(false);
-  const [newAddressLabel, setNewAddressLabel] = useState('');
-  const [newAddressText, setNewAddressText] = useState('');
-
-  // Delete account
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -80,8 +61,7 @@ export default function Profile() {
         phone: profileData.phone || '',
         full_name: profileData.full_name || '',
         address: profileData.address || '',
-        avatar_url: profileData.avatar_url || null,
-        username: profileData.username || null
+        avatar_url: profileData.avatar_url || null
       });
     }
     setLoading(false);
@@ -89,7 +69,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) return; // Don't redirect, we'll show auth screen
+    if (!user) return;
     fetchProfile();
   }, [user, authLoading, fetchProfile]);
 
@@ -101,8 +81,7 @@ export default function Profile() {
       .from('profiles')
       .update({
         full_name: profile.full_name,
-        address: profile.address,
-        username: profile.username?.toLowerCase() || null
+        address: profile.address
       })
       .eq('id', user.id);
 
@@ -112,17 +91,6 @@ export default function Profile() {
       toast.success('Profile updated successfully!');
     }
     setSaving(false);
-  };
-
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') {
-      toast.error('Please type DELETE to confirm');
-      return;
-    }
-
-    toast.error('Account deletion is not available in this version');
-    setShowDeleteDialog(false);
-    setDeleteConfirmText('');
   };
 
   const getInitials = (name: string | null) => {
@@ -233,26 +201,6 @@ export default function Profile() {
                 Email
               </Label>
               <Input id="email" type="email" value={user?.email || ''} disabled className="bg-muted/50" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="username" className="flex items-center gap-2 text-sm">
-                Username
-              </Label>
-              <div className="flex">
-                <div className="flex items-center justify-center px-3 bg-muted border border-r-0 rounded-l-md text-sm font-medium text-muted-foreground">
-                  @
-                </div>
-                <Input
-                  id="username"
-                  type="text"
-                  value={profile.username || ''}
-                  onChange={(e) => setProfile({ ...profile, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20) })}
-                  className="rounded-l-none"
-                  placeholder="your_username"
-                  maxLength={20}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Letters, numbers, underscores (3-20 chars)</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2 text-sm">

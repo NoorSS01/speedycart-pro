@@ -29,7 +29,7 @@ export default function Settings() {
     const navigate = useNavigate();
     const [darkMode, setDarkMode] = useState(false);
     const [notifications, setNotifications] = useState(true);
-    const [profile, setProfile] = useState<{ username?: string; phone?: string }>({});
+    const [profile, setProfile] = useState<{ phone?: string }>({});
 
     useEffect(() => {
         // Check current theme
@@ -46,7 +46,7 @@ export default function Settings() {
         if (!user) return;
         const { data } = await supabase
             .from('profiles')
-            .select('username, phone')
+            .select('phone')
             .eq('id', user.id)
             .single();
 
@@ -115,14 +115,6 @@ export default function Settings() {
                                 <span className="text-sm">{user?.email}</span>
                             </div>
                         </div>
-                        {profile.username && (
-                            <div className="flex items-center justify-between py-2">
-                                <div className="flex items-center gap-3">
-                                    <User className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm">@{profile.username}</span>
-                                </div>
-                            </div>
-                        )}
                         {profile.phone && (
                             <div className="flex items-center justify-between py-2">
                                 <div className="flex items-center gap-3">

@@ -109,7 +109,7 @@ export default function ProductCard({
 
     return (
         <Card
-            className={`overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card ${compact ? 'w-[130px]' : 'w-[150px]'}`}
+            className={`overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card w-full`}
             onClick={() => navigate(`/product/${product.id}`)}
         >
             {/* Image Container - Consistent height for all cards */}

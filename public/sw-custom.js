@@ -42,6 +42,15 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - Network First strategy for all requests
 self.addEventListener('fetch', (event) => {
+    // CRITICAL: Auth requests must bypass service worker entirely
+    // This prevents caching issues and interference with Supabase token refresh
+    if (event.request.url.includes('supabase.co/auth') ||
+        event.request.url.includes('/rest/v1/') ||
+        event.request.url.includes('supabase.co/realtime') ||
+        event.request.url.includes('supabase.co/storage')) {
+        return; // Let browser handle auth/API requests directly
+    }
+
     // Only handle same-origin requests
     if (!event.request.url.startsWith(self.location.origin)) {
         return;

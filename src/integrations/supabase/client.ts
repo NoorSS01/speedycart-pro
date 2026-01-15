@@ -14,7 +14,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // Prevent auto-logout - refresh token before expiry
     storageKey: 'speedycart-auth',
+    flowType: 'pkce', // More secure, better token handling for PWA
   }
 });

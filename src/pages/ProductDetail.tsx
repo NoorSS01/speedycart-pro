@@ -1154,20 +1154,21 @@ export default function ProductDetail() {
                         </h2>
                         <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                             {frequentlyBought.map(relProduct => (
-                                <ProductCard
-                                    key={relProduct.id}
-                                    product={{
-                                        ...relProduct,
-                                        image_url: relProduct.image_url || null,
-                                        unit: relProduct.unit || 'unit',
-                                        mrp: relProduct.mrp ?? null,
-                                        default_variant: null
-                                    }}
-                                    onAddToCart={(productId) => contextAddToCart(productId, null)}
-                                    cartQuantity={getItemQuantity(relProduct.id, null)}
-                                    onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                                    compact={true}
-                                />
+                                <div key={relProduct.id} className="flex-shrink-0 w-[130px]">
+                                    <ProductCard
+                                        product={{
+                                            ...relProduct,
+                                            image_url: relProduct.image_url || null,
+                                            unit: relProduct.unit || 'unit',
+                                            mrp: relProduct.mrp ?? null,
+                                            default_variant: null
+                                        }}
+                                        onAddToCart={(productId) => contextAddToCart(productId, null)}
+                                        cartQuantity={getItemQuantity(relProduct.id, null)}
+                                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                                        compact={true}
+                                    />
+                                </div>
                             ))}
                         </div>
                     </div>

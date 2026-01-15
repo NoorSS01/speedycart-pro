@@ -734,7 +734,7 @@ export default function Shop() {
           </div>
           <HorizontalScrollContainer className="gap-3">
             {recommendedProducts.slice(0, 8).map(product => (
-              <div key={product.id} className="flex-shrink-0 w-40">
+              <div key={product.id} className="flex-shrink-0 w-[150px]">
                 <ProductCard
                   product={{
                     ...product,

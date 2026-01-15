@@ -1,6 +1,8 @@
 import { createRoot } from "react-dom/client";
+import { useState } from "react";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
+import SplashScreen from "./components/SplashScreen.tsx";
 import "./index.css";
 import { logger } from "./lib/logger";
 import { initWebVitals } from "./lib/webVitals";
@@ -13,7 +15,12 @@ initWebVitals();
 initExternalLoggers().forEach(handler => logger.addExternalHandler(handler));
 
 // PWA Version - Change this on each deploy to force SW update
-const SW_VERSION = '2.0.4';
+const SW_VERSION = '2.0.5'; // Incremented for splash screen feature
+
+// Check if running as installed PWA (standalone mode)
+const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true || // iOS Safari
+    document.referrer.includes('android-app://');
 
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator) {
@@ -69,9 +76,16 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-createRoot(document.getElementById("root")!).render(
-    <ErrorBoundary>
-        <App />
-    </ErrorBoundary>
-);
+// Root component with splash screen handling
+function Root() {
+    const [showSplash, setShowSplash] = useState(isPWA);
 
+    return (
+        <ErrorBoundary>
+            {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+            <App />
+        </ErrorBoundary>
+    );
+}
+
+createRoot(document.getElementById("root")!).render(<Root />);

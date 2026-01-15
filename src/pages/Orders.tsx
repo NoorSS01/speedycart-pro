@@ -78,16 +78,16 @@ export default function Orders() {
   });
   const [deliveryRating, setDeliveryRating] = useState(0);
 
-  // Review dialog state
+  // Review dialog state - now supports multiple items
   const [reviewDialog, setReviewDialog] = useState<{
     open: boolean;
-    productId: string | null;
-    productName: string;
+    items: OrderItem[];
+    selectedItem: OrderItem | null;
     orderId: string | null;
   }>({
     open: false,
-    productId: null,
-    productName: '',
+    items: [],
+    selectedItem: null,
     orderId: null
   });
   const [reviewRating, setReviewRating] = useState(0);
@@ -207,18 +207,18 @@ export default function Orders() {
   };
 
   const submitProductReview = async () => {
-    if (!reviewDialog.productId || !reviewText.trim()) {
-      toast.error('Please write a review');
+    if (!reviewDialog.selectedItem || reviewRating === 0) {
+      toast.error('Please select a rating');
       return;
     }
 
     try {
       await supabase.from('product_reviews').insert({
-        product_id: reviewDialog.productId,
+        product_id: reviewDialog.selectedItem.product_id,
         user_id: user?.id,
         order_id: reviewDialog.orderId,
         rating: reviewRating,
-        review_text: reviewText.trim(),
+        review_text: reviewText.trim() || null,
         created_at: new Date().toISOString()
       });
       toast.success('Review submitted! Thanks for your feedback.');
@@ -227,7 +227,7 @@ export default function Orders() {
       toast.info('Review saved locally. Thank you!');
     }
 
-    setReviewDialog({ open: false, productId: null, productName: '', orderId: null });
+    setReviewDialog({ open: false, items: [], selectedItem: null, orderId: null });
     setReviewRating(0);
     setReviewText('');
   };
@@ -403,7 +403,7 @@ export default function Orders() {
                       )}
 
                       {/* Review button for delivered orders */}
-                      {isDelivered && order.order_items[0]?.products && (
+                      {isDelivered && order.order_items.length > 0 && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -412,14 +412,14 @@ export default function Orders() {
                             e.stopPropagation();
                             setReviewDialog({
                               open: true,
-                              productId: order.order_items[0].products.id,
-                              productName: order.order_items[0].products.name,
+                              items: order.order_items,
+                              selectedItem: order.order_items.length === 1 ? order.order_items[0] : null,
                               orderId: order.id
                             });
                           }}
                         >
                           <MessageSquare className="h-4 w-4 mr-2" />
-                          Write a Review
+                          Write a Review ({order.order_items.length} item{order.order_items.length > 1 ? 's' : ''})
                         </Button>
                       )}
                     </div>
@@ -473,40 +473,96 @@ export default function Orders() {
         </DialogContent>
       </Dialog>
 
-      {/* Product Review Dialog */}
+      {/* Product Review Dialog - Multi-Item Support */}
       <Dialog open={reviewDialog.open} onOpenChange={(open) => {
         if (!open) {
           setReviewRating(0);
           setReviewText('');
         }
-        setReviewDialog({ ...reviewDialog, open });
+        setReviewDialog({ ...reviewDialog, open, selectedItem: open ? reviewDialog.selectedItem : null });
       }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Review: {reviewDialog.productName}</DialogTitle>
-            <DialogDescription>Share your experience with this product (Optional)</DialogDescription>
+            <DialogTitle>
+              {reviewDialog.selectedItem ? `Review: ${reviewDialog.selectedItem.products.name}` : 'Select Item to Review'}
+            </DialogTitle>
+            <DialogDescription>
+              {reviewDialog.selectedItem
+                ? 'Share your experience with this product'
+                : `${reviewDialog.items.length} items in this order`}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-sm text-muted-foreground">Your rating {reviewRating === 0 && '(tap to rate)'}</p>
-              <StarRating rating={reviewRating} onRatingChange={setReviewRating} size="lg" />
+
+          {/* Item Selection - show if no item selected and multiple items */}
+          {!reviewDialog.selectedItem && reviewDialog.items.length > 0 && (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {reviewDialog.items.map((item) => (
+                <button
+                  key={item.id}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-left"
+                  onClick={() => setReviewDialog({ ...reviewDialog, selectedItem: item })}
+                >
+                  {item.products.image_url ? (
+                    <img
+                      src={item.products.image_url}
+                      alt={item.products.name}
+                      className="w-12 h-12 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                      <Package className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{item.products.name}</p>
+                    <p className="text-xs text-muted-foreground">Qty: {item.quantity} • ₹{item.price}</p>
+                  </div>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
             </div>
-            <Textarea
-              placeholder="Write your review here... (optional)"
-              value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
-              className="min-h-[100px]"
-            />
-          </div>
+          )}
+
+          {/* Review Form - show when item is selected */}
+          {reviewDialog.selectedItem && (
+            <div className="space-y-4 py-2">
+              {/* Back button if multiple items */}
+              {reviewDialog.items.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2"
+                  onClick={() => setReviewDialog({ ...reviewDialog, selectedItem: null })}
+                >
+                  ← Back to items
+                </Button>
+              )}
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-sm text-muted-foreground">Your rating {reviewRating === 0 && '(tap to rate)'}</p>
+                <StarRating rating={reviewRating} onRatingChange={setReviewRating} size="lg" />
+              </div>
+              <Textarea
+                placeholder="Write your review here... (optional)"
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          )}
+
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button onClick={submitProductReview} className="w-full" disabled={reviewRating === 0}>
-              Submit Review
-            </Button>
+            {reviewDialog.selectedItem && (
+              <Button onClick={submitProductReview} className="w-full" disabled={reviewRating === 0}>
+                Submit Review
+              </Button>
+            )}
             <Button variant="ghost" onClick={() => {
-              setReviewDialog({ open: false, productId: null, productName: '', orderId: null });
+              setReviewDialog({ open: false, items: [], selectedItem: null, orderId: null });
               setReviewRating(0);
               setReviewText('');
-            }} className="w-full text-muted-foreground">Skip Review</Button>
+            }} className="w-full text-muted-foreground">
+              {reviewDialog.selectedItem ? 'Skip Review' : 'Close'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

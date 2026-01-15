@@ -224,13 +224,14 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
                         <div className="bg-background rounded-b-2xl border border-t-0 p-3">
                             <HorizontalScrollContainer className="gap-3 pb-2">
                                 {dealProducts.map((product) => (
-                                    <ProductCard
-                                        key={product.id}
-                                        product={product}
-                                        onAddToCart={onAddToCart}
-                                        cartQuantity={getItemQuantity(product.id, null)}
-                                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                                    />
+                                    <div key={product.id} className="flex-shrink-0 w-[150px]">
+                                        <ProductCard
+                                            product={product}
+                                            onAddToCart={onAddToCart}
+                                            cartQuantity={getItemQuantity(product.id, null)}
+                                            onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                                        />
+                                    </div>
                                 ))}
                             </HorizontalScrollContainer>
 

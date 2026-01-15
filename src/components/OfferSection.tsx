@@ -166,13 +166,14 @@ export default function OfferSectionComponent({ section, onAddToCart }: OfferSec
                     style={{ scrollbarWidth: 'none' }}
                 >
                     {products.map((product) => (
-                        <ProductCard
-                            key={product.id}
-                            product={product}
-                            onAddToCart={onAddToCart}
-                            cartQuantity={getItemQuantity(product.id, null)}
-                            onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                        />
+                        <div key={product.id} className="flex-shrink-0 w-[150px]">
+                            <ProductCard
+                                product={product}
+                                onAddToCart={onAddToCart}
+                                cartQuantity={getItemQuantity(product.id, null)}
+                                onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                            />
+                        </div>
                     ))}
                 </div>
 

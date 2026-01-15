@@ -1,0 +1,383 @@
+/* SplashScreen.css - Premium PWA Splash Animation (PM Specification) */
+/* Phase 1: Orbit (0-1s) → Phase 2: Attract (1-1.8s) → Phase 3: Impact (1.8-2.2s) → Phase 4: Finale (2.2-2.8s) */
+
+/* ===== BACKGROUND & ATMOSPHERE ===== */
+.splash-container {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* Radial gradient backdrop per PM spec */
+    background: radial-gradient(ellipse at center, #22c55e 0%, #16a34a 35%, #15803d 60%, #0f172a 100%);
+    transition: opacity 0.5s ease-out;
+    overflow: hidden;
+}
+
+/* Vignette edge effect */
+.splash-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.4) 100%);
+    pointer-events: none;
+}
+
+.splash-container.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ===== GLASSMORPHISM CARD ===== */
+.splash-glass-card {
+    position: relative;
+    padding: 60px;
+    border-radius: 32px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ===== FLOATING PARTICLES (Background depth) ===== */
+.splash-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.splash-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    animation: particle-float 3s ease-in-out infinite;
+}
+
+.splash-particle:nth-child(1) {
+    top: 20%;
+    left: 10%;
+    animation-delay: 0s;
+}
+
+.splash-particle:nth-child(2) {
+    top: 60%;
+    left: 80%;
+    animation-delay: 0.5s;
+}
+
+.splash-particle:nth-child(3) {
+    top: 80%;
+    left: 20%;
+    animation-delay: 1s;
+}
+
+.splash-particle:nth-child(4) {
+    top: 30%;
+    left: 70%;
+    animation-delay: 1.5s;
+}
+
+.splash-particle:nth-child(5) {
+    top: 70%;
+    left: 50%;
+    animation-delay: 0.8s;
+}
+
+.splash-particle:nth-child(6) {
+    top: 15%;
+    left: 60%;
+    animation-delay: 0.3s;
+}
+
+@keyframes particle-float {
+
+    0%,
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: translateY(-20px) scale(1.5);
+        opacity: 0.6;
+    }
+}
+
+/* ===== BASKET (CENTER STAGE) ===== */
+.splash-basket {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 3D tilt effect */
+    transform: perspective(500px) rotateX(5deg);
+    /* Pulsing glow animation */
+    animation:
+        pulse-glow 2s ease-in-out infinite,
+        basket-impact 0.4s ease-out 1.8s;
+}
+
+.splash-basket img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Multi-layer shadow for depth */
+    filter:
+        drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2)) drop-shadow(0 12px 24px rgba(0, 0, 0, 0.15)) drop-shadow(0 24px 48px rgba(0, 0, 0, 0.1));
+}
+
+/* Speed lines appear during impact */
+.splash-speed-lines {
+    position: absolute;
+    inset: -30px;
+    pointer-events: none;
+    opacity: 0;
+    animation: speed-lines 0.3s ease-out 1.8s forwards;
+}
+
+.splash-speed-line {
+    position: absolute;
+    width: 3px;
+    height: 40px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent);
+    border-radius: 2px;
+}
+
+.splash-speed-line:nth-child(1) {
+    top: 0;
+    left: 30%;
+    transform: rotate(-15deg);
+}
+
+.splash-speed-line:nth-child(2) {
+    top: 0;
+    left: 50%;
+}
+
+.splash-speed-line:nth-child(3) {
+    top: 0;
+    left: 70%;
+    transform: rotate(15deg);
+}
+
+@keyframes speed-lines {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+}
+
+/* ===== ORBITING ITEMS CONTAINER ===== */
+.splash-items {
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* ===== INDIVIDUAL ORBITING ITEMS ===== */
+.splash-item {
+    position: absolute;
+    font-size: 36px;
+    top: 50%;
+    left: 50%;
+    opacity: 0;
+    will-change: transform, opacity;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+    /* Combined animation: orbit → attract → disappear */
+    animation: orbit-attract 2.2s ease-in-out forwards;
+}
+
+/* Staggered delays per PM spec */
+.splash-item:nth-child(1) {
+    animation-delay: 0s;
+    --orbit-radius: 120px;
+    --orbit-start: 0deg;
+}
+
+.splash-item:nth-child(2) {
+    animation-delay: 0.1s;
+    --orbit-radius: 110px;
+    --orbit-start: 60deg;
+}
+
+.splash-item:nth-child(3) {
+    animation-delay: 0.2s;
+    --orbit-radius: 130px;
+    --orbit-start: 120deg;
+}
+
+.splash-item:nth-child(4) {
+    animation-delay: 0.3s;
+    --orbit-radius: 115px;
+    --orbit-start: 180deg;
+}
+
+.splash-item:nth-child(5) {
+    animation-delay: 0.4s;
+    --orbit-radius: 125px;
+    --orbit-start: 240deg;
+}
+
+.splash-item:nth-child(6) {
+    animation-delay: 0.5s;
+    --orbit-radius: 118px;
+    --orbit-start: 300deg;
+}
+
+/* PM Phase Animation:
+   Phase 1 (0-45%): Orbit - items circle the basket
+   Phase 2 (45-80%): Attract - items accelerate inward
+   Phase 3 (80-100%): Impact - items scale to 0 and disappear */
+@keyframes orbit-attract {
+    0% {
+        opacity: 0;
+        transform:
+            rotate(var(--orbit-start)) translateX(var(--orbit-radius)) rotate(calc(-1 * var(--orbit-start))) scale(0.5);
+    }
+
+    10% {
+        opacity: 1;
+        transform:
+            rotate(var(--orbit-start)) translateX(var(--orbit-radius)) rotate(calc(-1 * var(--orbit-start))) scale(1);
+    }
+
+    /* Orbit phase - complete ~180deg rotation */
+    45% {
+        opacity: 1;
+        transform:
+            rotate(calc(var(--orbit-start) + 180deg)) translateX(var(--orbit-radius)) rotate(calc(-1 * (var(--orbit-start) + 180deg))) scale(1);
+    }
+
+    /* Attract phase - move toward center */
+    80% {
+        opacity: 1;
+        transform:
+            rotate(calc(var(--orbit-start) + 220deg)) translateX(30px) rotate(calc(-1 * (var(--orbit-start) + 220deg))) scale(0.6);
+    }
+
+    /* Impact - disappear into basket */
+    100% {
+        opacity: 0;
+        transform:
+            rotate(calc(var(--orbit-start) + 240deg)) translateX(0px) rotate(calc(-1 * (var(--orbit-start) + 240deg))) scale(0);
+    }
+}
+
+/* ===== BASKET ANIMATIONS ===== */
+/* Pulsing glow per PM spec */
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        filter:
+            drop-shadow(0 0 15px rgba(34, 197, 94, 0.4)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+    }
+
+    50% {
+        filter:
+            drop-shadow(0 0 30px rgba(34, 197, 94, 0.7)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+    }
+}
+
+/* Basket impact jiggle when items enter */
+@keyframes basket-impact {
+
+    0%,
+    100% {
+        transform: perspective(500px) rotateX(5deg) scale(1) rotate(0deg);
+    }
+
+    25% {
+        transform: perspective(500px) rotateX(5deg) scale(1.08) rotate(-3deg);
+    }
+
+    50% {
+        transform: perspective(500px) rotateX(5deg) scale(1.05) rotate(2deg);
+    }
+
+    75% {
+        transform: perspective(500px) rotateX(5deg) scale(1.02) rotate(-1deg);
+    }
+}
+
+/* ===== BRAND TEXT ===== */
+.splash-brand {
+    margin-top: 40px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.splash-brand h1 {
+    font-size: 32px;
+    font-weight: 800;
+    color: white;
+    margin: 0;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    animation: brand-fade-in 0.6s ease-out 2.2s forwards;
+}
+
+.splash-brand p {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 10px 0 0;
+    font-weight: 500;
+    opacity: 0;
+    animation: brand-fade-in 0.6s ease-out 2.4s forwards;
+}
+
+@keyframes brand-fade-in {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ===== FINALE ZOOM ===== */
+.splash-container.finale {
+    animation: finale-zoom 0.6s ease-in-out forwards;
+}
+
+@keyframes finale-zoom {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0;
+    }
+}

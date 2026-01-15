@@ -1,17 +1,20 @@
+/**
+ * AuthContext - Supabase Email/Password Authentication
+ * Handles user authentication state, session management, and role fetching
+ */
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
-import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: string | null;
-  signUp: (email: string, password: string, phone: string, fullName?: string, username?: string) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signOut: () => Promise<void>;
   loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, phone: string) => Promise<{ error: AuthError | null; user: User | null }>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,30 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
-  // Profile check for OAuth users - runs after initial auth load
-  const checkProfileSetup = useCallback(async (userId: string) => {
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('phone, username')
-        .eq('id', userId)
-        .single();
-
-      const profileData = profile as { phone?: string; username?: string } | null;
-      const hasValidPhone = profileData?.phone && profileData.phone.replace(/\D/g, '').length >= 10;
-      const hasUsername = profileData?.username && profileData.username.length >= 3;
-
-      if ((!hasValidPhone || !hasUsername) && window.location.pathname !== '/phone-setup' && window.location.pathname !== '/auth') {
-        navigate('/phone-setup');
-      }
-    } catch (e) {
-      // Profile check failed - log but don't block app loading
-      logger.debug('Profile setup check failed', { error: e });
-    }
-  }, [navigate]);
-
+  // Fetch user role from database
   const fetchUserRole = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -57,100 +38,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const rolePriority = ['super_admin', 'admin', 'delivery', 'user'];
         const primaryRole = rolePriority.find((role) => roles.includes(role)) ?? roles[0];
         setUserRole(primaryRole);
+      } else {
+        setUserRole('user');
       }
     } catch (error) {
       logger.error('Error fetching user role', { error });
+      setUserRole('user');
     }
   }, []);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
-
-          // Check phone setup only on fresh sign-in (OAuth)
-          if (event === 'SIGNED_IN') {
-            setTimeout(() => {
-              checkProfileSetup(session.user.id);
-            }, 100);
-          }
-        } else {
-          setUserRole(null);
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-        // Check profile setup on every session restore (catches OAuth users who closed browser mid-setup)
-        checkProfileSetup(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    // Re-check session when app becomes visible (fixes PWA auto-logout)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        logger.debug('App visibility restored, checking session...');
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user) {
-            setSession(session);
-            setUser(session.user);
-            fetchUserRole(session.user.id);
-          }
-        });
-      }
-    };
-
-    // Also refresh on focus (for browser tabs)
-    const handleFocus = () => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-        }
-      });
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      subscription.unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [checkProfileSetup, fetchUserRole]);
-
-  const signUp = async (email: string, password: string, phone: string, fullName?: string, username?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          phone,
-          full_name: fullName,
-          username: username?.toLowerCase()
-        }
-      }
-    });
-    return { error };
-  };
-
-  const signIn = async (email: string, password: string) => {
+  // Sign in with email and password
+  const signIn = async (email: string, password: string): Promise<{ error: AuthError | null }> => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -158,14 +56,144 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUserRole(null);
-    navigate('/auth');
+  // Sign up with email and password
+  const signUp = async (
+    email: string,
+    password: string,
+    phone: string
+  ): Promise<{ error: AuthError | null; user: User | null }> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            phone,
+          },
+        },
+      });
+
+      if (error) {
+        logger.error('SignUp error', { error: error.message });
+        return { error, user: null };
+      }
+
+      // Check if this is a "fake" signup (email already exists but Supabase doesn't return error)
+      // Supabase returns a user with empty identities array if email exists
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        logger.warn('Fake signup detected - email already exists', { email });
+        return {
+          error: {
+            message: 'This email is already registered. Please sign in instead.',
+            name: 'AuthApiError',
+            status: 400
+          } as AuthError,
+          user: null
+        };
+      }
+
+      // If signup successful, create profile
+      if (data.user) {
+        logger.info('User created successfully', { userId: data.user.id });
+
+        try {
+          const { error: profileError } = await supabase.from('profiles').insert({
+            id: data.user.id,
+            phone: phone,
+          });
+
+          if (profileError) {
+            logger.error('Error creating profile', { error: profileError.message });
+          } else {
+            logger.info('Profile created successfully', { userId: data.user.id });
+          }
+        } catch (profileError) {
+          logger.error('Exception creating profile', { error: profileError });
+        }
+      }
+
+      return { error: null, user: data.user };
+    } catch (e) {
+      logger.error('SignUp exception', { error: e });
+      return {
+        error: { message: 'Failed to create account', name: 'AuthError', status: 500 } as AuthError,
+        user: null
+      };
+    }
   };
 
+  // Sign out
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setUserRole(null);
+  };
+
+  // Initialize auth state
+  useEffect(() => {
+    let isMounted = true;
+
+    // Get initial session
+    const initializeSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.user && isMounted) {
+          setSession(session);
+          setUser(session.user);
+          await fetchUserRole(session.user.id);
+        }
+      } catch (error) {
+        logger.error('Error getting session', { error });
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          // Defer role fetch to avoid race conditions
+          setTimeout(() => {
+            fetchUserRole(session.user.id);
+          }, 0);
+        } else {
+          setUserRole(null);
+        }
+
+        if (event === 'SIGNED_OUT') {
+          setUserRole(null);
+        }
+      }
+    );
+
+    initializeSession();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchUserRole]);
+
   return (
-    <AuthContext.Provider value={{ user, session, userRole, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      userRole,
+      loading,
+      signIn,
+      signUp,
+      signOut
+    }}>
       {children}
     </AuthContext.Provider>
   );
