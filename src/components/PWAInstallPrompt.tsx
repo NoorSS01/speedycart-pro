@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Download, X, Share, Plus, Smartphone } from 'lucide-react';
+import { Download, X, Share, Plus, Smartphone, Loader2, CheckCircle } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
     readonly platforms: string[];
@@ -34,6 +34,8 @@ export function PWAInstallPrompt() {
     const [showPrompt, setShowPrompt] = useState(false);
     const [showIOSPrompt, setShowIOSPrompt] = useState(false);
     const [isInstalled, setIsInstalled] = useState(false);
+    const [isInstalling, setIsInstalling] = useState(false);
+    const [installSuccess, setInstallSuccess] = useState(false);
 
     useEffect(() => {
         // Check if already installed
@@ -71,9 +73,15 @@ export function PWAInstallPrompt() {
 
         // Listen for successful install
         window.addEventListener('appinstalled', () => {
-            setIsInstalled(true);
-            setShowPrompt(false);
-            setDeferredPrompt(null);
+            setIsInstalling(false);
+            setInstallSuccess(true);
+            // Show success for 2 seconds, then hide
+            setTimeout(() => {
+                setIsInstalled(true);
+                setShowPrompt(false);
+                setDeferredPrompt(null);
+                setInstallSuccess(false);
+            }, 2000);
         });
 
         return () => {
@@ -84,12 +92,29 @@ export function PWAInstallPrompt() {
     const handleInstall = async () => {
         if (!deferredPrompt) return;
 
+        // Show installing state
+        setIsInstalling(true);
+
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
-            setShowPrompt(false);
-            setDeferredPrompt(null);
+            // Keep installing state - appinstalled event will handle success
+            // If appinstalled doesn't fire (some browsers), show success after delay
+            setTimeout(() => {
+                if (isInstalling) {
+                    setInstallSuccess(true);
+                    setIsInstalling(false);
+                    setTimeout(() => {
+                        setShowPrompt(false);
+                        setDeferredPrompt(null);
+                        setIsInstalled(true);
+                    }, 2000);
+                }
+            }, 3000);
+        } else {
+            // User dismissed the prompt
+            setIsInstalling(false);
         }
     };
 
@@ -174,6 +199,42 @@ export function PWAInstallPrompt() {
         return null;
     }
 
+    // Installing/Downloading Banner
+    if (isInstalling || installSuccess) {
+        return (
+            <div className="fixed bottom-20 left-0 right-0 z-50 px-4 animate-in slide-in-from-bottom-4 duration-300 md:left-auto md:right-4 md:max-w-sm">
+                <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-2xl overflow-hidden">
+                    <CardContent className="p-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                                {installSuccess ? (
+                                    <CheckCircle className="h-7 w-7 text-white" />
+                                ) : (
+                                    <Loader2 className="h-7 w-7 text-white animate-spin" />
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-lg">
+                                    {installSuccess ? 'Installation Complete!' : 'Installing PremasShop...'}
+                                </h3>
+                                <p className="text-white/90 text-sm mt-1">
+                                    {installSuccess
+                                        ? '✅ App added to your home screen!'
+                                        : '📥 Downloading app to your device...'}
+                                </p>
+                                {!installSuccess && (
+                                    <div className="mt-2 bg-white/20 rounded-full h-2 overflow-hidden">
+                                        <div className="bg-white h-full rounded-full animate-pulse" style={{ width: '60%' }} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed bottom-20 left-0 right-0 z-50 px-4 animate-in slide-in-from-bottom-4 duration-300 md:left-auto md:right-4 md:max-w-sm">
             <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-2xl overflow-hidden">
@@ -223,3 +284,4 @@ export function PWAInstallPrompt() {
 }
 
 export default PWAInstallPrompt;
+

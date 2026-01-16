@@ -1,5 +1,13 @@
 /* SplashScreen.css - Premium PWA Splash Animation (PM Specification) */
-/* Phase 1: Orbit (0-1s) → Phase 2: Attract (1-1.8s) → Phase 3: Impact (1.8-2.2s) → Phase 4: Finale (2.2-2.8s) */
+/* 
+ * Animation Flow:
+ * Phase 1: Items fall from TOP of screen (0-0.5s)
+ * Phase 2: Items ORBIT around basket (0.5-1.8s) 
+ * Phase 3: Items ATTRACT/descend into basket from above (1.8-2.2s)
+ * Phase 4: Brand reveal + Finale (2.2-2.8s)
+ * 
+ * 60FPS OPTIMIZED: Uses only transform & opacity (GPU-accelerated)
+ */
 
 /* ===== BACKGROUND & ATMOSPHERE ===== */
 .splash-container {
@@ -14,6 +22,9 @@
     background: radial-gradient(ellipse at center, #22c55e 0%, #16a34a 35%, #15803d 60%, #0f172a 100%);
     transition: opacity 0.5s ease-out;
     overflow: hidden;
+    /* GPU acceleration for smooth 60fps */
+    transform: translateZ(0);
+    will-change: opacity;
 }
 
 /* Vignette edge effect */
@@ -42,6 +53,8 @@
     box-shadow:
         0 8px 32px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    /* GPU acceleration */
+    transform: translateZ(0);
 }
 
 /* ===== FLOATING PARTICLES (Background depth) ===== */
@@ -59,6 +72,7 @@
     background: rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     animation: particle-float 3s ease-in-out infinite;
+    will-change: transform, opacity;
 }
 
 .splash-particle:nth-child(1) {
@@ -121,10 +135,12 @@
     justify-content: center;
     /* 3D tilt effect */
     transform: perspective(500px) rotateX(5deg);
-    /* Pulsing glow animation */
+    /* GPU acceleration */
+    will-change: transform, filter;
+    /* Enhanced basket animation: pulse glow + scale bounce on impact */
     animation:
         pulse-glow 2s ease-in-out infinite,
-        basket-impact 0.4s ease-out 1.8s;
+        basket-grow-bounce 2.2s ease-out forwards;
 }
 
 .splash-basket img {
@@ -143,6 +159,7 @@
     pointer-events: none;
     opacity: 0;
     animation: speed-lines 0.3s ease-out 1.8s forwards;
+    will-change: transform, opacity;
 }
 
 .splash-speed-line {
@@ -204,90 +221,116 @@
     top: 50%;
     left: 50%;
     opacity: 0;
+    /* GPU acceleration for 60fps */
     will-change: transform, opacity;
+    transform: translateZ(0);
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-    /* Combined animation: orbit → attract → disappear */
-    animation: orbit-attract 2.2s ease-in-out forwards;
+    /* Animation: Enter from TOP → Orbit → Descend into basket */
+    animation: top-orbit-descend 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* Staggered delays per PM spec */
+/* Staggered delays - items enter from top one by one */
 .splash-item:nth-child(1) {
     animation-delay: 0s;
-    --orbit-radius: 120px;
-    --orbit-start: 0deg;
+    --item-index: 0;
 }
 
 .splash-item:nth-child(2) {
-    animation-delay: 0.1s;
-    --orbit-radius: 110px;
-    --orbit-start: 60deg;
+    animation-delay: 0.08s;
+    --item-index: 1;
 }
 
 .splash-item:nth-child(3) {
-    animation-delay: 0.2s;
-    --orbit-radius: 130px;
-    --orbit-start: 120deg;
+    animation-delay: 0.16s;
+    --item-index: 2;
 }
 
 .splash-item:nth-child(4) {
-    animation-delay: 0.3s;
-    --orbit-radius: 115px;
-    --orbit-start: 180deg;
+    animation-delay: 0.24s;
+    --item-index: 3;
 }
 
 .splash-item:nth-child(5) {
-    animation-delay: 0.4s;
-    --orbit-radius: 125px;
-    --orbit-start: 240deg;
+    animation-delay: 0.32s;
+    --item-index: 4;
 }
 
 .splash-item:nth-child(6) {
-    animation-delay: 0.5s;
-    --orbit-radius: 118px;
-    --orbit-start: 300deg;
+    animation-delay: 0.40s;
+    --item-index: 5;
 }
 
-/* PM Phase Animation:
-   Phase 1 (0-45%): Orbit - items circle the basket
-   Phase 2 (45-80%): Attract - items accelerate inward
-   Phase 3 (80-100%): Impact - items scale to 0 and disappear */
-@keyframes orbit-attract {
+/* 
+ * ANIMATION: Items enter from TOP of screen, orbit, then descend into basket
+ * 0-15%:   Fall from top of screen
+ * 15-70%:  Orbit around the basket (circular motion)
+ * 70-100%: Accelerate toward center and disappear
+ */
+@keyframes top-orbit-descend {
+
+    /* Start: Item is above the basket, off-screen */
     0% {
         opacity: 0;
-        transform:
-            rotate(var(--orbit-start)) translateX(var(--orbit-radius)) rotate(calc(-1 * var(--orbit-start))) scale(0.5);
+        transform: translateY(-200px) translateX(0) scale(0.3);
     }
 
+    /* Items become visible and fall down */
     10% {
         opacity: 1;
-        transform:
-            rotate(var(--orbit-start)) translateX(var(--orbit-radius)) rotate(calc(-1 * var(--orbit-start))) scale(1);
+        transform: translateY(-150px) translateX(0) scale(0.8);
     }
 
-    /* Orbit phase - complete ~180deg rotation */
-    45% {
+    /* Reach orbit starting position (top of orbit circle) */
+    20% {
         opacity: 1;
-        transform:
-            rotate(calc(var(--orbit-start) + 180deg)) translateX(var(--orbit-radius)) rotate(calc(-1 * (var(--orbit-start) + 180deg))) scale(1);
+        transform: translateY(-120px) translateX(0) scale(1);
     }
 
-    /* Attract phase - move toward center */
+    /* Orbit phase: Move to right side */
+    35% {
+        opacity: 1;
+        transform: translateY(-40px) translateX(100px) scale(1) rotate(15deg);
+    }
+
+    /* Orbit: Bottom right */
+    50% {
+        opacity: 1;
+        transform: translateY(60px) translateX(80px) scale(0.95) rotate(30deg);
+    }
+
+    /* Orbit: Bottom */
+    60% {
+        opacity: 1;
+        transform: translateY(90px) translateX(0) scale(0.9) rotate(40deg);
+    }
+
+    /* Orbit: Bottom left */
+    70% {
+        opacity: 1;
+        transform: translateY(60px) translateX(-80px) scale(0.85) rotate(50deg);
+    }
+
+    /* Begin attraction: Move upward toward basket from left-top */
     80% {
         opacity: 1;
-        transform:
-            rotate(calc(var(--orbit-start) + 220deg)) translateX(30px) rotate(calc(-1 * (var(--orbit-start) + 220deg))) scale(0.6);
+        transform: translateY(-30px) translateX(-50px) scale(0.7) rotate(60deg);
     }
 
-    /* Impact - disappear into basket */
+    /* Accelerate into center */
+    90% {
+        opacity: 0.8;
+        transform: translateY(-10px) translateX(-20px) scale(0.4) rotate(70deg);
+    }
+
+    /* Disappear into basket */
     100% {
         opacity: 0;
-        transform:
-            rotate(calc(var(--orbit-start) + 240deg)) translateX(0px) rotate(calc(-1 * (var(--orbit-start) + 240deg))) scale(0);
+        transform: translateY(0) translateX(0) scale(0) rotate(90deg);
     }
 }
 
 /* ===== BASKET ANIMATIONS ===== */
-/* Pulsing glow per PM spec */
+/* Pulsing glow - continuous */
 @keyframes pulse-glow {
 
     0%,
@@ -302,24 +345,52 @@
     }
 }
 
-/* Basket impact jiggle when items enter */
-@keyframes basket-impact {
+/* 
+ * ENHANCED BASKET ANIMATION: Scale 1.0 → 1.15 with bounce
+ * - Basket grows as items approach
+ * - Bouncy settle when items enter
+ * - Scale reaches 1.15 per PM spec
+ */
+@keyframes basket-grow-bounce {
 
-    0%,
-    100% {
-        transform: perspective(500px) rotateX(5deg) scale(1) rotate(0deg);
+    /* Initial state */
+    0% {
+        transform: perspective(500px) rotateX(5deg) scale(1);
     }
 
-    25% {
-        transform: perspective(500px) rotateX(5deg) scale(1.08) rotate(-3deg);
+    /* Slight anticipation */
+    10% {
+        transform: perspective(500px) rotateX(5deg) scale(0.98);
     }
 
+    /* Grow as items approach - subtle */
     50% {
-        transform: perspective(500px) rotateX(5deg) scale(1.05) rotate(2deg);
+        transform: perspective(500px) rotateX(5deg) scale(1.02);
     }
 
-    75% {
-        transform: perspective(500px) rotateX(5deg) scale(1.02) rotate(-1deg);
+    /* Items start entering - scale up to 1.15 */
+    70% {
+        transform: perspective(500px) rotateX(5deg) scale(1.08);
+    }
+
+    /* Peak scale at 1.15 with rotation for impact */
+    80% {
+        transform: perspective(500px) rotateX(5deg) scale(1.15) rotate(-4deg);
+    }
+
+    /* Bounce back with opposite rotation */
+    88% {
+        transform: perspective(500px) rotateX(5deg) scale(1.10) rotate(3deg);
+    }
+
+    /* Settle bounce */
+    94% {
+        transform: perspective(500px) rotateX(5deg) scale(1.06) rotate(-1deg);
+    }
+
+    /* Final settle at slightly enlarged */
+    100% {
+        transform: perspective(500px) rotateX(5deg) scale(1.05) rotate(0deg);
     }
 }
 
@@ -338,6 +409,7 @@
     margin: 0;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     opacity: 0;
+    will-change: transform, opacity;
     animation: brand-fade-in 0.6s ease-out 2.2s forwards;
 }
 
@@ -347,6 +419,7 @@
     margin: 10px 0 0;
     font-weight: 500;
     opacity: 0;
+    will-change: transform, opacity;
     animation: brand-fade-in 0.6s ease-out 2.4s forwards;
 }
 

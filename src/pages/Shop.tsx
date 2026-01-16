@@ -747,7 +747,6 @@ export default function Shop() {
                   }}
                   cartQuantity={getItemQuantity(product.id, null)}
                   onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                  compact={false}
                 />
               </div>
             ))}
@@ -795,7 +794,6 @@ export default function Shop() {
                       onAddToCart={() => addToCart(product.id)}
                       cartQuantity={getItemQuantity(product.id, null)}
                       onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                      compact={false}
                     />
                   </div>
                 ))}

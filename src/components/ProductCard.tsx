@@ -28,7 +28,6 @@ interface ProductCardProps {
         stock_quantity?: number;
     };
     onAddToCart: (productId: string) => void;
-    compact?: boolean;
     cartQuantity?: number;
     onQuantityChange?: (productId: string, newQuantity: number) => void;
     /** Show seasonal badge from theme if available */
@@ -38,7 +37,6 @@ interface ProductCardProps {
 export default function ProductCard({
     product,
     onAddToCart,
-    compact = false,
     cartQuantity = 0,
     onQuantityChange,
     showSeasonalBadge = true,
@@ -109,11 +107,11 @@ export default function ProductCard({
 
     return (
         <Card
-            className={`overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card w-full`}
+            className="overflow-hidden border shadow-sm hover:shadow-md transition-shadow cursor-pointer flex-shrink-0 bg-card w-full h-[210px] flex flex-col"
             onClick={() => navigate(`/product/${product.id}`)}
         >
-            {/* Image Container - Consistent height for all cards */}
-            <div className={`relative bg-muted ${compact ? 'h-[100px]' : 'h-[130px]'}`}>
+            {/* Image Container - Fixed height */}
+            <div className="relative bg-muted h-[130px] flex-shrink-0">
                 {product.image_url ? (
                     <img
                         src={product.image_url}
@@ -182,24 +180,24 @@ export default function ProductCard({
                 )}
             </div>
 
-            {/* Content */}
-            <CardContent className="p-2">
-                {/* Price Row */}
-                <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="font-bold text-primary text-sm">₹{displayPrice}</span>
+            {/* Content - Fixed height section */}
+            <CardContent className="p-2 h-[80px] flex flex-col justify-between overflow-hidden">
+                {/* Price Row - Fixed single line */}
+                <div className="flex items-baseline gap-1.5 flex-nowrap overflow-hidden">
+                    <span className="font-bold text-primary text-sm flex-shrink-0">₹{displayPrice}</span>
                     {displayMrp && displayMrp > displayPrice && (
-                        <span className="text-[10px] line-through text-muted-foreground">₹{displayMrp}</span>
+                        <span className="text-[10px] line-through text-muted-foreground truncate">₹{displayMrp}</span>
                     )}
                 </div>
 
-                {/* Product Name */}
-                <p className={`text-xs font-medium line-clamp-2 mt-1 ${compact ? 'line-clamp-1' : ''}`}>
+                {/* Product Name - Fixed 2-line height with min-h to always reserve space */}
+                <p className="text-xs font-medium line-clamp-2 min-h-[2rem] leading-4">
                     {product.name}
                 </p>
 
-                {/* Unit Info */}
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {unitDisplay}
+                {/* Unit Info - Single line */}
+                <p className="text-[10px] text-muted-foreground truncate">
+                    {unitDisplay || '\u00A0'}
                 </p>
             </CardContent>
         </Card>

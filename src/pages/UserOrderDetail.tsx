@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
+import ReviewDialog from '@/components/ReviewDialog';
 
 export default function UserOrderDetail() {
     const { user, loading: authLoading } = useAuth();
@@ -24,6 +25,8 @@ export default function UserOrderDetail() {
     const [loading, setLoading] = useState(true);
     const [confirming, setConfirming] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [showReviewDialog, setShowReviewDialog] = useState(false);
+    const [deliveryPerson, setDeliveryPerson] = useState<{ id: string; name: string } | null>(null);
 
     const { deliveryTimeMinutes } = useDeliveryTime();
 
@@ -93,14 +96,32 @@ export default function UserOrderDetail() {
                 }));
             }
 
-            // Fetch assignment
+            // Fetch assignment with delivery person info
             const { data: assignmentData } = await supabase
                 .from('delivery_assignments')
-                .select('id, marked_delivered_at, user_confirmed_at')
+                .select('id, marked_delivered_at, user_confirmed_at, delivery_person_id')
                 .eq('order_id', orderId)
                 .single();
 
-            if (assignmentData) setAssignment(assignmentData);
+            if (assignmentData) {
+                setAssignment(assignmentData);
+
+                // Fetch delivery person name if assigned
+                if (assignmentData.delivery_person_id) {
+                    const { data: personData } = await supabase
+                        .from('profiles')
+                        .select('id, full_name')
+                        .eq('id', assignmentData.delivery_person_id)
+                        .single();
+
+                    if (personData) {
+                        setDeliveryPerson({
+                            id: personData.id,
+                            name: personData.full_name || 'Delivery Partner'
+                        });
+                    }
+                }
+            }
 
         } catch (err) {
             logger.error('Failed to fetch user order details', { error: err });
@@ -128,6 +149,9 @@ export default function UserOrderDetail() {
                     .eq('id', orderId);
 
                 toast.success('Order confirmed as delivered!');
+
+                // Show review dialog after confirmation
+                setShowReviewDialog(true);
             } else {
                 // User rejects - mark as rejected in assignment
                 await supabase
@@ -371,6 +395,23 @@ export default function UserOrderDetail() {
             )}
 
             <BottomNav />
+
+            {/* Review Dialog - opens after delivery confirmation */}
+            {user && deliveryPerson && orderId && (
+                <ReviewDialog
+                    open={showReviewDialog}
+                    onOpenChange={setShowReviewDialog}
+                    orderId={orderId}
+                    userId={user.id}
+                    deliveryPersonId={deliveryPerson.id}
+                    deliveryPersonName={deliveryPerson.name}
+                    items={items.map((item) => ({
+                        id: item.product_id,
+                        name: item.name,
+                        image: item.image,
+                    }))}
+                />
+            )}
         </div>
     );
 }

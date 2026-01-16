@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Phone, Shield } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Phone, Shield, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { sendOtp, verifyOtp, createUser } from '@/lib/otpService';
 import { logger } from '@/lib/logger';
@@ -296,7 +296,16 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 relative">
+      {/* Back/Close button - top right */}
+      <button
+        onClick={() => navigate('/shop')}
+        className="absolute top-4 right-4 p-2 rounded-full bg-muted/80 hover:bg-muted transition-colors z-10"
+        aria-label="Back to shop"
+      >
+        <X className="h-5 w-5 text-foreground" />
+      </button>
+
       <Card className="w-full max-w-md shadow-xl border-0 bg-card/95 backdrop-blur">
         <CardHeader className="space-y-1 text-center pb-2">
           <div className="flex justify-center mb-4">
@@ -323,7 +332,7 @@ export default function Auth() {
                 variant="outline"
                 onClick={handleGoogleAuth}
                 disabled={isLoading}
-                className="w-full h-12 text-base font-medium border-2 hover:bg-muted/50"
+                className="w-full h-12 text-base font-medium border-2 hover:bg-muted/50 text-foreground"
               >
                 <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
                   <path
