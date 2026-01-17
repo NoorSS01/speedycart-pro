@@ -3,11 +3,17 @@ import { Home, ShoppingCart, ClipboardList, Grid3X3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useCart } from '@/contexts/CartContext';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
 
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { cartItemCount } = useCart();
+  const { isScrollingDown, isAtTop } = useScrollDirection();
+
+  // Only show on Shop page with scroll behavior, always show on other pages
+  const isShopPage = location.pathname === '/shop';
+  const shouldHide = isShopPage && isScrollingDown && !isAtTop;
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/shop', ariaLabel: 'Go to Shop' },
@@ -18,7 +24,10 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50 border-t border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] transition-transform duration-300",
+        shouldHide ? "translate-y-full" : "translate-y-0"
+      )}
       role="navigation"
       aria-label="Main navigation"
     >
@@ -57,5 +66,3 @@ export default function BottomNav() {
     </nav>
   );
 }
-
-

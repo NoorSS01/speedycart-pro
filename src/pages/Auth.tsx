@@ -332,7 +332,7 @@ export default function Auth() {
                 variant="outline"
                 onClick={handleGoogleAuth}
                 disabled={isLoading}
-                className="w-full h-12 text-base font-medium border-2 hover:bg-muted/50 text-foreground"
+                className="w-full h-12 text-base font-medium border-2 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 active:bg-gray-100"
               >
                 <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
                   <path

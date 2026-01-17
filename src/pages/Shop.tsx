@@ -44,6 +44,8 @@ import { Sparkles, ChevronRight } from 'lucide-react';
 import OrderConfirmation from '@/components/OrderConfirmation';
 import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
 import ProductCard from '@/components/ProductCard';
+import { useScrollDirection } from '@/hooks/useScrollDirection';
+import FreeDeliveryBanner from '@/components/FreeDeliveryBanner';
 
 interface Category {
   id: string;
@@ -87,7 +89,7 @@ interface CartItem {
 
 export default function Shop() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { refreshCart, addToCart: contextAddToCart, getItemQuantity, updateQuantity } = useCart();
+  const { refreshCart, addToCart: contextAddToCart, getItemQuantity, updateQuantity, guestCartItems } = useCart();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -119,10 +121,14 @@ export default function Shop() {
   // AI Recommendations
   const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
 
-  // Live search suggestions
+  // Scroll direction for nav visibility
+  const { isScrollingDown, isAtTop } = useScrollDirection();
+
+  // Live search suggestions - FAST response
   useEffect(() => {
     const searchProducts = async () => {
-      if (searchQuery.trim().length < 2) {
+      // Start searching after just 1 character for faster response
+      if (searchQuery.trim().length < 1) {
         setSearchSuggestions([]);
         setShowSearchSuggestions(false);
         return;
@@ -130,11 +136,11 @@ export default function Shop() {
 
       const { data } = await supabase
         .from('products')
-        .select('*')
+        .select('id, name, price, mrp, image_url, unit, discount_percent, stock_quantity')
         .ilike('name', `%${searchQuery.trim()}%`)
         .eq('is_active', true)
         .gt('stock_quantity', 0)
-        .limit(6);
+        .limit(8); // Slightly more suggestions
 
       if (data && data.length > 0) {
         setSearchSuggestions(data.map(p => ({
@@ -149,7 +155,8 @@ export default function Shop() {
       }
     };
 
-    const timeoutId = setTimeout(searchProducts, 300); // Debounce
+    // Reduced debounce from 300ms to 100ms for much faster response
+    const timeoutId = setTimeout(searchProducts, 100);
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
@@ -459,10 +466,20 @@ export default function Shop() {
     product.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const cartTotal = cartItems.reduce(
+  // Cart total for authenticated users
+  const authenticatedCartTotal = cartItems.reduce(
     (sum, item) => sum + item.products.price * item.quantity,
     0
   );
+
+  // Cart total for guest users - calculate from guestCartItems with products lookup
+  const guestCartTotal = guestCartItems.reduce((sum, item) => {
+    const product = products.find(p => p.id === item.productId);
+    return sum + (product?.price || 0) * item.quantity;
+  }, 0);
+
+  // Use appropriate cart total based on user auth status
+  const cartTotal = user ? authenticatedCartTotal : guestCartTotal;
 
   if (loading) {
     return (
@@ -524,8 +541,11 @@ export default function Shop() {
         />
       )}
 
-      {/* Header with Tagline and Profile */}
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm">
+      {/* Header with Tagline and Profile - hides on scroll down, shows at top */}
+      <header
+        className={`sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm transition-transform duration-300 ${isScrollingDown && !isAtTop ? '-translate-y-full' : 'translate-y-0'
+          }`}
+      >
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -537,6 +557,7 @@ export default function Shop() {
                 ⚡ Rapid Delivery in 14 mins
               </p>
             </div>
+            {/* Profile button */}
             <Button
               variant="ghost"
               size="icon"
@@ -622,60 +643,62 @@ export default function Shop() {
         </SheetContent>
       </Sheet>
 
-      {/* Animated Search with Suggestions */}
-      <div className="container mx-auto px-4 py-4">
-        <div className="relative max-w-md mx-auto">
-          <AnimatedSearchBar
-            value={searchQuery}
-            onChange={(val) => {
-              setSearchQuery(val);
-              if (val.trim().length >= 2) {
-                setShowSearchSuggestions(true);
-              }
-            }}
-            onFocus={() => {
-              if (searchQuery.trim().length >= 2 && searchSuggestions.length > 0) {
-                setShowSearchSuggestions(true);
-              }
-            }}
-            onBlur={() => {
-              // Delay to allow click on suggestion
-              setTimeout(() => setShowSearchSuggestions(false), 200);
-            }}
-          />
+      {/* Animated Search with Suggestions - STICKY per PM spec */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl py-4">
+        <div className="container mx-auto px-4">
+          <div className="relative max-w-md mx-auto">
+            <AnimatedSearchBar
+              value={searchQuery}
+              onChange={(val) => {
+                setSearchQuery(val);
+                if (val.trim().length >= 2) {
+                  setShowSearchSuggestions(true);
+                }
+              }}
+              onFocus={() => {
+                if (searchQuery.trim().length >= 2 && searchSuggestions.length > 0) {
+                  setShowSearchSuggestions(true);
+                }
+              }}
+              onBlur={() => {
+                // Delay to allow click on suggestion
+                setTimeout(() => setShowSearchSuggestions(false), 200);
+              }}
+            />
 
-          {/* Search Suggestions Dropdown */}
-          {showSearchSuggestions && searchSuggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50 max-h-[300px] overflow-y-auto">
-              {searchSuggestions.map((product) => (
-                <button
-                  key={product.id}
-                  className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
-                  onClick={() => {
-                    navigate(`/product/${product.id}`);
-                    setShowSearchSuggestions(false);
-                  }}
-                >
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-10 h-10 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                      <Package className="h-5 w-5 text-muted-foreground" />
+            {/* Search Suggestions Dropdown */}
+            {showSearchSuggestions && searchSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50 max-h-[300px] overflow-y-auto">
+                {searchSuggestions.map((product) => (
+                  <button
+                    key={product.id}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
+                    onClick={() => {
+                      navigate(`/product/${product.id}`);
+                      setShowSearchSuggestions(false);
+                    }}
+                  >
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-10 h-10 rounded object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                        <Package className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{product.name}</p>
+                      <p className="text-xs text-primary font-semibold">₹{product.price}</p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{product.name}</p>
-                    <p className="text-xs text-primary font-semibold">₹{product.price}</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </button>
-              ))}
-            </div>
-          )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -709,98 +732,108 @@ export default function Shop() {
       </div>
 
       {/* Hero Banners - Large Carousel */}
-      {!searchQuery && !selectedCategory && (
-        <HeroBannerCarousel />
-      )}
+      {
+        !searchQuery && !selectedCategory && (
+          <HeroBannerCarousel />
+        )
+      }
 
       {/* Flash Deals with Timer */}
-      {!searchQuery && !selectedCategory && (
-        <FlashDeals onAddToCart={addToCart} />
-      )}
+      {
+        !searchQuery && !selectedCategory && (
+          <FlashDeals onAddToCart={addToCart} />
+        )
+      }
 
       {/* Promotional Banners (Small) */}
-      {!searchQuery && !selectedCategory && (
-        <PromotionalBanners />
-      )}
+      {
+        !searchQuery && !selectedCategory && (
+          <PromotionalBanners />
+        )
+      }
 
       {/* For You - AI Recommendations */}
-      {user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
-        <div className="container mx-auto px-4 pb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-              <Sparkles className="h-4 w-4 text-white" />
-            </div>
-            <h2 className="text-lg font-bold">For You</h2>
-          </div>
-          <HorizontalScrollContainer className="gap-3">
-            {recommendedProducts.slice(0, 8).map(product => (
-              <div key={product.id} className="flex-shrink-0 w-[150px]">
-                <ProductCard
-                  product={{
-                    ...product,
-                    mrp: product.mrp ?? null,
-                    stock_quantity: product.stock_quantity ?? undefined,
-                  }}
-                  onAddToCart={() => {
-                    trackView(product.id);
-                    addToCart(product.id);
-                  }}
-                  cartQuantity={getItemQuantity(product.id, null)}
-                  onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                />
+      {
+        user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
+          <div className="container mx-auto px-4 pb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                <Sparkles className="h-4 w-4 text-white" />
               </div>
-            ))}
-          </HorizontalScrollContainer>
-        </div>
-      )}
+              <h2 className="text-lg font-bold">For You</h2>
+            </div>
+            <HorizontalScrollContainer className="gap-3">
+              {recommendedProducts.slice(0, 8).map(product => (
+                <div key={product.id} className="flex-shrink-0 w-[150px]">
+                  <ProductCard
+                    product={{
+                      ...product,
+                      mrp: product.mrp ?? null,
+                      stock_quantity: product.stock_quantity ?? undefined,
+                    }}
+                    onAddToCart={() => {
+                      trackView(product.id);
+                      addToCart(product.id);
+                    }}
+                    cartQuantity={getItemQuantity(product.id, null)}
+                    onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                  />
+                </div>
+              ))}
+            </HorizontalScrollContainer>
+          </div>
+        )
+      }
 
       {/* Category Sections - Horizontal scroll per category */}
-      {!searchQuery && !selectedCategory && categories
-        .filter(cat => cat.shop_section_visible !== false) // Only show visible categories (default true)
-        .map(category => {
-          const categoryProducts = products.filter(p => p.category_id === category.id);
-          if (categoryProducts.length === 0) return null;
+      {
+        !searchQuery && !selectedCategory && categories
+          .filter(cat => cat.shop_section_visible !== false) // Only show visible categories (default true)
+          .map(category => {
+            const categoryProducts = products.filter(p => p.category_id === category.id);
+            if (categoryProducts.length === 0) return null;
 
-          return (
-            <div key={category.id} className="container mx-auto px-4 pb-6">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold">{category.name}</h2>
-                <button
-                  onClick={() => {
-                    setSelectedCategory(category.id);
-                    setSearchParams({ category: category.id });
-                  }}
-                  className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
-                >
-                  See all
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+            return (
+              <div key={category.id} className="container mx-auto px-4 pb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-bold">{category.name}</h2>
+                  <button
+                    onClick={() => {
+                      setSelectedCategory(category.id);
+                      setSearchParams({ category: category.id });
+                    }}
+                    className="text-sm text-primary font-medium hover:underline flex items-center gap-1"
+                  >
+                    See all
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+                <HorizontalScrollContainer className="gap-3">
+                  {categoryProducts.slice(0, 8).map(product => (
+                    <div key={product.id} className="flex-shrink-0 w-[calc((100vw-48px)/3)] min-w-[100px] max-w-[120px]">
+                      <ProductCard
+                        product={{
+                          id: product.id,
+                          name: product.name,
+                          price: product.price,
+                          mrp: product.mrp ?? null,
+                          image_url: product.image_url,
+                          unit: product.unit,
+                          discount_percent: product.discount_percent,
+                          default_variant: product.default_variant,
+                          stock_quantity: product.stock_quantity,
+                        }}
+                        onAddToCart={() => addToCart(product.id)}
+                        cartQuantity={getItemQuantity(product.id, null)}
+                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                      />
+                    </div>
+                  ))}
+                </HorizontalScrollContainer>
               </div>
-              <HorizontalScrollContainer className="gap-3">
-                {categoryProducts.slice(0, 8).map(product => (
-                  <div key={product.id} className="flex-shrink-0 w-[150px]">
-                    <ProductCard
-                      product={{
-                        id: product.id,
-                        name: product.name,
-                        price: product.price,
-                        mrp: product.mrp ?? null,
-                        image_url: product.image_url,
-                        unit: product.unit,
-                        discount_percent: product.discount_percent,
-                        default_variant: product.default_variant,
-                        stock_quantity: product.stock_quantity,
-                      }}
-                      onAddToCart={() => addToCart(product.id)}
-                      cartQuantity={getItemQuantity(product.id, null)}
-                      onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                    />
-                  </div>
-                ))}
-              </HorizontalScrollContainer>
-            </div>
-          );
-        })}
+            );
+          })
+      }
 
       {/* Products Grid */}
       <div className="container mx-auto px-4 pb-8">
@@ -1088,9 +1121,12 @@ export default function Shop() {
       {/* Footer */}
       <Footer />
 
+      {/* Free Delivery Banner - Floating above bottom nav */}
+      <FreeDeliveryBanner threshold={499} cartTotal={cartTotal} />
+
       {/* Bottom Navigation */}
       <BottomNav />
-    </div >
+    </div>
   );
 }
 

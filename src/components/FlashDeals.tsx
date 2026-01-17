@@ -224,7 +224,7 @@ export default function FlashDeals({ onAddToCart }: FlashDealsProps) {
                         <div className="bg-background rounded-b-2xl border border-t-0 p-3">
                             <HorizontalScrollContainer className="gap-3 pb-2">
                                 {dealProducts.map((product) => (
-                                    <div key={product.id} className="flex-shrink-0 w-[150px]">
+                                    <div key={product.id} className="flex-shrink-0 w-[calc((100vw-48px)/3)] min-w-[100px] max-w-[120px]">
                                         <ProductCard
                                             product={product}
                                             onAddToCart={onAddToCart}

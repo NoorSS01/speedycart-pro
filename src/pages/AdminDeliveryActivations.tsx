@@ -120,15 +120,23 @@ export default function AdminDeliveryActivations() {
                 updateData.duration_hours = durationHours;
             }
 
-            await supabase
+            // FIXED: Capture and check for errors from the database update
+            const { error } = await supabase
                 .from('delivery_activations')
                 .update(updateData)
                 .eq('id', id);
+
+            if (error) {
+                logger.error('Failed to update activation status', { error, id, status });
+                toast.error(`Failed to update: ${error.message}`);
+                return;
+            }
 
             toast.success(`Request ${status}${status === 'approved' ? ` for ${durationHours}h` : ''}`);
             setApprovalDialog({ open: false, requestId: null, hours: 8 });
             fetchRequests();
         } catch (error) {
+            logger.error('Error updating activation status', { error });
             toast.error('Failed to update request');
         }
     };

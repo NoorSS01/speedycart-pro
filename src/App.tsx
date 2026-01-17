@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { AdminLockoutProvider } from "@/contexts/AdminLockoutContext";
+import { AppSettingsProvider } from "@/contexts/AppSettingsContext";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import AuthRecommendationPopup from "@/components/AuthRecommendationPopup";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -94,169 +95,171 @@ const App = () => (
         <AtmosphereCanvas />
         <AmbientOverlay />
         <Toaster />
-        <Sonner />
+        <Sonner position="top-center" offset={70} />
         <BrowserRouter basename={basename}>
           {/* Scroll to top on every navigation */}
           <ScrollToTop />
           <AuthProvider>
-            <AdminLockoutProvider>
-              <CartProvider>
-                <Suspense fallback={<LazyLoading />}>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/shop" element={<Shop />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/categories" element={<Categories />} />
-                    <Route path="/flash-deals/:id" element={<FlashDealsPage />} />
-                    <Route path="/orders" element={<Orders />} />
-                    <Route path="/orders/:orderId" element={<UserOrderDetail />} />
-                    <Route path="/profile" element={<Profile />} />
-                    {/* Delivery routes - protected for delivery/admin/super_admin */}
-                    <Route path="/delivery" element={
-                      <ProtectedRoute requiredRoles={['delivery', 'admin', 'super_admin']}>
-                        <Delivery />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/delivery/order/:orderId" element={
-                      <ProtectedRoute requiredRoles={['delivery', 'admin', 'super_admin']}>
-                        <DeliveryOrderDetail />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/delivery/profile" element={
-                      <ProtectedRoute requiredRoles={['delivery', 'admin', 'super_admin']}>
-                        <DeliveryProfile />
-                      </ProtectedRoute>
-                    } />
-                    {/* Admin routes - protected for admin/super_admin */}
-                    <Route path="/admin" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <Admin />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/stock" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminStock />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/banners" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminBanners />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/coupon-triggers" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminCouponTriggers />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/hero-banners" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminHeroBanners />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/offer-sections" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminOfferSections />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/flash-deals" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminFlashDeals />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/to-pay" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminToPay />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/notifications" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminNotifications />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/delivery-apps" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminDeliveryApps />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/delivery-activations" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminDeliveryActivations />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/themes" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminThemes />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/theme-builder" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminThemeBuilder />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/security" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminSecurity />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/users" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminUsers />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/orders" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminOrders />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/order/:orderId" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminOrderDetail />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/profile" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminProfile />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/add-product" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AddProduct />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/admin/category-sections" element={
-                      <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
-                        <AdminCategorySections />
-                      </ProtectedRoute>
-                    } />
-                    {/* Super Admin - protected for super_admin only */}
-                    <Route path="/super-admin" element={
-                      <ProtectedRoute requiredRoles={['super_admin']}>
-                        <SuperAdmin />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/delivery-application" element={<DeliveryApplication />} />
-                    <Route path="/phone-setup" element={<PhoneSetup />} />
-                    <Route path="/product/:id" element={<ProductDetail />} />
-                    {/* Legal Pages */}
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/terms" element={<TermsConditions />} />
-                    <Route path="/refund-policy" element={<RefundPolicy />} />
-                    <Route path="/shipping-policy" element={<ShippingPolicy />} />
-                    <Route path="/contact" element={<ContactUs />} />
-                    <Route path="/payment-terms" element={<PaymentTerms />} />
-                    <Route path="/grievance" element={<GrievancePolicy />} />
-                    <Route path="/settings" element={<Settings />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-                {/* PWA Install Prompt */}
-                <PWAInstallPrompt />
-                {/* Auth Recommendation Popup for guests */}
-                <AuthRecommendationPopup />
-              </CartProvider>
-            </AdminLockoutProvider>
+            <AppSettingsProvider>
+              <AdminLockoutProvider>
+                <CartProvider>
+                  <Suspense fallback={<LazyLoading />}>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/shop" element={<Shop />} />
+                      <Route path="/cart" element={<Cart />} />
+                      <Route path="/categories" element={<Categories />} />
+                      <Route path="/flash-deals/:id" element={<FlashDealsPage />} />
+                      <Route path="/orders" element={<Orders />} />
+                      <Route path="/orders/:orderId" element={<UserOrderDetail />} />
+                      <Route path="/profile" element={<Profile />} />
+                      {/* Delivery routes - protected for delivery/admin/super_admin */}
+                      <Route path="/delivery" element={
+                        <ProtectedRoute requiredRoles={['delivery', 'admin', 'super_admin']}>
+                          <Delivery />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/delivery/order/:orderId" element={
+                        <ProtectedRoute requiredRoles={['delivery', 'admin', 'super_admin']}>
+                          <DeliveryOrderDetail />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/delivery/profile" element={
+                        <ProtectedRoute requiredRoles={['delivery', 'admin', 'super_admin']}>
+                          <DeliveryProfile />
+                        </ProtectedRoute>
+                      } />
+                      {/* Admin routes - protected for admin/super_admin */}
+                      <Route path="/admin" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <Admin />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/stock" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminStock />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/banners" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminBanners />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/coupon-triggers" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminCouponTriggers />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/hero-banners" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminHeroBanners />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/offer-sections" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminOfferSections />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/flash-deals" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminFlashDeals />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/to-pay" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminToPay />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/notifications" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminNotifications />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/delivery-apps" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminDeliveryApps />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/delivery-activations" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminDeliveryActivations />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/themes" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminThemes />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/theme-builder" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminThemeBuilder />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/security" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminSecurity />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/users" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminUsers />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/orders" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminOrders />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/order/:orderId" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminOrderDetail />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/profile" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminProfile />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/add-product" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AddProduct />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/admin/category-sections" element={
+                        <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+                          <AdminCategorySections />
+                        </ProtectedRoute>
+                      } />
+                      {/* Super Admin - protected for super_admin only */}
+                      <Route path="/super-admin" element={
+                        <ProtectedRoute requiredRoles={['super_admin']}>
+                          <SuperAdmin />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/delivery-application" element={<DeliveryApplication />} />
+                      <Route path="/phone-setup" element={<PhoneSetup />} />
+                      <Route path="/product/:id" element={<ProductDetail />} />
+                      {/* Legal Pages */}
+                      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                      <Route path="/terms" element={<TermsConditions />} />
+                      <Route path="/refund-policy" element={<RefundPolicy />} />
+                      <Route path="/shipping-policy" element={<ShippingPolicy />} />
+                      <Route path="/contact" element={<ContactUs />} />
+                      <Route path="/payment-terms" element={<PaymentTerms />} />
+                      <Route path="/grievance" element={<GrievancePolicy />} />
+                      <Route path="/settings" element={<Settings />} />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                  {/* PWA Install Prompt */}
+                  <PWAInstallPrompt />
+                  {/* Auth Recommendation Popup for guests */}
+                  <AuthRecommendationPopup />
+                </CartProvider>
+              </AdminLockoutProvider>
+            </AppSettingsProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

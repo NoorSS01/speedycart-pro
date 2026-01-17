@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Download, X, Share, Plus, Smartphone, Loader2, CheckCircle } from 'lucide-react';
+import { Download, X, Share, Plus, Smartphone, CheckCircle } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
     readonly platforms: string[];
@@ -92,28 +92,33 @@ export function PWAInstallPrompt() {
     const handleInstall = async () => {
         if (!deferredPrompt) return;
 
-        // Show installing state
+        // Show installing state IMMEDIATELY before prompting
         setIsInstalling(true);
+        setShowPrompt(true); // Ensure banner stays visible
 
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
+        try {
+            await deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
 
-        if (outcome === 'accepted') {
-            // Keep installing state - appinstalled event will handle success
-            // If appinstalled doesn't fire (some browsers), show success after delay
-            setTimeout(() => {
-                if (isInstalling) {
+            if (outcome === 'accepted') {
+                // User accepted - show success after short delay
+                // (appinstalled event may or may not fire depending on browser)
+                setTimeout(() => {
                     setInstallSuccess(true);
                     setIsInstalling(false);
+                    // Auto-hide after showing success
                     setTimeout(() => {
                         setShowPrompt(false);
                         setDeferredPrompt(null);
                         setIsInstalled(true);
                     }, 2000);
-                }
-            }, 3000);
-        } else {
-            // User dismissed the prompt
+                }, 1500);
+            } else {
+                // User dismissed - hide installing state
+                setIsInstalling(false);
+            }
+        } catch (error) {
+            console.error('PWA install error:', error);
             setIsInstalling(false);
         }
     };
@@ -199,38 +204,43 @@ export function PWAInstallPrompt() {
         return null;
     }
 
-    // Installing/Downloading Banner
+    // Installing/Downloading Banner - Fullscreen centered per PM spec
     if (isInstalling || installSuccess) {
         return (
-            <div className="fixed bottom-20 left-0 right-0 z-50 px-4 animate-in slide-in-from-bottom-4 duration-300 md:left-auto md:right-4 md:max-w-sm">
-                <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0 shadow-2xl overflow-hidden">
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                                {installSuccess ? (
-                                    <CheckCircle className="h-7 w-7 text-white" />
-                                ) : (
-                                    <Loader2 className="h-7 w-7 text-white animate-spin" />
-                                )}
+            <div className="fixed inset-0 z-[9999] bg-gradient-to-br from-green-500 via-emerald-500 to-green-600 flex items-center justify-center">
+                <div className="w-full max-w-sm px-8 text-center">
+                    {/* Icon */}
+                    <div className="w-20 h-20 mx-auto mb-8 bg-white/20 backdrop-blur rounded-3xl flex items-center justify-center shadow-2xl">
+                        {installSuccess ? (
+                            <CheckCircle className="h-10 w-10 text-white" />
+                        ) : (
+                            <Download className="h-10 w-10 text-white animate-bounce" />
+                        )}
+                    </div>
+
+                    {/* Progress Bar - Centered and prominent */}
+                    {!installSuccess && (
+                        <div className="mb-6">
+                            <div className="bg-white/20 rounded-full h-3 overflow-hidden shadow-inner">
+                                <div
+                                    className="bg-white h-full rounded-full transition-all duration-500 ease-out"
+                                    style={{ width: '60%' }}
+                                />
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-lg">
-                                    {installSuccess ? 'Installation Complete!' : 'Installing PremasShop...'}
-                                </h3>
-                                <p className="text-white/90 text-sm mt-1">
-                                    {installSuccess
-                                        ? '✅ App added to your home screen!'
-                                        : '📥 Downloading app to your device...'}
-                                </p>
-                                {!installSuccess && (
-                                    <div className="mt-2 bg-white/20 rounded-full h-2 overflow-hidden">
-                                        <div className="bg-white h-full rounded-full animate-pulse" style={{ width: '60%' }} />
-                                    </div>
-                                )}
-                            </div>
+                            <p className="text-white/90 text-lg font-medium mt-3">60%</p>
                         </div>
-                    </CardContent>
-                </Card>
+                    )}
+
+                    {/* Status Text */}
+                    <h2 className="text-white text-2xl font-bold mb-2">
+                        {installSuccess ? 'Installation Complete!' : 'Downloading...'}
+                    </h2>
+                    <p className="text-white/80 text-base">
+                        {installSuccess
+                            ? 'PremasShop has been added to your home screen'
+                            : 'Installing PremasShop on your device'}
+                    </p>
+                </div>
             </div>
         );
     }

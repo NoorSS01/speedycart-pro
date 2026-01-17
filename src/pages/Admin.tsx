@@ -87,6 +87,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('7days');
   const [pendingApplications, setPendingApplications] = useState(0);
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState(499);
   const { deliveryTimeMinutes, updateDeliveryTime } = useDeliveryTime();
 
   // Auth Check
@@ -141,6 +142,21 @@ export default function Admin() {
         .eq('status', 'pending');
 
       setPendingApplications(appsData?.length || 0);
+
+      // Fetch free delivery threshold
+      const { data: settingsData } = await supabase
+        .from('app_settings' as any)
+        .select('value')
+        .eq('key', 'free_delivery_threshold')
+        .single();
+
+      if (settingsData) {
+        const rawValue = (settingsData as any).value;
+        const value = typeof rawValue === 'string'
+          ? parseFloat(rawValue)
+          : rawValue;
+        setFreeDeliveryThreshold(value || 499);
+      }
 
 
 
@@ -528,7 +544,7 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        {/* Delivery Time Setting */}
+        {/* Delivery Settings */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -536,7 +552,8 @@ export default function Admin() {
               Delivery Settings
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Delivery Time Limit */}
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-sm">Delivery Time Limit</p>
@@ -561,6 +578,47 @@ export default function Admin() {
                   <option value="45">45 min</option>
                   <option value="60">60 min</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Free Delivery Threshold */}
+            <div className="flex items-center justify-between border-t pt-4">
+              <div>
+                <p className="font-medium text-sm">Free Delivery Threshold</p>
+                <p className="text-xs text-muted-foreground">Min order for free delivery</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  className="border rounded-lg px-3 py-2 text-sm bg-background w-20"
+                  value={freeDeliveryThreshold}
+                  onChange={(e) => setFreeDeliveryThreshold(parseInt(e.target.value) || 0)}
+                />
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const { error } = await supabase
+                        .from('app_settings' as any)
+                        .upsert({
+                          key: 'free_delivery_threshold',
+                          value: freeDeliveryThreshold.toString(),
+                          description: 'Minimum order amount for free delivery in INR',
+                          updated_at: new Date().toISOString()
+                        }, { onConflict: 'key' });
+
+                      if (error) throw error;
+                      toast.success(`Free delivery threshold set to ₹${freeDeliveryThreshold}`);
+                    } catch (err) {
+                      toast.error('Failed to update threshold');
+                    }
+                  }}
+                >
+                  Save
+                </Button>
               </div>
             </div>
           </CardContent>

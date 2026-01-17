@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { toast } from 'sonner';
 
-// VAPID Public Key - This should match the one in your Supabase secrets
-const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+// VAPID Public Key - Must match the key in Supabase Edge Functions secrets
+const VAPID_PUBLIC_KEY = 'BNl2dc7Lb-L41xYEu0DTU9FTruEmEFE0705zaKM0NIQOT8sxrNF_THB7N1Y5JZqgkMdERGHUhZXIObYTMVrMfhM';
 
 export interface NotificationPreferences {
     dailyReminders: boolean;
