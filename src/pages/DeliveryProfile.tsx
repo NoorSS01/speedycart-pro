@@ -73,6 +73,8 @@ export default function DeliveryProfile() {
     const [activationStatus, setActivationStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
     const [requestingActive, setRequestingActive] = useState(false);
     const [payouts, setPayouts] = useState<any[]>([]);
+    const [rejectionTime, setRejectionTime] = useState<Date | null>(null);
+    const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
 
     useEffect(() => {
         if (authLoading) return;
@@ -190,15 +192,21 @@ export default function DeliveryProfile() {
         try {
             const { data } = await supabase
                 .from('delivery_activations')
-                .select('status')
+                .select('status, updated_at')
                 .eq('delivery_partner_id', user.id)
                 .eq('activation_date', today)
                 .maybeSingle();
 
             if (data && data.status) {
                 setActivationStatus(data.status as 'pending' | 'approved' | 'rejected');
+                if (data.status === 'rejected' && data.updated_at) {
+                    setRejectionTime(new Date(data.updated_at));
+                } else {
+                    setRejectionTime(null);
+                }
             } else {
                 setActivationStatus('none');
+                setRejectionTime(null);
             }
         } catch (error) {
             logger.debug('Activation status not available');
@@ -206,12 +214,40 @@ export default function DeliveryProfile() {
         }
     };
 
+    // Cooldown timer for rejection
+    useEffect(() => {
+        if (!rejectionTime || activationStatus !== 'rejected') {
+            setCooldownRemaining(0);
+            return;
+        }
+
+        const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+        const updateCooldown = () => {
+            const elapsed = Date.now() - rejectionTime.getTime();
+            const remaining = Math.max(0, COOLDOWN_MS - elapsed);
+            setCooldownRemaining(remaining);
+        };
+
+        updateCooldown();
+        const interval = setInterval(updateCooldown, 1000);
+        return () => clearInterval(interval);
+    }, [rejectionTime, activationStatus]);
+
     const requestActivation = async () => {
         if (!user) return;
         setRequestingActive(true);
 
         try {
             const today = new Date().toISOString().split('T')[0];
+
+            // If re-requesting after rejection cooldown, delete the old record first
+            if (activationStatus === 'rejected' && cooldownRemaining === 0) {
+                await supabase
+                    .from('delivery_activations')
+                    .delete()
+                    .eq('delivery_partner_id', user.id)
+                    .eq('activation_date', today);
+            }
 
             const { error } = await supabase
                 .from('delivery_activations')
@@ -229,6 +265,7 @@ export default function DeliveryProfile() {
             } else {
                 toast.success('Activation request sent! Waiting for admin approval.');
                 setActivationStatus('pending');
+                setRejectionTime(null);
             }
         } catch (error) {
             toast.error('Failed to request activation');
@@ -365,6 +402,21 @@ export default function DeliveryProfile() {
                                     )}
                                     {requestingActive ? 'Requesting...' : 'Go Active'}
                                 </Button>
+                            )}
+                            {activationStatus === 'rejected' && cooldownRemaining === 0 && (
+                                <Button onClick={requestActivation} disabled={requestingActive}>
+                                    {requestingActive ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Power className="w-4 h-4 mr-2" />
+                                    )}
+                                    {requestingActive ? 'Requesting...' : 'Request Again'}
+                                </Button>
+                            )}
+                            {activationStatus === 'rejected' && cooldownRemaining > 0 && (
+                                <div className="text-sm text-muted-foreground">
+                                    Wait {Math.ceil(cooldownRemaining / 60000)}m {Math.floor((cooldownRemaining % 60000) / 1000)}s
+                                </div>
                             )}
                         </div>
                     </CardContent>

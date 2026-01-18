@@ -6,10 +6,12 @@ CREATE TABLE IF NOT EXISTS delivery_activations (
     delivery_partner_id UUID NOT NULL,
     activation_date DATE NOT NULL DEFAULT CURRENT_DATE,
     status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    admin_id UUID,
+    admin_id UUID REFERENCES auth.users(id),
     notes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    approved_until TIMESTAMPTZ,
+    duration_hours INTEGER DEFAULT 8,
     
     -- Unique constraint: one request per partner per day
     UNIQUE(delivery_partner_id, activation_date)

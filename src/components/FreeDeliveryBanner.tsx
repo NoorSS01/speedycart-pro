@@ -1,27 +1,70 @@
 import { cn } from '@/lib/utils';
 import { Bike, PartyPopper, Sparkles } from 'lucide-react';
-import { useAppSettingsOptional } from '@/contexts/AppSettingsContext';
+import { useAppSettings } from '@/contexts/AppSettingsContext';
+import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FreeDeliveryBannerProps {
     threshold?: number; // Fallback if not using context
-    cartTotal?: number;
+    cartTotal?: number; // Optional prop, will use context if not provided
     className?: string;
 }
 
 /**
  * Free Delivery Progress Banner
  * Floating banner above bottom nav showing progress towards free delivery
- * Uses app settings context for threshold, falls back to prop
+ * Uses app settings context for threshold value from admin settings
+ * Now calculates cart total from CartContext for real-time updates
  */
 export default function FreeDeliveryBanner({
     threshold: propThreshold = 499,
-    cartTotal = 0,
+    cartTotal: propCartTotal,
     className
 }: FreeDeliveryBannerProps) {
-    const appSettings = useAppSettingsOptional();
+    const { freeDeliveryThreshold: contextThreshold } = useAppSettings();
+    const { guestCartItems, cartItemCount } = useCart();
+    const { user } = useAuth();
+    const [calculatedCartTotal, setCalculatedCartTotal] = useState(0);
 
-    // Use context threshold if available, otherwise use prop
-    const threshold = appSettings?.freeDeliveryThreshold ?? propThreshold;
+    // Use context threshold (from admin settings), fall back to prop if not set
+    const threshold = contextThreshold || propThreshold;
+
+    // Calculate cart total from CartContext for real-time updates
+    useEffect(() => {
+        const calculateTotal = async () => {
+            if (!user) {
+                // Guest user: calculate from guestCartItems
+                const total = guestCartItems.reduce((sum, item) => {
+                    const price = item.variantData?.price ?? item.productData?.price ?? 0;
+                    return sum + price * item.quantity;
+                }, 0);
+                setCalculatedCartTotal(total);
+            } else {
+                // Authenticated user: fetch from database
+                const { data } = await supabase
+                    .from('cart_items')
+                    .select('quantity, products(price), product_variants(price)')
+                    .eq('user_id', user.id);
+
+                if (data) {
+                    const total = data.reduce((sum, item) => {
+                        const products = item.products as { price: number } | null;
+                        const variants = item.product_variants as { price: number } | null;
+                        const price = variants?.price ?? products?.price ?? 0;
+                        return sum + price * item.quantity;
+                    }, 0);
+                    setCalculatedCartTotal(total);
+                }
+            }
+        };
+
+        calculateTotal();
+    }, [user, guestCartItems, cartItemCount]); // Re-run when cart changes
+
+    // Use prop if provided, otherwise use calculated total
+    const cartTotal = propCartTotal ?? calculatedCartTotal;
     const isFreeDelivery = cartTotal >= threshold;
     const remaining = Math.max(threshold - cartTotal, 0);
     const progressPercent = Math.min((cartTotal / threshold) * 100, 100);

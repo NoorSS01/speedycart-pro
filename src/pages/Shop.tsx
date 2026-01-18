@@ -122,7 +122,7 @@ export default function Shop() {
   const { recommendedProducts, isLoading: recommendationsLoading, trackView } = useRecommendations();
 
   // Scroll direction for nav visibility
-  const { isScrollingDown, isAtTop } = useScrollDirection();
+  const { isAtTop } = useScrollDirection();
 
   // Live search suggestions - FAST response
   useEffect(() => {
@@ -543,7 +543,7 @@ export default function Shop() {
 
       {/* Header with Tagline and Profile - hides on scroll down, shows at top */}
       <header
-        className={`sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm transition-transform duration-300 ${isScrollingDown && !isAtTop ? '-translate-y-full' : 'translate-y-0'
+        className={`sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm transition-transform duration-300 ${!isAtTop ? '-translate-y-full' : 'translate-y-0'
           }`}
       >
         <div className="container mx-auto px-4 py-3">

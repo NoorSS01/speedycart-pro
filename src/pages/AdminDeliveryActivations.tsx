@@ -55,7 +55,7 @@ export default function AdminDeliveryActivations() {
             // First, fetch activations for today
             const { data: activationsData, error: activationsError } = await supabase
                 .from('delivery_activations')
-                .select('id, delivery_partner_id, activation_date, status, created_at')
+                .select('*')
                 .eq('activation_date', today)
                 .order('created_at', { ascending: false });
 

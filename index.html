@@ -38,10 +38,10 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* PWA splash background - only when opened as installed app */
+    /* PWA - no static splash, let React SplashScreen handle animation */
     @media all and (display-mode: standalone) {
       html {
-        background: radial-gradient(ellipse at center, #22c55e 0%, #16a34a 35%, #15803d 60%, #0f172a 100%);
+        background: #ffffff;
       }
     }
 
