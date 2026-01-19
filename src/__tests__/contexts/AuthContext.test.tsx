@@ -162,9 +162,7 @@ describe('AuthContext', () => {
                 await result.current.signUp(
                     'test@example.com',
                     'password123',
-                    '1234567890',
-                    'Test User',
-                    'testuser'
+                    '1234567890'
                 );
             });
 
@@ -174,8 +172,6 @@ describe('AuthContext', () => {
                 options: expect.objectContaining({
                     data: {
                         phone: '1234567890',
-                        full_name: 'Test User',
-                        username: 'testuser',
                     },
                 }),
             });
@@ -273,7 +269,7 @@ describe('AuthContext', () => {
     });
 
     describe('signOut', () => {
-        it('should call supabase signOut and navigate to /auth', async () => {
+        it('should call supabase signOut and clear user state', async () => {
             mockSignOut.mockResolvedValue({ error: null });
 
             const { result } = renderHook(() => useAuth(), { wrapper });
@@ -287,7 +283,7 @@ describe('AuthContext', () => {
             });
 
             expect(mockSignOut).toHaveBeenCalled();
-            expect(mockNavigate).toHaveBeenCalledWith('/auth');
+            // Note: signOut no longer navigates - navigation is handled by calling component
         });
 
         it('should clear userRole on sign out', async () => {

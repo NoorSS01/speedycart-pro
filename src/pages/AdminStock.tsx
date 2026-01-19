@@ -15,7 +15,9 @@ import {
     Minus,
     RefreshCw,
     Boxes,
-    Edit
+    Edit,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,6 +37,8 @@ interface Category {
     name: string;
 }
 
+const PAGE_SIZE = 50;
+
 export default function AdminStock() {
     const { user, userRole, loading: authLoading } = useAuth();
     const navigate = useNavigate();
@@ -44,6 +48,12 @@ export default function AdminStock() {
     const [filterStatus, setFilterStatus] = useState<'all' | 'low' | 'out'>('all');
     const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(true);
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalProducts, setTotalProducts] = useState(0);
+    const [lowStockCount, setLowStockCount] = useState(0);
+    const [outOfStockCount, setOutOfStockCount] = useState(0);
 
     useEffect(() => {
         if (authLoading) return;
@@ -68,24 +78,69 @@ export default function AdminStock() {
         }
 
         fetchData();
-    }, [user, userRole, authLoading, navigate]);
+    }, [user, userRole, authLoading, navigate, currentPage, filterStatus]);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [prodRes, catRes] = await Promise.all([
-                supabase.from('products').select('*').order('stock_quantity', { ascending: true }),
+            // Fetch stock counts for stats (always fetch all counts)
+            const [totalRes, lowRes, outRes, catRes] = await Promise.all([
+                supabase.from('products').select('id', { count: 'exact', head: true }),
+                supabase.from('products').select('id', { count: 'exact', head: true })
+                    .gt('stock_quantity', 0).lte('stock_quantity', 10),
+                supabase.from('products').select('id', { count: 'exact', head: true })
+                    .eq('stock_quantity', 0),
                 supabase.from('categories').select('id, name').order('name')
             ]);
 
-            if (prodRes.data) setProducts(prodRes.data as unknown as Product[]);
+            setTotalProducts(totalRes.count || 0);
+            setLowStockCount(lowRes.count || 0);
+            setOutOfStockCount(outRes.count || 0);
             if (catRes.data) setCategories(catRes.data);
+
+            // Build paginated query based on filter
+            let query = supabase.from('products').select('*');
+
+            if (filterStatus === 'low') {
+                query = query.gt('stock_quantity', 0).lte('stock_quantity', 10);
+            } else if (filterStatus === 'out') {
+                query = query.eq('stock_quantity', 0);
+            }
+
+            // Apply search if present
+            if (searchQuery.trim()) {
+                query = query.ilike('name', `%${searchQuery}%`);
+            }
+
+            // Apply pagination
+            const from = (currentPage - 1) * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            const { data: prodData, error } = await query
+                .order('stock_quantity', { ascending: true })
+                .range(from, to);
+
+            if (prodData) setProducts(prodData as unknown as Product[]);
+            if (error) throw error;
         } catch (error) {
             toast.error('Failed to load products');
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Reset to page 1 when search or filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, filterStatus]);
+
+    // Debounced search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchData();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const handleStockUpdate = async (productId: string, newQuantity: number) => {
         if (newQuantity < 0) return;
@@ -111,16 +166,14 @@ export default function AdminStock() {
         });
     };
 
-    const filteredProducts = products.filter(product => {
-        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-        let matchesStatus = true;
-        if (filterStatus === 'low') matchesStatus = product.stock_quantity > 0 && product.stock_quantity <= 10;
-        if (filterStatus === 'out') matchesStatus = product.stock_quantity === 0;
-        return matchesSearch && matchesStatus;
-    });
+    // Calculate total pages based on current filter
+    const getFilteredTotal = () => {
+        if (filterStatus === 'low') return lowStockCount;
+        if (filterStatus === 'out') return outOfStockCount;
+        return totalProducts;
+    };
 
-    const lowStockCount = products.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 10).length;
-    const outOfStockCount = products.filter(p => p.stock_quantity === 0).length;
+    const totalPages = Math.ceil(getFilteredTotal() / PAGE_SIZE);
 
     if (authLoading || userRole === null) {
         return (
@@ -162,7 +215,7 @@ export default function AdminStock() {
                         onClick={() => setFilterStatus('all')}
                         className={`p-3 rounded-xl text-center transition-all ${filterStatus === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
                     >
-                        <p className="text-lg font-bold">{products.length}</p>
+                        <p className="text-lg font-bold">{totalProducts}</p>
                         <p className="text-xs">All</p>
                     </button>
                     <button
@@ -195,13 +248,13 @@ export default function AdminStock() {
                 {/* Product List */}
                 {isLoading ? (
                     [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)
-                ) : filteredProducts.length === 0 ? (
+                ) : products.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                         <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
                         <p>No products found</p>
                     </div>
                 ) : (
-                    filteredProducts.map(product => (
+                    products.map(product => (
                         <Card key={product.id} className="overflow-hidden">
                             <CardContent className="p-3">
                                 <div className="flex items-center gap-3">
@@ -276,6 +329,33 @@ export default function AdminStock() {
                             </CardContent>
                         </Card>
                     ))
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1 || isLoading}
+                        >
+                            <ChevronLeft className="w-4 h-4 mr-1" />
+                            Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages || isLoading}
+                        >
+                            Next
+                            <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                    </div>
                 )}
             </main>
 
