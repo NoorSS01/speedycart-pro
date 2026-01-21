@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 
 interface CartContextType {
     cartItemCount: number;
+    cartTotal: number; // Total cart value in INR - single source of truth
     refreshCart: () => Promise<void>;
     // Guest cart functions
     addToCart: (productId: string, variantId?: string | null) => Promise<boolean>;
@@ -29,6 +30,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
     const { user } = useAuth();
     const [cartItemCount, setCartItemCount] = useState(0);
+    const [cartTotal, setCartTotal] = useState(0); // Track total cart value
     const [guestCartItems, setGuestCartItems] = useState<GuestCartItem[]>([]);
     const [cartQuantities, setCartQuantities] = useState<Map<string, number>>(new Map());
     const previousUserRef = useRef<string | null>(null);
@@ -46,6 +48,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
             setGuestCartItems(guestCart.items);
             setCartItemCount(guestCart.items.length);
 
+            // Calculate total from guest cart items
+            const total = guestCart.items.reduce((sum, item) => {
+                const price = item.variantData?.price ?? item.productData?.price ?? 0;
+                return sum + price * item.quantity;
+            }, 0);
+            setCartTotal(total);
+
             // Build quantity map for guest cart
             const qtyMap = new Map<string, number>();
             guestCart.items.forEach(item => {
@@ -56,14 +65,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-            // Authenticated: fetch from database
+            // Authenticated: fetch from database WITH PRICES for total calculation
             const { data, error } = await supabase
                 .from('cart_items')
-                .select('id, product_id, variant_id, quantity')
+                .select('id, product_id, variant_id, quantity, products(price), product_variants(price)')
                 .eq('user_id', user.id);
 
             if (!error && data) {
                 setCartItemCount(data.length);
+
+                // Calculate total from fetched data
+                const total = data.reduce((sum, item) => {
+                    const products = item.products as { price: number } | null;
+                    const variants = item.product_variants as { price: number } | null;
+                    const price = variants?.price ?? products?.price ?? 0;
+                    return sum + price * item.quantity;
+                }, 0);
+                setCartTotal(total);
 
                 // Build quantity map for DB cart
                 const qtyMap = new Map<string, number>();
@@ -344,6 +362,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return (
         <CartContext.Provider value={{
             cartItemCount,
+            cartTotal,
             refreshCart,
             addToCart,
             updateQuantity,
