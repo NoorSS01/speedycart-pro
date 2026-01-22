@@ -134,18 +134,18 @@
     }
 
     25% {
-        transform: translate(10px, -15px) scale(1.2);
-        opacity: 0.6;
+        transform: translate(15px, -20px) scale(1.3);
+        opacity: 0.7;
     }
 
     50% {
-        transform: translate(-5px, -25px) scale(1);
+        transform: translate(-8px, -35px) scale(1.1);
         opacity: 0.5;
     }
 
     75% {
-        transform: translate(-10px, -10px) scale(1.1);
-        opacity: 0.6;
+        transform: translate(-15px, -15px) scale(1.2);
+        opacity: 0.65;
     }
 }
 
@@ -230,8 +230,8 @@
     position: absolute;
     font-size: 32px;
     will-change: transform, opacity;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
-    animation: item-float 3s ease-in-out infinite;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.25));
+    animation: item-float 3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 /* Position each item in different corners/positions */
@@ -277,25 +277,29 @@
     animation-duration: 3.3s;
 }
 
-/* Floating animation - gentle bob */
+/* Floating animation - pronounced floating bob with horizontal drift */
 @keyframes item-float {
 
     0%,
     100% {
-        transform: translateY(0) rotate(0deg) scale(1);
+        transform: translateY(0) translateX(0) rotate(0deg) scale(1);
         opacity: 1;
     }
 
-    25% {
-        transform: translateY(-8px) rotate(5deg) scale(1.05);
+    20% {
+        transform: translateY(-12px) translateX(4px) rotate(4deg) scale(1.03);
     }
 
-    50% {
-        transform: translateY(-12px) rotate(0deg) scale(1);
+    40% {
+        transform: translateY(-22px) translateX(-3px) rotate(-2deg) scale(1.06);
     }
 
-    75% {
-        transform: translateY(-5px) rotate(-5deg) scale(1.05);
+    60% {
+        transform: translateY(-18px) translateX(5px) rotate(3deg) scale(1.04);
+    }
+
+    80% {
+        transform: translateY(-8px) translateX(-4px) rotate(-3deg) scale(1.02);
     }
 }
 
