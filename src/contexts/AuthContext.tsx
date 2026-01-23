@@ -137,7 +137,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Get initial session
     const initializeSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          logger.error('Error getting session', { error });
+          // If there's an error getting session, try to refresh
+          const { data: refreshData } = await supabase.auth.refreshSession();
+          if (refreshData.session && isMounted) {
+            setSession(refreshData.session);
+            setUser(refreshData.session.user);
+            await fetchUserRole(refreshData.session.user.id);
+            return;
+          }
+        }
 
         if (session?.user && isMounted) {
           setSession(session);
@@ -145,10 +157,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await fetchUserRole(session.user.id);
         }
       } catch (error) {
-        logger.error('Error getting session', { error });
+        logger.error('Error initializing session', { error });
       } finally {
         if (isMounted) {
           setLoading(false);
+        }
+      }
+    };
+
+    // Handle visibility change - refresh session when app comes back to foreground
+    // This is CRITICAL for PWA session persistence
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        logger.debug('App became visible, refreshing session');
+        try {
+          // getSession() automatically refreshes expired tokens
+          const { data: { session }, error } = await supabase.auth.getSession();
+
+          if (error) {
+            logger.error('Session refresh failed on visibility change', { error });
+            // Try explicit refresh as fallback
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) {
+              logger.error('Explicit refresh also failed', { error: refreshError });
+              // Session is truly invalid, clear state
+              setUser(null);
+              setSession(null);
+              setUserRole(null);
+              return;
+            }
+            if (refreshData.session) {
+              setSession(refreshData.session);
+              setUser(refreshData.session.user);
+            }
+            return;
+          }
+
+          if (session?.user) {
+            setSession(session);
+            setUser(session.user);
+            // Only fetch role if we don't have it
+            if (!userRole) {
+              await fetchUserRole(session.user.id);
+            }
+          } else if (user) {
+            // Had a user but now session is null - user was logged out
+            logger.info('Session expired, user logged out');
+            setUser(null);
+            setSession(null);
+            setUserRole(null);
+          }
+        } catch (error) {
+          logger.error('Error refreshing session on visibility change', { error });
         }
       }
     };
@@ -157,6 +217,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!isMounted) return;
+
+        logger.debug('Auth state changed', { event, hasSession: !!session });
+
+        // Handle token refresh event explicitly
+        if (event === 'TOKEN_REFRESHED') {
+          logger.info('Token refreshed successfully');
+          setSession(session);
+          setUser(session?.user ?? null);
+          return;
+        }
 
         setSession(session);
         setUser(session?.user ?? null);
@@ -176,13 +246,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
+    // Add visibility change listener for PWA session persistence
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Also refresh periodically when app is open (every 5 minutes)
+    // This prevents session from expiring while user is actively using the app
+    const refreshInterval = setInterval(async () => {
+      if (document.visibilityState === 'visible' && user) {
+        logger.debug('Periodic session refresh');
+        await supabase.auth.getSession();
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
     initializeSession();
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(refreshInterval);
     };
-  }, [fetchUserRole]);
+  }, [fetchUserRole, user, userRole]);
 
   return (
     <AuthContext.Provider value={{
