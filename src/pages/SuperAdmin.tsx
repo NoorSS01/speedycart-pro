@@ -261,7 +261,7 @@ export default function SuperAdmin() {
     const [ordersRes, usersRes, deliveryRes] = await Promise.all([
       supabase.from('orders').select('total_amount, status, created_at').gte('created_at', startDate.toISOString()),
       supabase.from('profiles').select('id, role, created_at').gte('created_at', startDate.toISOString()),
-      supabase.from('delivery_assignments').select('id, status, created_at, delivery_fee, commission_amount').gte('created_at', startDate.toISOString())
+      supabase.from('delivery_assignments').select('id, created_at, delivery_fee, commission_amount').gte('created_at', startDate.toISOString())
     ]);
 
     if (ordersRes.data) {

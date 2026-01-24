@@ -52,8 +52,8 @@ BEGIN
         LIMIT v_max_orders
     LOOP
         -- Assign the order to this partner
-        INSERT INTO delivery_assignments (order_id, delivery_person_id, status)
-        VALUES (v_order.id, partner_id, 'assigned')
+        INSERT INTO delivery_assignments (order_id, delivery_person_id)
+        VALUES (v_order.id, partner_id)
         ON CONFLICT (order_id) DO NOTHING;
         
         v_assigned_count := v_assigned_count + 1;
