@@ -2,7 +2,7 @@
  * AuthContext - Supabase Email/Password Authentication
  * Handles user authentication state, session management, and role fetching
  */
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
@@ -131,6 +131,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Initialize auth state
+  // Use refs to access current values in callbacks without triggering re-renders
+  const userRef = useRef(user);
+  const userRoleRef = useRef(userRole);
+
+  // Keep refs in sync with state
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { userRoleRef.current = userRole; }, [userRole]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -196,11 +204,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (session?.user) {
             setSession(session);
             setUser(session.user);
-            // Only fetch role if we don't have it
-            if (!userRole) {
+            // Only fetch role if we don't have it - use ref to avoid infinite loop
+            if (!userRoleRef.current) {
               await fetchUserRole(session.user.id);
             }
-          } else if (user) {
+          } else if (userRef.current) {
             // Had a user but now session is null - user was logged out
             logger.info('Session expired, user logged out');
             setUser(null);
@@ -252,7 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Also refresh periodically when app is open (every 5 minutes)
     // This prevents session from expiring while user is actively using the app
     const refreshInterval = setInterval(async () => {
-      if (document.visibilityState === 'visible' && user) {
+      if (document.visibilityState === 'visible' && userRef.current) {
         logger.debug('Periodic session refresh');
         await supabase.auth.getSession();
       }
@@ -266,7 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(refreshInterval);
     };
-  }, [fetchUserRole, user, userRole]);
+  }, [fetchUserRole]); // Only depend on fetchUserRole - use refs for user/userRole
 
   return (
     <AuthContext.Provider value={{
