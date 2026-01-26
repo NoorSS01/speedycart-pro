@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -34,7 +34,7 @@ interface ProductCardProps {
     showSeasonalBadge?: boolean;
 }
 
-export default function ProductCard({
+const ProductCard = memo(function ProductCard({
     product,
     onAddToCart,
     cartQuantity = 0,
@@ -45,36 +45,40 @@ export default function ProductCard({
     const { theme } = useTheme();
     const [isAdding, setIsAdding] = useState(false);
 
-    const variant = product.default_variant;
-    const displayPrice = variant?.price ?? product.price;
-    const displayMrp = variant?.mrp ?? product.mrp;
+    // Memoize computed values to avoid recalculation on every render
+    const { variant, displayPrice, displayMrp, discountPercent, stockQty, isLowStock, isLimitedStock, isOutOfStock, unitDisplay } = useMemo(() => {
+        const v = product.default_variant;
+        const price = v?.price ?? product.price;
+        const mrp = v?.mrp ?? product.mrp;
+        const discount = mrp && mrp > price
+            ? Math.round(((mrp - price) / mrp) * 100)
+            : product.discount_percent || 0;
+        const stock = product.stock_quantity ?? 999;
+        return {
+            variant: v,
+            displayPrice: price,
+            displayMrp: mrp,
+            discountPercent: discount,
+            stockQty: stock,
+            isLowStock: stock > 0 && stock <= 5,
+            isLimitedStock: stock > 5 && stock <= 10,
+            isOutOfStock: stock <= 0,
+            unitDisplay: v ? formatVariantDisplay(v) : product.unit,
+        };
+    }, [product]);
 
-    // Calculate discount percentage
-    const discountPercent = displayMrp && displayMrp > displayPrice
-        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
-        : product.discount_percent || 0;
+    // Memoize seasonal badge
+    const seasonalBadge = useMemo(() => {
+        const promo = theme?.contentEmphasis?.promo;
+        return showSeasonalBadge && promo?.badgeEnabled && promo?.badgeText
+            ? { text: promo.badgeText, color: promo.badgeColor }
+            : null;
+    }, [theme?.contentEmphasis?.promo, showSeasonalBadge]);
 
-    // Stock status - use actual stock or default to high value
-    const stockQty = product.stock_quantity ?? 999;
-    const isLowStock = stockQty > 0 && stockQty <= 5;
-    const isLimitedStock = stockQty > 5 && stockQty <= 10;
-    const isOutOfStock = stockQty <= 0;
-
-    // Display unit info
-    const unitDisplay = variant
-        ? formatVariantDisplay(variant)
-        : product.unit;
-
-    // Get seasonal promo badge from theme
-    const promo = theme?.contentEmphasis?.promo;
-    const seasonalBadge = showSeasonalBadge && promo?.badgeEnabled && promo?.badgeText
-        ? { text: promo.badgeText, color: promo.badgeColor }
-        : null;
-
-    const handleAdd = (e: React.MouseEvent) => {
+    // Memoize event handlers
+    const handleAdd = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
 
-        // Check stock before adding
         if (isOutOfStock) {
             toast.error('This product is out of stock');
             return;
@@ -88,22 +92,21 @@ export default function ProductCard({
         setIsAdding(true);
         onAddToCart(product.id);
         setTimeout(() => setIsAdding(false), 200);
-    };
+    }, [isOutOfStock, cartQuantity, stockQty, onAddToCart, product.id]);
 
-    const handleIncrement = () => {
-        // Stock check is handled by QuantityControls component
+    const handleIncrement = useCallback(() => {
         if (onQuantityChange) {
             onQuantityChange(product.id, cartQuantity + 1);
         } else {
             onAddToCart(product.id);
         }
-    };
+    }, [onQuantityChange, onAddToCart, product.id, cartQuantity]);
 
-    const handleDecrement = () => {
+    const handleDecrement = useCallback(() => {
         if (onQuantityChange && cartQuantity > 0) {
             onQuantityChange(product.id, cartQuantity - 1);
         }
-    };
+    }, [onQuantityChange, product.id, cartQuantity]);
 
     return (
         <Card
@@ -202,5 +205,6 @@ export default function ProductCard({
             </CardContent>
         </Card>
     );
-}
+});
 
+export default ProductCard;

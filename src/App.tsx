@@ -14,21 +14,23 @@ import AuthRecommendationPopup from "@/components/AuthRecommendationPopup";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import ScrollToTop from "@/components/ScrollToTop";
 
-// Eagerly loaded pages (core user flows)
+// Eagerly loaded pages (lightweight core flows)
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Shop from "./pages/Shop";
 import Orders from "./pages/Orders";
 import Profile from "./pages/Profile";
 import UserOrderDetail from "./pages/UserOrderDetail";
-import ProductDetail from "./pages/ProductDetail";
-import Cart from "./pages/Cart";
 import Categories from "./pages/Categories";
 import FlashDealsPage from "./pages/FlashDealsPage";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import PhoneSetup from "./pages/PhoneSetup";
 import DeliveryApplication from "./pages/DeliveryApplication";
+
+// Lazy loaded user pages (heavy pages - code-split for faster initial load)
+const Shop = lazy(() => import("./pages/Shop"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const Cart = lazy(() => import("./pages/Cart"));
 
 // Legal pages (eagerly loaded since they're lightweight)
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -80,7 +82,20 @@ const LazyLoading = () => (
 );
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Data considered fresh for 5 minutes - prevents excessive refetches
+      staleTime: 5 * 60 * 1000,
+      // Keep unused data in cache for 10 minutes
+      gcTime: 10 * 60 * 1000,
+      // Don't refetch on window focus for better mobile performance
+      refetchOnWindowFocus: false,
+      // Retry failed queries once
+      retry: 1,
+    },
+  },
+});
 
 // Hostinger serves app from root via proper rewrites, so router basename should be "/"
 // even though assets are in /dist/ (configured in vite.config.ts)

@@ -144,8 +144,43 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    /* Smooth scrolling for better UX */
+    scroll-behavior: smooth;
+    /* Prevent text size adjustment on orientation change */
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
+    /* Optimize text rendering */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Touch action for better mobile scrolling */
+    touch-action: pan-y;
+  }
+
+  /* Optimize scrollable containers */
+  .scroll-container,
+  [data-scroll-container] {
+    will-change: scroll-position;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Optimize animated elements */
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce,
+  .animate-shimmer {
+    will-change: transform, opacity;
+  }
+
+  /* Paint containment for isolated components */
+  [data-contain="paint"],
+  .card,
+  .product-card {
+    contain: paint;
   }
 }
 
