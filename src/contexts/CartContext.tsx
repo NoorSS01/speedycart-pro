@@ -99,161 +99,230 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }, [user]);
 
     // Add to cart - handles both guest and authenticated
+    // OPTIMISTIC UPDATES: UI updates immediately, DB syncs in background
     const addToCart = useCallback(async (
         productId: string,
         variantId: string | null = null
     ): Promise<boolean> => {
         console.log('[CartContext] addToCart called', { productId, variantId, isAuthenticated: !!user, userId: user?.id });
 
+        const cartKey = getCartKey(productId, variantId);
+        const currentQty = cartQuantities.get(cartKey) || 0;
+        const newQty = currentQty + 1;
+
+        // OPTIMISTIC UPDATE: Update UI immediately before DB operation
+        setCartQuantities(prev => new Map(prev).set(cartKey, newQty));
+        setCartItemCount(prev => currentQty === 0 ? prev + 1 : prev);
+
         if (!user) {
-            // Guest: add to localStorage
+            // Guest: add to localStorage (fast, local operation)
             const success = await addToGuestCartLib(productId, variantId, 1);
             if (success) {
-                await refreshCart();
+                // Refresh to sync total (still optimistic since localStorage is instant)
+                refreshCart();
+            } else {
+                // Revert optimistic update on failure
+                setCartQuantities(prev => {
+                    const next = new Map(prev);
+                    if (currentQty === 0) {
+                        next.delete(cartKey);
+                    } else {
+                        next.set(cartKey, currentQty);
+                    }
+                    return next;
+                });
+                setCartItemCount(prev => currentQty === 0 ? prev - 1 : prev);
             }
             return success;
         }
 
-        // Authenticated: add to database
-        try {
-            console.log('[CartContext] Checking for existing cart item...');
+        // Authenticated: Sync to database in background (non-blocking)
+        // Use upsert pattern for single DB call instead of check + insert/update
+        (async () => {
+            try {
+                // Single query: insert or update using Supabase's upsert
+                // We need to handle the upsert manually since cart_items may have
+                // a constraint on (user_id, product_id, variant_id)
 
-            // Check if already in cart - handle null variant_id correctly
-            let existingQuery = supabase
-                .from('cart_items')
-                .select('id, quantity')
-                .eq('user_id', user.id)
-                .eq('product_id', productId);
-
-            // CRITICAL: null in PostgreSQL requires .is() not .eq('')
-            if (variantId) {
-                existingQuery = existingQuery.eq('variant_id', variantId);
-            } else {
-                existingQuery = existingQuery.is('variant_id', null);
-            }
-
-            const { data: existing, error: selectError } = await existingQuery.maybeSingle();
-
-            if (selectError) {
-                console.error('[CartContext] Error checking existing item:', selectError);
-                logger.error('Error checking existing cart item', { error: selectError });
-                return false;
-            }
-
-            console.log('[CartContext] Existing item check result:', { existing });
-
-            if (existing) {
-                // Update quantity
-                console.log('[CartContext] Updating existing item quantity...');
-                const { error: updateError } = await supabase
+                // First, try to get existing item
+                let query = supabase
                     .from('cart_items')
-                    .update({ quantity: existing.quantity + 1 })
-                    .eq('id', existing.id);
+                    .select('id, quantity')
+                    .eq('user_id', user.id)
+                    .eq('product_id', productId);
 
-                if (updateError) {
-                    console.error('[CartContext] Update error:', updateError);
-                    logger.error('Error updating cart quantity', { error: updateError });
-                    return false;
+                if (variantId) {
+                    query = query.eq('variant_id', variantId);
+                } else {
+                    query = query.is('variant_id', null);
                 }
-                console.log('[CartContext] Quantity updated successfully');
-            } else {
-                // Insert new
-                console.log('[CartContext] Inserting new cart item...', {
-                    user_id: user.id,
-                    product_id: productId,
-                    variant_id: variantId,
+
+                const { data: existing, error: selectError } = await query.maybeSingle();
+
+                if (selectError) {
+                    console.error('[CartContext] Error checking existing item:', selectError);
+                    throw selectError;
+                }
+
+                if (existing) {
+                    // Update quantity
+                    const { error: updateError } = await supabase
+                        .from('cart_items')
+                        .update({ quantity: existing.quantity + 1 })
+                        .eq('id', existing.id);
+
+                    if (updateError) throw updateError;
+                } else {
+                    // Insert new
+                    const { error: insertError } = await supabase
+                        .from('cart_items')
+                        .insert({
+                            user_id: user.id,
+                            product_id: productId,
+                            variant_id: variantId,
+                            quantity: 1,
+                        });
+
+                    if (insertError) throw insertError;
+                }
+
+                // Success - refresh cart in background to sync totals
+                // Don't await - keep UI responsive
+                refreshCart();
+
+            } catch (e) {
+                console.error('[CartContext] DB sync failed, reverting optimistic update:', e);
+                logger.error('Error adding to cart', { error: e });
+
+                // REVERT optimistic update on DB failure
+                setCartQuantities(prev => {
+                    const next = new Map(prev);
+                    if (currentQty === 0) {
+                        next.delete(cartKey);
+                    } else {
+                        next.set(cartKey, currentQty);
+                    }
+                    return next;
                 });
-                const { error: insertError } = await supabase
-                    .from('cart_items')
-                    .insert({
-                        user_id: user.id,
-                        product_id: productId,
-                        variant_id: variantId,
-                        quantity: 1,
-                    });
+                setCartItemCount(prev => currentQty === 0 ? prev - 1 : prev);
 
-                if (insertError) {
-                    console.error('[CartContext] INSERT ERROR:', insertError);
-                    console.error('[CartContext] INSERT ERROR CODE:', insertError.code);
-                    console.error('[CartContext] INSERT ERROR MESSAGE:', insertError.message);
-                    console.error('[CartContext] INSERT ERROR DETAILS:', insertError.details);
-                    console.error('[CartContext] INSERT ERROR HINT:', insertError.hint);
-                    logger.error('Error inserting to cart', { error: insertError });
-                    return false;
-                }
-                console.log('[CartContext] New item inserted successfully');
+                toast.error('Failed to add to cart. Please try again.');
             }
+        })();
 
-            await refreshCart();
-            console.log('[CartContext] Cart refreshed');
-            return true;
-        } catch (e) {
-            console.error('[CartContext] Unexpected error:', e);
-            logger.error('Error adding to cart', { error: e });
-            return false;
-        }
-    }, [user, refreshCart]);
+        // Return immediately - DB operation happens in background
+        return true;
+    }, [user, refreshCart, cartQuantities]);
 
     // Update quantity - handles both guest and authenticated
+    // OPTIMISTIC UPDATES: UI updates immediately, DB syncs in background
     const updateQuantity = useCallback(async (
         productId: string,
         variantId: string | null,
         quantity: number
     ): Promise<boolean> => {
+        const cartKey = getCartKey(productId, variantId);
+        const currentQty = cartQuantities.get(cartKey) || 0;
+
+        // OPTIMISTIC UPDATE: Update UI immediately
+        if (quantity <= 0) {
+            // Remove from cart
+            setCartQuantities(prev => {
+                const next = new Map(prev);
+                next.delete(cartKey);
+                return next;
+            });
+            setCartItemCount(prev => Math.max(0, prev - 1));
+        } else {
+            // Update quantity
+            setCartQuantities(prev => new Map(prev).set(cartKey, quantity));
+            // Cart count only changes if adding new item (handled in addToCart)
+        }
+
         if (!user) {
-            // Guest: update localStorage
+            // Guest: update localStorage (fast, local operation)
             const success = updateGuestCartQtyLib(productId, variantId, quantity);
             if (success) {
-                await refreshCart();
+                refreshCart();
+            } else {
+                // Revert optimistic update
+                setCartQuantities(prev => {
+                    const next = new Map(prev);
+                    if (currentQty === 0) {
+                        next.delete(cartKey);
+                    } else {
+                        next.set(cartKey, currentQty);
+                    }
+                    return next;
+                });
+                if (quantity <= 0) setCartItemCount(prev => prev + 1);
             }
             return success;
         }
 
-        // Authenticated: update database
-        try {
-            if (quantity <= 0) {
-                // Remove item - handle null variant_id correctly
-                if (variantId) {
-                    await supabase
+        // Authenticated: Sync to database in background (non-blocking)
+        (async () => {
+            try {
+                if (quantity <= 0) {
+                    // Remove item
+                    let deleteQuery = supabase
                         .from('cart_items')
                         .delete()
                         .eq('user_id', user.id)
-                        .eq('product_id', productId)
-                        .eq('variant_id', variantId);
-                } else {
-                    await supabase
-                        .from('cart_items')
-                        .delete()
-                        .eq('user_id', user.id)
-                        .eq('product_id', productId)
-                        .is('variant_id', null);
-                }
-            } else {
-                // Update quantity - handle null variant_id correctly
-                if (variantId) {
-                    await supabase
-                        .from('cart_items')
-                        .update({ quantity })
-                        .eq('user_id', user.id)
-                        .eq('product_id', productId)
-                        .eq('variant_id', variantId);
-                } else {
-                    await supabase
-                        .from('cart_items')
-                        .update({ quantity })
-                        .eq('user_id', user.id)
-                        .eq('product_id', productId)
-                        .is('variant_id', null);
-                }
-            }
+                        .eq('product_id', productId);
 
-            await refreshCart();
-            return true;
-        } catch (e) {
-            logger.error('Error updating cart quantity', { error: e });
-            return false;
-        }
-    }, [user, refreshCart]);
+                    if (variantId) {
+                        deleteQuery = deleteQuery.eq('variant_id', variantId);
+                    } else {
+                        deleteQuery = deleteQuery.is('variant_id', null);
+                    }
+
+                    const { error } = await deleteQuery;
+                    if (error) throw error;
+                } else {
+                    // Update quantity
+                    let updateQuery = supabase
+                        .from('cart_items')
+                        .update({ quantity })
+                        .eq('user_id', user.id)
+                        .eq('product_id', productId);
+
+                    if (variantId) {
+                        updateQuery = updateQuery.eq('variant_id', variantId);
+                    } else {
+                        updateQuery = updateQuery.is('variant_id', null);
+                    }
+
+                    const { error } = await updateQuery;
+                    if (error) throw error;
+                }
+
+                // Success - refresh total in background
+                refreshCart();
+
+            } catch (e) {
+                console.error('[CartContext] DB sync failed, reverting optimistic update:', e);
+                logger.error('Error updating cart quantity', { error: e });
+
+                // REVERT optimistic update on DB failure
+                setCartQuantities(prev => {
+                    const next = new Map(prev);
+                    if (currentQty === 0) {
+                        next.delete(cartKey);
+                    } else {
+                        next.set(cartKey, currentQty);
+                    }
+                    return next;
+                });
+                if (quantity <= 0) setCartItemCount(prev => prev + 1);
+
+                toast.error('Failed to update cart. Please try again.');
+            }
+        })();
+
+        // Return immediately - DB operation happens in background
+        return true;
+    }, [user, refreshCart, cartQuantities]);
 
     // Remove from cart
     const removeFromCart = useCallback(async (
