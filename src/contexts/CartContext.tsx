@@ -100,6 +100,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     // Add to cart - handles both guest and authenticated
     // OPTIMISTIC UPDATES: UI updates immediately, DB syncs in background
+    // STOCK PROTECTION: Prevents adding more than available stock
     const addToCart = useCallback(async (
         productId: string,
         variantId: string | null = null
@@ -109,6 +110,52 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const cartKey = getCartKey(productId, variantId);
         const currentQty = cartQuantities.get(cartKey) || 0;
         const newQty = currentQty + 1;
+
+        // ============================================================================
+        // STOCK VALIDATION: Check stock before adding to cart
+        // This prevents race condition where users add items that are out of stock
+        // ============================================================================
+        try {
+            const { data: product, error } = await supabase
+                .from('products')
+                .select('stock_quantity, name, is_active')
+                .eq('id', productId)
+                .single();
+
+            if (error) {
+                console.error('[CartContext] Failed to check stock:', error);
+                // Allow add on error (fail-open for UX) - checkout will catch issues
+            } else if (product) {
+                // Check if product is inactive
+                if (!product.is_active) {
+                    toast.error(`${product.name} is no longer available`);
+                    return false;
+                }
+
+                // Check stock availability
+                const availableStock = product.stock_quantity ?? 0;
+                if (availableStock <= 0) {
+                    toast.error(`${product.name} is out of stock`);
+                    return false;
+                }
+                if (newQty > availableStock) {
+                    toast.error(`Only ${availableStock} ${product.name} available`, {
+                        description: 'You already have the maximum quantity in your cart'
+                    });
+                    return false;
+                }
+
+                // Show low stock warning (but allow add)
+                if (availableStock <= 5 && currentQty === 0) {
+                    toast.info(`Only ${availableStock} left!`, {
+                        duration: 2000
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('[CartContext] Stock check failed:', e);
+            // Continue with add - checkout will validate
+        }
 
         // OPTIMISTIC UPDATE: Update UI immediately before DB operation
         setCartQuantities(prev => new Map(prev).set(cartKey, newQty));
@@ -216,6 +263,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     // Update quantity - handles both guest and authenticated
     // OPTIMISTIC UPDATES: UI updates immediately, DB syncs in background
+    // STOCK PROTECTION: Prevents setting quantity higher than available stock
     const updateQuantity = useCallback(async (
         productId: string,
         variantId: string | null,
@@ -223,6 +271,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
     ): Promise<boolean> => {
         const cartKey = getCartKey(productId, variantId);
         const currentQty = cartQuantities.get(cartKey) || 0;
+
+        // ============================================================================
+        // STOCK VALIDATION: Check stock when increasing quantity
+        // ============================================================================
+        if (quantity > currentQty) {
+            try {
+                const { data: product, error } = await supabase
+                    .from('products')
+                    .select('stock_quantity, name')
+                    .eq('id', productId)
+                    .single();
+
+                if (!error && product) {
+                    const availableStock = product.stock_quantity ?? 0;
+                    if (quantity > availableStock) {
+                        toast.error(`Only ${availableStock} ${product.name} available`);
+                        return false;
+                    }
+                }
+            } catch (e) {
+                console.error('[CartContext] Stock check failed:', e);
+                // Continue with update - checkout will validate
+            }
+        }
 
         // OPTIMISTIC UPDATE: Update UI immediately
         if (quantity <= 0) {

@@ -4,7 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { formatVariantDisplay } from '@/lib/formatUnit';
-import { getGuestCart, GuestCartItem } from '@/lib/guestCart';
+import { getGuestCart } from '@/lib/guestCart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { QuantityControls } from '@/components/ui/QuantityControls';
@@ -35,6 +35,7 @@ import {
 import BottomNav from '@/components/BottomNav';
 import OrderConfirmation from '@/components/OrderConfirmation';
 import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
+import { StockConflictDialog, StockConflictItem } from '@/components/StockConflictDialog';
 
 interface Product {
     id: string;
@@ -104,6 +105,11 @@ export default function Cart() {
     const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
     const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
     const [discountAmount, setDiscountAmount] = useState(0);
+
+    // Stock conflict state
+    const [showStockConflictDialog, setShowStockConflictDialog] = useState(false);
+    const [stockConflictItems, setStockConflictItems] = useState<StockConflictItem[]>([]);
+    const [pendingDeliveryAddress, setPendingDeliveryAddress] = useState('');
 
     // Sticky checkout bar visibility - only show when main checkout button is NOT visible
     const mainCheckoutRef = useRef<HTMLButtonElement>(null);
@@ -509,13 +515,33 @@ export default function Cart() {
                 return;
             }
 
-            // Handle response from atomic function
-            const result = data as unknown as { success: boolean; order_id?: string; error?: string; product_id?: string };
+            // Handle response from atomic function - enhanced with conflict details
+            interface PlaceOrderResult {
+                success: boolean;
+                order_id?: string;
+                error?: string;
+                error_code?: string;
+                product_id?: string;
+                conflict_items?: StockConflictItem[];
+                conflict_count?: number;
+            }
+            const result = data as unknown as PlaceOrderResult;
 
             if (!result.success) {
+                // ENHANCED: Handle stock conflicts with detailed dialog
+                if (result.error_code === 'STOCK_CONFLICT' && result.conflict_items && result.conflict_items.length > 0) {
+                    // Save delivery address for retry after resolution
+                    setPendingDeliveryAddress(deliveryAddress);
+                    setStockConflictItems(result.conflict_items);
+                    setShowAddressDialog(false);
+                    setShowStockConflictDialog(true);
+                    return;
+                }
+
+                // Generic error fallback
                 toast.error(result.error || 'Failed to place order');
                 // Refresh cart in case stock changed
-                if (result.product_id) {
+                if (result.product_id || result.error_code === 'STOCK_CONFLICT') {
                     fetchCart();
                 }
                 return;
@@ -546,6 +572,74 @@ export default function Cart() {
             toast.error('Failed to place order. Please try again.');
         } finally {
             setPlacingOrder(false);
+        }
+    };
+
+    // ============================================================================
+    // STOCK CONFLICT RESOLUTION HANDLERS
+    // ============================================================================
+
+    // Adjust cart quantities to available stock
+    const handleAdjustQuantities = async () => {
+        if (!user) return;
+
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data, error } = await (supabase.rpc as any)('adjust_cart_to_stock', {
+                p_user_id: user.id
+            });
+
+            if (error) {
+                logger.error('Failed to adjust cart quantities', { error });
+                throw error;
+            }
+
+            const result = data as { success: boolean; adjustments?: unknown[] };
+            if (result.success) {
+                await fetchCart();
+                refreshCart();
+            }
+        } catch (e) {
+            logger.error('Adjust quantities error', { error: e });
+            throw e;
+        }
+    };
+
+    // Remove unavailable items from cart
+    const handleRemoveUnavailable = async () => {
+        if (!user) return;
+
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data, error } = await (supabase.rpc as any)('remove_unavailable_cart_items', {
+                p_user_id: user.id
+            });
+
+            if (error) {
+                logger.error('Failed to remove unavailable items', { error });
+                throw error;
+            }
+
+            const result = data as { success: boolean; removed_count?: number };
+            if (result.success) {
+                await fetchCart();
+                refreshCart();
+            }
+        } catch (e) {
+            logger.error('Remove unavailable error', { error: e });
+            throw e;
+        }
+    };
+
+    // Retry checkout after stock conflict resolution
+    const handleRetryCheckout = () => {
+        setShowStockConflictDialog(false);
+        setStockConflictItems([]);
+
+        // If we have a pending delivery address, go straight to confirm
+        if (pendingDeliveryAddress) {
+            // Re-attempt checkout
+            setShowAddressDialog(true);
         }
     };
 
@@ -1105,6 +1199,21 @@ export default function Cart() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Stock Conflict Resolution Dialog */}
+            <StockConflictDialog
+                open={showStockConflictDialog}
+                onClose={() => {
+                    setShowStockConflictDialog(false);
+                    setStockConflictItems([]);
+                    setPendingDeliveryAddress('');
+                }}
+                conflictItems={stockConflictItems}
+                onAdjustQuantities={handleAdjustQuantities}
+                onRemoveUnavailable={handleRemoveUnavailable}
+                onRetryCheckout={handleRetryCheckout}
+                isLoading={placingOrder}
+            />
 
             <BottomNav />
         </div>
