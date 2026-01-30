@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
@@ -34,8 +34,12 @@ interface RecommendationResult {
     trackView: (productId: string) => Promise<void>;
 }
 
+// Module-level flag for table availability
+let viewsTableAvailable: boolean | null = null;
+let viewsTableChecked = false;
+
 /**
- * Advanced AI-Powered Recommendation System
+ * Advanced Recommendation System
  * Inspired by Netflix, Amazon, and Spotify algorithms
  * 
  * Scoring Factors (Total 100 points max per product):
@@ -50,6 +54,12 @@ interface RecommendationResult {
  * - Cap any single category at 40% of recommendations
  * - Prioritize in-stock items only
  * - Fallback to trending when no user data
+ * 
+ * Improvements from Review:
+ * - Reduced random factor to 0-2 pts for consistency
+ * - Seeded randomness with user_id + date for daily determinism
+ * - Structured logging for debugging recommendation reasons
+ * - Cached table availability checks
  */
 export function useRecommendations(): RecommendationResult {
     const { user } = useAuth();
@@ -57,39 +67,78 @@ export function useRecommendations(): RecommendationResult {
     const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const isMountedRef = useRef(true);
+
+    // Simple hash function for deterministic daily randomness
+    const hashCode = (str: string): number => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
+    };
+
+    // Seeded random function for daily consistency
+    const getSeededRandom = useCallback((productId: string): number => {
+        const dailySeed = user
+            ? `${user.id}-${new Date().toDateString()}`
+            : new Date().toDateString();
+        const hash = hashCode(`${dailySeed}-${productId}`);
+        return (hash % 100) / 100 * 2; // 0-2 pts (reduced from 0-5)
+    }, [user]);
+
     // Track product view (silent, never blocks UI)
     const trackView = useCallback(async (productId: string) => {
         if (!user) return;
 
+        // Skip if we know table doesn't exist
+        if (viewsTableAvailable === false) return;
+
         try {
-            const { data: existing } = await supabase
+            const { data: existing, error: selectError } = await supabase
                 .from('user_product_views')
                 .select('id, view_count')
                 .eq('user_id', user.id)
                 .eq('product_id', productId)
-                .single();
+                .maybeSingle();
+
+            if (selectError && !viewsTableChecked) {
+                logger.debug('user_product_views table check failed', { error: selectError });
+                viewsTableAvailable = false;
+                viewsTableChecked = true;
+                return;
+            }
+
+            viewsTableAvailable = true;
+            viewsTableChecked = true;
 
             if (existing) {
-                const existingData = existing;
                 await supabase
                     .from('user_product_views')
                     .update({
-                        view_count: (existingData.view_count || 1) + 1,
-                        viewed_at: new Date().toISOString()
+                        view_count: (existing.view_count || 1) + 1,
+                        last_viewed_at: new Date().toISOString()
                     })
-                    .eq('id', existingData.id);
+                    .eq('id', existing.id);
             } else {
                 await supabase
                     .from('user_product_views')
                     .insert({
                         user_id: user.id,
                         product_id: productId,
-                        view_count: 1
+                        view_count: 1,
+                        first_viewed_at: new Date().toISOString(),
+                        last_viewed_at: new Date().toISOString()
                     });
             }
         } catch (e) {
             // Silent fail - tracking should never break UX
-            logger.debug('Product view tracking failed', { error: e });
+            if (!viewsTableChecked) {
+                viewsTableAvailable = false;
+                viewsTableChecked = true;
+            }
         }
     }, [user]);
 
@@ -98,18 +147,26 @@ export function useRecommendations(): RecommendationResult {
         const trendingScores = new Map<string, number>();
 
         try {
-            // Get recent orders from last 7 days for trending calculation
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
             const { data: recentOrders } = await supabase
                 .from('order_items')
-                .select('product_id, quantity')
+                .select('product_id, quantity, created_at')
                 .gte('created_at', sevenDaysAgo);
 
             if (recentOrders) {
-                recentOrders.forEach((item: { product_id: string; quantity: number }) => {
+                const now = Date.now();
+
+                recentOrders.forEach((item) => {
+                    // Apply time decay
+                    const itemDate = new Date(item.created_at || Date.now()).getTime();
+                    const daysAgo = (now - itemDate) / (1000 * 60 * 60 * 24);
+                    const decay = Math.exp(-daysAgo / 7);
+
                     const current = trendingScores.get(item.product_id) || 0;
-                    trendingScores.set(item.product_id, current + item.quantity);
+                    // Hybrid: 70% order count + 30% quantity contribution
+                    const score = decay * (0.7 + 0.3 * Math.min(item.quantity / 5, 1));
+                    trendingScores.set(item.product_id, current + score);
                 });
             }
 
@@ -120,7 +177,6 @@ export function useRecommendations(): RecommendationResult {
             });
 
         } catch (e) {
-            // Return empty map on error
             logger.debug('Trending calculation failed', { error: e });
         }
 
@@ -134,11 +190,12 @@ export function useRecommendations(): RecommendationResult {
             const { data: allProductsData } = await supabase
                 .from('products')
                 .select('*')
+                .eq('is_active', true)
                 .gt('stock_quantity', 0)
                 .order('created_at', { ascending: false });
 
             if (!allProductsData || allProductsData.length === 0) {
-                setIsLoading(false);
+                if (isMountedRef.current) setIsLoading(false);
                 return;
             }
 
@@ -158,6 +215,8 @@ export function useRecommendations(): RecommendationResult {
                 return { ...product, default_variant: defaultVariant };
             });
 
+            if (!isMountedRef.current) return;
+
             // 2. Calculate trending scores (works even without user)
             const trendingScores = await calculateTrending();
 
@@ -166,21 +225,45 @@ export function useRecommendations(): RecommendationResult {
                 const sorted = [...productsWithVariants].sort((a, b) => {
                     const scoreA = trendingScores.get(a.id) || 0;
                     const scoreB = trendingScores.get(b.id) || 0;
+                    // Tiebreaker: product ID for determinism
+                    if (scoreB === scoreA) return a.id.localeCompare(b.id);
                     return scoreB - scoreA;
                 });
-                setTrendingProducts(sorted.slice(0, 10));
-                setRecommendedProducts([]);
-                setIsLoading(false);
+                if (isMountedRef.current) {
+                    setTrendingProducts(sorted.slice(0, 10));
+                    setRecommendedProducts([]);
+                    setIsLoading(false);
+                }
                 return;
             }
 
-            // 4. Get user's view history (last 50 views)
-            const { data: viewHistory } = await supabase
-                .from('user_product_views')
-                .select('product_id, view_count, viewed_at')
-                .eq('user_id', user.id)
-                .order('viewed_at', { ascending: false })
-                .limit(50);
+            // 4. Get user's view history (only if table is available)
+            let viewHistory: any[] = [];
+            if (viewsTableAvailable !== false) {
+                try {
+                    const { data, error } = await supabase
+                        .from('user_product_views')
+                        .select('product_id, view_count, last_viewed_at')
+                        .eq('user_id', user.id)
+                        .order('last_viewed_at', { ascending: false })
+                        .limit(50);
+
+                    if (!error && data) {
+                        viewHistory = data;
+                        viewsTableAvailable = true;
+                    } else if (!viewsTableChecked) {
+                        viewsTableAvailable = false;
+                    }
+                    viewsTableChecked = true;
+                } catch (e) {
+                    if (!viewsTableChecked) {
+                        viewsTableAvailable = false;
+                        viewsTableChecked = true;
+                    }
+                }
+            }
+
+            if (!isMountedRef.current) return;
 
             // 5. Get user's order history for category affinity
             const { data: orderHistory } = await supabase
@@ -191,21 +274,22 @@ export function useRecommendations(): RecommendationResult {
                     order_items(product_id, products(category_id))
                 `)
                 .eq('user_id', user.id)
-                .in('status', ['delivered', 'out_for_delivery', 'confirmed'])
+                .eq('status', 'delivered')
                 .order('created_at', { ascending: false })
                 .limit(30);
+
+            if (!isMountedRef.current) return;
 
             // 6. Build scoring maps
             const categoryScores: Record<string, number> = {};
             const recentlyPurchasedIds = new Set<string>();
             const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-
             // Process order history for category affinity (35 pts max)
             if (orderHistory) {
                 orderHistory.forEach(order => {
                     const orderDate = new Date(order.created_at || Date.now());
-                    order.order_items?.forEach(item => {
+                    order.order_items?.forEach((item: any) => {
                         const categoryId = item.products?.category_id;
                         if (categoryId) {
                             // Exponential decay based on recency
@@ -225,9 +309,9 @@ export function useRecommendations(): RecommendationResult {
             const viewScores: Record<string, number> = {};
 
             if (viewHistory && Array.isArray(viewHistory)) {
-                viewHistory.forEach((view, index: number) => {
+                viewHistory.forEach((view, index) => {
                     // Recency decay for views
-                    const recencyFactor = Math.exp(-index / 20); // More recent = higher weight
+                    const recencyFactor = Math.exp(-index / 20);
                     const viewCount = view.view_count ?? 1;
                     const viewScore = Math.min(viewCount * 5 * recencyFactor, 25);
                     viewScores[view.product_id] = viewScore;
@@ -251,48 +335,74 @@ export function useRecommendations(): RecommendationResult {
             const scoredProducts = productsWithVariants.map(product => {
                 // Skip recently purchased
                 if (recentlyPurchasedIds.has(product.id)) {
-                    return { product, score: -1, reasons: ['recently_purchased'] };
+                    return { product, score: -1, reasons: ['recently_purchased'], scoreBreakdown: {} };
                 }
 
                 let score = 0;
                 const reasons: string[] = [];
+                const scoreBreakdown: Record<string, number> = {};
 
                 // Category affinity (35 pts)
-                if (product.category_id && categoryScores[product.category_id]) {
-                    score += categoryScores[product.category_id];
+                const categoryScore = product.category_id ? (categoryScores[product.category_id] || 0) : 0;
+                if (categoryScore > 0) {
+                    score += categoryScore;
+                    scoreBreakdown.category = categoryScore;
                     reasons.push('category_match');
                 }
 
                 // Direct view history (25 pts)
-                if (viewScores[product.id]) {
-                    score += viewScores[product.id];
+                const viewScore = viewScores[product.id] || 0;
+                if (viewScore > 0) {
+                    score += viewScore;
+                    scoreBreakdown.views = viewScore;
                     reasons.push('viewed');
                 }
 
                 // Trending score (20 pts)
                 const trendingScore = trendingScores.get(product.id) || 0;
                 score += trendingScore;
+                scoreBreakdown.trending = trendingScore;
                 if (trendingScore > 5) reasons.push('trending');
 
                 // Freshness bonus (10 pts) - products created in last 7 days
                 const productAge = Date.now() - new Date(product.created_at || 0).getTime();
+                let freshnessScore = 0;
                 if (productAge < 7 * 24 * 60 * 60 * 1000) {
-                    score += 10;
+                    freshnessScore = 10;
                     reasons.push('new');
                 } else if (productAge < 14 * 24 * 60 * 60 * 1000) {
-                    score += 5;
+                    freshnessScore = 5;
+                }
+                score += freshnessScore;
+                scoreBreakdown.freshness = freshnessScore;
+
+                // Small seeded random factor for variety (0-2 pts) - deterministic per day
+                const randomScore = getSeededRandom(product.id);
+                score += randomScore;
+                scoreBreakdown.random = randomScore;
+
+                // Log for debugging (only top products)
+                if (score > 30) {
+                    logger.debug('Product recommendation scored', {
+                        product_id: product.id,
+                        product_name: product.name,
+                        reasons,
+                        score_breakdown: scoreBreakdown,
+                        total_score: score
+                    });
                 }
 
-                // Small random factor for serendipity (0-5 pts)
-                score += Math.random() * 5;
-
-                return { product, score, reasons };
+                return { product, score, reasons, scoreBreakdown };
             });
 
-            // 10. Sort and apply diversity rules
+            // 10. Sort with deterministic tiebreaker
             const sorted = scoredProducts
                 .filter(p => p.score >= 0)
-                .sort((a, b) => b.score - a.score);
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    // Tiebreaker: product ID for determinism
+                    return a.product.id.localeCompare(b.product.id);
+                });
 
             // Apply category diversity (max 40% from any single category)
             const categoryCounts: Record<string, number> = {};
@@ -304,25 +414,41 @@ export function useRecommendations(): RecommendationResult {
                 return categoryCounts[catId] <= maxPerCategory;
             }).slice(0, 12);
 
-            setRecommendedProducts(diversified.map(d => d.product));
+            if (isMountedRef.current) {
+                setRecommendedProducts(diversified.map(d => d.product));
+            }
 
             // Also set trending (top products by trending score only)
             const trendingOnly = [...productsWithVariants]
                 .filter(p => !recentlyPurchasedIds.has(p.id))
-                .sort((a, b) => (trendingScores.get(b.id) || 0) - (trendingScores.get(a.id) || 0))
+                .sort((a, b) => {
+                    const scoreA = trendingScores.get(a.id) || 0;
+                    const scoreB = trendingScores.get(b.id) || 0;
+                    if (scoreB !== scoreA) return scoreB - scoreA;
+                    return a.id.localeCompare(b.id); // Deterministic tiebreaker
+                })
                 .slice(0, 8);
 
-            setTrendingProducts(trendingOnly);
+            if (isMountedRef.current) {
+                setTrendingProducts(trendingOnly);
+            }
 
         } catch (e) {
             logger.error('Recommendations error', { error: e });
         } finally {
-            setIsLoading(false);
+            if (isMountedRef.current) {
+                setIsLoading(false);
+            }
         }
-    }, [user, calculateTrending]);
+    }, [user, calculateTrending, getSeededRandom]);
 
     useEffect(() => {
+        isMountedRef.current = true;
         fetchRecommendations();
+
+        return () => {
+            isMountedRef.current = false;
+        };
     }, [fetchRecommendations]);
 
     return { recommendedProducts, trendingProducts, isLoading, trackView };

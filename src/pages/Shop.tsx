@@ -46,6 +46,7 @@ import HorizontalScrollContainer from '@/components/HorizontalScrollContainer';
 import ProductCard from '@/components/ProductCard';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
 import FreeDeliveryBanner from '@/components/FreeDeliveryBanner';
+import TrendingSection from '@/components/TrendingSection';
 
 interface Category {
   id: string;
@@ -749,6 +750,13 @@ export default function Shop() {
       {
         !searchQuery && !selectedCategory && (
           <PromotionalBanners />
+        )
+      }
+
+      {/* Trending Now Section */}
+      {
+        !searchQuery && !selectedCategory && (
+          <TrendingSection onAddToCart={addToCart} />
         )
       }
 

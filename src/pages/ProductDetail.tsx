@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ProductCard from '@/components/ProductCard';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import { useFrequentlyBoughtTogether } from '@/hooks/useFrequentlyBoughtTogether';
+import { usePeopleAlsoBought } from '@/hooks/usePeopleAlsoBought';
+import { Sparkles } from 'lucide-react';
 import OrderConfirmation from '@/components/OrderConfirmation';
 
 interface Product {
@@ -92,7 +94,9 @@ export default function ProductDetail() {
     const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
     const [lastOrderId, setLastOrderId] = useState('');
     const { trackView } = useRecommendations();
-    const { products: frequentlyBought, isLoading: frequentlyBoughtLoading, error: frequentlyBoughtError } = useFrequentlyBoughtTogether(id);
+    const { products: frequentlyBought, isLoading: frequentlyBoughtLoading, error: frequentlyBoughtError, productIds: fbtProductIds } = useFrequentlyBoughtTogether(id);
+    // People Also Bought - uses FBT productIds for deduplication
+    const { products: peopleAlsoBought } = usePeopleAlsoBought(id, fbtProductIds);
 
 
 
@@ -1154,6 +1158,34 @@ export default function ProductDetail() {
                         </h2>
                         <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
                             {frequentlyBought.map(relProduct => (
+                                <div key={relProduct.id} className="flex-shrink-0 w-[150px]">
+                                    <ProductCard
+                                        product={{
+                                            ...relProduct,
+                                            image_url: relProduct.image_url || null,
+                                            unit: relProduct.unit || 'unit',
+                                            mrp: relProduct.mrp ?? null,
+                                            default_variant: null
+                                        }}
+                                        onAddToCart={(productId) => contextAddToCart(productId, null)}
+                                        cartQuantity={getItemQuantity(relProduct.id, null)}
+                                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* People Also Bought - Shows more products, no duplicates with FBT */}
+                {peopleAlsoBought.length > 0 && (
+                    <div className="pt-4">
+                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-amber-500" />
+                            People also bought
+                        </h2>
+                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                            {peopleAlsoBought.map(relProduct => (
                                 <div key={relProduct.id} className="flex-shrink-0 w-[150px]">
                                     <ProductCard
                                         product={{
