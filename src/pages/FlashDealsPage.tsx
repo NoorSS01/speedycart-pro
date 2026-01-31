@@ -168,7 +168,7 @@ export default function FlashDealsPage() {
             }
 
             refreshCart();
-            toast.success('Added to cart');
+            // No toast on success - cart badge provides visual feedback
         } catch (error) {
             toast.error('Failed to add to cart');
         }

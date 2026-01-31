@@ -96,7 +96,7 @@ export default function ProductDetail() {
     const { trackView } = useRecommendations();
     const { products: frequentlyBought, isLoading: frequentlyBoughtLoading, error: frequentlyBoughtError, productIds: fbtProductIds } = useFrequentlyBoughtTogether(id);
     // People Also Bought - uses FBT productIds for deduplication
-    const { products: peopleAlsoBought } = usePeopleAlsoBought(id, fbtProductIds);
+    const { products: peopleAlsoBought, isLoading: peopleAlsoBoughtLoading } = usePeopleAlsoBought(id, fbtProductIds);
 
 
 
@@ -1149,60 +1149,98 @@ export default function ProductDetail() {
                     </CardContent>
                 </Card>
 
-                {/* Frequently Bought Together */}
-                {frequentlyBought.length > 0 && (
-                    <div className="pt-2">
-                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <ShoppingCart className="h-5 w-5 text-primary" />
-                            Frequently bought together
-                        </h2>
-                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-                            {frequentlyBought.map(relProduct => (
-                                <div key={relProduct.id} className="flex-shrink-0 w-[150px]">
-                                    <ProductCard
-                                        product={{
-                                            ...relProduct,
-                                            image_url: relProduct.image_url || null,
-                                            unit: relProduct.unit || 'unit',
-                                            mrp: relProduct.mrp ?? null,
-                                            default_variant: null
-                                        }}
-                                        onAddToCart={(productId) => contextAddToCart(productId, null)}
-                                        cartQuantity={getItemQuantity(relProduct.id, null)}
-                                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* People Also Bought - Shows more products, no duplicates with FBT */}
-                {peopleAlsoBought.length > 0 && (
+                {/* Recommendations Section with Loading States */}
+                {/* Show skeleton while loading, then show sections that have data */}
+                {(frequentlyBoughtLoading || peopleAlsoBoughtLoading) ? (
                     <div className="pt-4">
-                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <Sparkles className="h-5 w-5 text-amber-500" />
-                            People also bought
-                        </h2>
-                        <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-                            {peopleAlsoBought.map(relProduct => (
-                                <div key={relProduct.id} className="flex-shrink-0 w-[150px]">
-                                    <ProductCard
-                                        product={{
-                                            ...relProduct,
-                                            image_url: relProduct.image_url || null,
-                                            unit: relProduct.unit || 'unit',
-                                            mrp: relProduct.mrp ?? null,
-                                            default_variant: null
-                                        }}
-                                        onAddToCart={(productId) => contextAddToCart(productId, null)}
-                                        cartQuantity={getItemQuantity(relProduct.id, null)}
-                                        onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                                    />
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+                            <div className="h-5 w-32 bg-muted rounded animate-pulse" />
+                        </div>
+                        <div className="flex gap-3 overflow-hidden -mx-4 px-4">
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="flex-shrink-0 w-[calc((100vw-48px)/3)] min-w-[100px] max-w-[120px]">
+                                    <div className="rounded-2xl border-2 border-border/40 bg-card overflow-hidden">
+                                        <div className="aspect-square bg-muted animate-pulse" />
+                                        <div className="p-2 space-y-1">
+                                            <div className="h-3 w-3/4 bg-muted rounded animate-pulse" />
+                                            <div className="h-4 w-12 bg-muted rounded animate-pulse" />
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
+                ) : (
+                    <>
+                        {/* Frequently Bought Together - Priority section */}
+                        {frequentlyBought.length > 0 && (
+                            <div className="pt-4">
+                                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <ShoppingCart className="h-5 w-5 text-primary" />
+                                    Frequently bought together
+                                </h2>
+                                <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+                                    <div className="flex gap-3 pb-2">
+                                        {frequentlyBought.map(relProduct => (
+                                            <div key={relProduct.id} className="flex-shrink-0 w-[calc((100vw-48px)/3)] min-w-[100px] max-w-[120px]">
+                                                <ProductCard
+                                                    product={{
+                                                        id: relProduct.id,
+                                                        name: relProduct.name,
+                                                        price: relProduct.price,
+                                                        image_url: relProduct.image_url || null,
+                                                        unit: relProduct.unit || 'unit',
+                                                        mrp: relProduct.mrp ?? null,
+                                                        discount_percent: relProduct.discount_percent ?? null,
+                                                        default_variant: null,
+                                                        stock_quantity: relProduct.stock_quantity,
+                                                    }}
+                                                    onAddToCart={(productId) => contextAddToCart(productId, null)}
+                                                    cartQuantity={getItemQuantity(relProduct.id, null)}
+                                                    onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* People Also Bought - Shows additional products, no duplicates with FBT */}
+                        {peopleAlsoBought.length > 0 && (
+                            <div className="pt-4">
+                                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <Sparkles className="h-5 w-5 text-amber-500" />
+                                    People also bought
+                                </h2>
+                                <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+                                    <div className="flex gap-3 pb-2">
+                                        {peopleAlsoBought.map(relProduct => (
+                                            <div key={relProduct.id} className="flex-shrink-0 w-[calc((100vw-48px)/3)] min-w-[100px] max-w-[120px]">
+                                                <ProductCard
+                                                    product={{
+                                                        id: relProduct.id,
+                                                        name: relProduct.name,
+                                                        price: relProduct.price,
+                                                        image_url: relProduct.image_url || null,
+                                                        unit: relProduct.unit || 'unit',
+                                                        mrp: relProduct.mrp ?? null,
+                                                        discount_percent: relProduct.discount_percent ?? null,
+                                                        default_variant: null,
+                                                        stock_quantity: relProduct.stock_quantity,
+                                                    }}
+                                                    onAddToCart={(productId) => contextAddToCart(productId, null)}
+                                                    cartQuantity={getItemQuantity(relProduct.id, null)}
+                                                    onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

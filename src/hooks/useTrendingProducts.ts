@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 
+interface ProductVariant {
+    price: number;
+    mrp: number | null;
+    variant_name: string;
+    variant_value: number;
+    variant_unit: string | null;
+    is_default?: boolean;
+}
+
 interface Product {
     id: string;
     name: string;
@@ -12,6 +21,7 @@ interface Product {
     unit: string;
     discount_percent?: number | null;
     mrp?: number | null;
+    default_variant?: ProductVariant | null;
 }
 
 interface TrendingProduct extends Product {
@@ -186,10 +196,10 @@ export function useTrendingProducts(limit: number = 10): TrendingResult {
             return;
         }
 
-        // Fetch full product details
+        // Fetch full product details with variants
         const { data: productsData } = await supabase
             .from('products')
-            .select('*')
+            .select('*, product_variants!left(price, mrp, variant_name, variant_value, variant_unit, is_default)')
             .in('id', topProductIds)
             .eq('is_active', true)
             .gt('stock_quantity', 0);
@@ -204,11 +214,14 @@ export function useTrendingProducts(limit: number = 10): TrendingResult {
         const trendingProducts: TrendingProduct[] = [];
 
         topProductIds.forEach(id => {
-            const product = productMap.get(id);
+            const product = productMap.get(id) as any;
             const scoreData = scoredProducts.find(s => s.productId === id);
             if (product && trendingProducts.length < limit) {
+                // Extract default variant from product_variants array
+                const defaultVariant = product.product_variants?.find((v: any) => v.is_default) || product.product_variants?.[0] || null;
                 trendingProducts.push({
                     ...product,
+                    default_variant: defaultVariant,
                     trendScore: scoreData?.finalScore,
                     orderCount: scoreData?.orderCount
                 } as TrendingProduct);
@@ -245,7 +258,7 @@ export function useTrendingProducts(limit: number = 10): TrendingResult {
         // Ultimate fallback: newest products with slight shuffle
         const { data: newestProducts } = await supabase
             .from('products')
-            .select('*')
+            .select('*, product_variants!left(price, mrp, variant_name, variant_value, variant_unit, is_default)')
             .eq('is_active', true)
             .gt('stock_quantity', 0)
             .order('created_at', { ascending: false })
@@ -256,11 +269,15 @@ export function useTrendingProducts(limit: number = 10): TrendingResult {
             const dailySeed = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
             const shuffled = shuffleWithSeed(newestProducts, dailySeed);
 
-            const result = shuffled.slice(0, limit).map(p => ({
-                ...p,
-                trendScore: 0,
-                orderCount: 0
-            })) as TrendingProduct[];
+            const result = shuffled.slice(0, limit).map((p: any) => {
+                const defaultVariant = p.product_variants?.find((v: any) => v.is_default) || p.product_variants?.[0] || null;
+                return {
+                    ...p,
+                    default_variant: defaultVariant,
+                    trendScore: 0,
+                    orderCount: 0
+                };
+            }) as TrendingProduct[];
 
             cachedTrending = result;
             cacheTimestamp = Date.now();

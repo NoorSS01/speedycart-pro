@@ -31,6 +31,7 @@ import DeliveryApplication from "./pages/DeliveryApplication";
 const Shop = lazy(() => import("./pages/Shop"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const Cart = lazy(() => import("./pages/Cart"));
+const TrendingPage = lazy(() => import("./pages/TrendingPage"));
 
 // Legal pages (eagerly loaded since they're lightweight)
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -41,7 +42,7 @@ import ContactUs from "./pages/ContactUs";
 import PaymentTerms from "./pages/PaymentTerms";
 import GrievancePolicy from "./pages/GrievancePolicy";
 
-import OfflineBanner from "@/components/OfflineBanner";
+import OfflineOverlay from "@/components/OfflineOverlay";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ThemeAnimations from "@/components/ThemeAnimations";
 import AtmosphereCanvas from "@/components/theme/AtmosphereCanvas";
@@ -105,7 +106,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
-        <OfflineBanner />
+        <OfflineOverlay />
         <ThemeAnimations />
         <AtmosphereCanvas />
         <AmbientOverlay />
@@ -126,6 +127,7 @@ const App = () => (
                       <Route path="/cart" element={<Cart />} />
                       <Route path="/categories" element={<Categories />} />
                       <Route path="/flash-deals/:id" element={<FlashDealsPage />} />
+                      <Route path="/trending" element={<TrendingPage />} />
                       <Route path="/orders" element={<Orders />} />
                       <Route path="/orders/:orderId" element={<UserOrderDetail />} />
                       <Route path="/profile" element={<Profile />} />

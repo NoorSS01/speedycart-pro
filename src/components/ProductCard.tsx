@@ -63,7 +63,7 @@ const ProductCard = memo(function ProductCard({
             isLowStock: stock > 0 && stock <= 5,
             isLimitedStock: stock > 5 && stock <= 10,
             isOutOfStock: stock <= 0,
-            unitDisplay: v ? formatVariantDisplay(v) : product.unit,
+            unitDisplay: v ? formatVariantDisplay(v) : (product.unit ? `1 ${product.unit}` : null),
         };
     }, [product]);
 

@@ -283,7 +283,7 @@ export default function Shop() {
     // Use CartContext's addToCart which handles both guest and authenticated users
     const success = await contextAddToCart(productId, null);
     if (success) {
-      toast.success('Added to cart');
+      // No toast on success - floating cart button provides visual feedback
       if (user) {
         fetchCart(); // Refresh local cart state for authenticated users
       }
@@ -760,35 +760,44 @@ export default function Shop() {
         )
       }
 
-      {/* For You - AI Recommendations */}
+      {/* For You - AI Recommendations (2-row grid matching categories) */}
       {
         user && recommendedProducts.length > 0 && !searchQuery && !selectedCategory && (
-          <div className="container mx-auto px-4 pb-6">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="py-4">
+            <div className="flex items-center gap-2 mb-3 px-4">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <h2 className="text-lg font-bold">For You</h2>
             </div>
-            <HorizontalScrollContainer className="gap-3">
-              {recommendedProducts.slice(0, 8).map(product => (
-                <div key={product.id} className="flex-shrink-0 w-[150px]">
-                  <ProductCard
-                    product={{
-                      ...product,
-                      mrp: product.mrp ?? null,
-                      stock_quantity: product.stock_quantity ?? undefined,
-                    }}
-                    onAddToCart={() => {
-                      trackView(product.id);
-                      addToCart(product.id);
-                    }}
-                    cartQuantity={getItemQuantity(product.id, null)}
-                    onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
-                  />
-                </div>
-              ))}
-            </HorizontalScrollContainer>
+            {/* 2-Row Horizontally Scrollable Grid */}
+            <div className="overflow-x-auto scrollbar-hide px-4 -mx-4">
+              <div className="grid grid-rows-2 grid-flow-col gap-3 px-4 pb-2" style={{ gridAutoColumns: 'calc((100vw - 48px) / 3)' }}>
+                {recommendedProducts.slice(0, 12).map(product => (
+                  <div key={product.id} className="min-w-[100px] max-w-[120px]">
+                    <ProductCard
+                      product={{
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        mrp: product.mrp ?? null,
+                        image_url: product.image_url,
+                        unit: product.unit || '1 unit',
+                        discount_percent: product.discount_percent ?? null,
+                        default_variant: product.default_variant ?? null,
+                        stock_quantity: product.stock_quantity ?? undefined,
+                      }}
+                      onAddToCart={() => {
+                        trackView(product.id);
+                        addToCart(product.id);
+                      }}
+                      cartQuantity={getItemQuantity(product.id, null)}
+                      onQuantityChange={(id, qty) => updateQuantity(id, null, qty)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )
       }
@@ -843,181 +852,183 @@ export default function Shop() {
           })
       }
 
-      {/* Products Grid */}
-      <div className="container mx-auto px-4 pb-8">
-        {filteredProducts.length === 0 ? (
-          <EmptyState
-            title={searchQuery ? 'No products found' : 'No products in this category'}
-            description={searchQuery ? `No results for "${searchQuery}"` : 'Try selecting a different category'}
-          />
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredProducts.map(product => {
-              const isOutOfStock = product.stock_quantity <= 0;
-              const isLowStock = product.stock_quantity > 0 && product.stock_quantity <= 5;
-              const isLimitedStock = product.stock_quantity > 5 && product.stock_quantity <= 10;
+      {/* Products Grid - Only show when searching or filtering by category */}
+      {(searchQuery || selectedCategory) && (
+        <div className="container mx-auto px-4 pb-8">
+          {filteredProducts.length === 0 ? (
+            <EmptyState
+              title={searchQuery ? 'No products found' : 'No products in this category'}
+              description={searchQuery ? `No results for "${searchQuery}"` : 'Try selecting a different category'}
+            />
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filteredProducts.map(product => {
+                const isOutOfStock = product.stock_quantity <= 0;
+                const isLowStock = product.stock_quantity > 0 && product.stock_quantity <= 5;
+                const isLimitedStock = product.stock_quantity > 5 && product.stock_quantity <= 10;
 
-              return (
-                <Card
-                  key={product.id}
-                  className={`overflow-hidden rounded-2xl border-2 bg-card/90 hover:shadow-xl transition-all relative ${isOutOfStock
-                    ? 'border-destructive/60 bg-destructive/5'
-                    : isLowStock
-                      ? 'border-red-500/60 bg-red-50/50 dark:bg-red-950/20'
-                      : isLimitedStock
-                        ? 'border-orange-400/60 bg-orange-50/50 dark:bg-orange-950/20'
-                        : 'border-border/40 hover:border-primary/40'
-                    }`}
-                >
-                  {/* Stock Warning Badge */}
-                  {(isLowStock || isLimitedStock) && !isOutOfStock && (
-                    <div className={`absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold ${isLowStock
-                      ? 'bg-red-500 text-white animate-pulse'
-                      : 'bg-orange-500 text-white'
-                      }`}>
-                      {isLowStock ? `Only ${product.stock_quantity} left!` : `${product.stock_quantity} left`}
-                    </div>
-                  )}
-
-                  {/* Discount Badge - Use default variant pricing */}
-                  {(() => {
-                    const variant = product.default_variant;
-                    const displayPrice = variant?.price ?? product.price;
-                    const displayMrp = variant?.mrp ?? product.mrp;
-                    const discount = displayMrp && displayMrp > displayPrice
-                      ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
-                      : product.discount_percent || 0;
-                    return discount > 0 ? (
-                      <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
-                        {discount}% OFF
+                return (
+                  <Card
+                    key={product.id}
+                    className={`overflow-hidden rounded-2xl border-2 bg-card/90 hover:shadow-xl transition-all relative ${isOutOfStock
+                      ? 'border-destructive/60 bg-destructive/5'
+                      : isLowStock
+                        ? 'border-red-500/60 bg-red-50/50 dark:bg-red-950/20'
+                        : isLimitedStock
+                          ? 'border-orange-400/60 bg-orange-50/50 dark:bg-orange-950/20'
+                          : 'border-border/40 hover:border-primary/40'
+                      }`}
+                  >
+                    {/* Stock Warning Badge */}
+                    {(isLowStock || isLimitedStock) && !isOutOfStock && (
+                      <div className={`absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-bold ${isLowStock
+                        ? 'bg-red-500 text-white animate-pulse'
+                        : 'bg-orange-500 text-white'
+                        }`}>
+                        {isLowStock ? `Only ${product.stock_quantity} left!` : `${product.stock_quantity} left`}
                       </div>
-                    ) : null;
-                  })()}
+                    )}
 
-                  <CardContent className="p-0">
-                    <div
-                      className={`aspect-square bg-muted flex items-center justify-center cursor-pointer ${isOutOfStock ? 'opacity-50' : ''}`}
-                      onClick={() => navigate(`/product/${product.id}`)}
-                    >
-                      {product.image_url ? (
-                        <img
-                          src={product.image_url}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Package className="h-12 w-12 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <h3
-                        className="font-medium text-sm line-clamp-2 mb-1 cursor-pointer hover:text-primary transition-colors"
+                    {/* Discount Badge - Use default variant pricing */}
+                    {(() => {
+                      const variant = product.default_variant;
+                      const displayPrice = variant?.price ?? product.price;
+                      const displayMrp = variant?.mrp ?? product.mrp;
+                      const discount = displayMrp && displayMrp > displayPrice
+                        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
+                        : product.discount_percent || 0;
+                      return discount > 0 ? (
+                        <div className="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold shadow-lg">
+                          {discount}% OFF
+                        </div>
+                      ) : null;
+                    })()}
+
+                    <CardContent className="p-0">
+                      <div
+                        className={`aspect-square bg-muted flex items-center justify-center cursor-pointer ${isOutOfStock ? 'opacity-50' : ''}`}
                         onClick={() => navigate(`/product/${product.id}`)}
                       >
-                        {product.name}
-                      </h3>
-                      {/* Show variant name if has default variant */}
-                      {product.default_variant && (
-                        <span className="text-[10px] text-muted-foreground block mb-1">{formatVariantDisplay(product.default_variant)}</span>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          {(() => {
-                            // Use default variant pricing if available
-                            const variant = product.default_variant;
-                            const displayPrice = variant?.price ?? product.price;
-                            const displayMrp = variant?.mrp ?? product.mrp;
-                            const displayUnit = variant ? formatVariantDisplay(variant) : product.unit;
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Package className="h-12 w-12 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <h3
+                          className="font-medium text-sm line-clamp-2 mb-1 cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => navigate(`/product/${product.id}`)}
+                        >
+                          {product.name}
+                        </h3>
+                        {/* Show variant name if has default variant */}
+                        {product.default_variant && (
+                          <span className="text-[10px] text-muted-foreground block mb-1">{formatVariantDisplay(product.default_variant)}</span>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            {(() => {
+                              // Use default variant pricing if available
+                              const variant = product.default_variant;
+                              const displayPrice = variant?.price ?? product.price;
+                              const displayMrp = variant?.mrp ?? product.mrp;
+                              const displayUnit = variant ? formatVariantDisplay(variant) : product.unit;
 
-                            if (displayMrp && displayMrp > displayPrice) {
-                              return (
-                                <>
-                                  <p className="text-lg font-bold text-primary">₹{displayPrice}</p>
-                                  <div className="flex items-center gap-1.5">
-                                    <p className="text-xs text-muted-foreground line-through">₹{displayMrp}</p>
+                              if (displayMrp && displayMrp > displayPrice) {
+                                return (
+                                  <>
+                                    <p className="text-lg font-bold text-primary">₹{displayPrice}</p>
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-xs text-muted-foreground line-through">₹{displayMrp}</p>
+                                      <p className="text-xs text-muted-foreground">/ {displayUnit}</p>
+                                    </div>
+                                  </>
+                                );
+                              } else if (product.discount_percent && product.discount_percent > 0) {
+                                return (
+                                  <>
+                                    <p className="text-lg font-bold text-primary">
+                                      ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
+                                    </p>
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
+                                      <p className="text-xs text-muted-foreground">/ {product.unit}</p>
+                                    </div>
+                                  </>
+                                );
+                              } else {
+                                return (
+                                  <>
+                                    <p className="text-lg font-bold text-primary">₹{displayPrice}</p>
                                     <p className="text-xs text-muted-foreground">/ {displayUnit}</p>
-                                  </div>
-                                </>
-                              );
-                            } else if (product.discount_percent && product.discount_percent > 0) {
+                                  </>
+                                );
+                              }
+                            })()}
+                          </div>
+                          {/* Quantity Controls or Add Button */}
+                          {(() => {
+                            const qty = getItemQuantity(product.id, null);
+                            if (qty > 0) {
                               return (
-                                <>
-                                  <p className="text-lg font-bold text-primary">
-                                    ₹{Math.round(product.price * (100 - product.discount_percent) / 100)}
-                                  </p>
-                                  <div className="flex items-center gap-1.5">
-                                    <p className="text-xs text-muted-foreground line-through">₹{product.price}</p>
-                                    <p className="text-xs text-muted-foreground">/ {product.unit}</p>
-                                  </div>
-                                </>
-                              );
-                            } else {
-                              return (
-                                <>
-                                  <p className="text-lg font-bold text-primary">₹{displayPrice}</p>
-                                  <p className="text-xs text-muted-foreground">/ {displayUnit}</p>
-                                </>
+                                <div className="flex items-center gap-0 rounded-full overflow-hidden border border-primary">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 rounded-none"
+                                    onClick={() => updateQuantity(product.id, null, qty - 1)}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="px-2 font-bold text-sm min-w-[24px] text-center">{qty}</span>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 rounded-none"
+                                    onClick={() => updateQuantity(product.id, null, qty + 1)}
+                                    disabled={isOutOfStock}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               );
                             }
+                            return (
+                              <Button
+                                size="icon"
+                                className={`h-9 w-9 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
+                                onClick={() => addToCart(product.id)}
+                                disabled={isOutOfStock}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            );
                           })()}
                         </div>
-                        {/* Quantity Controls or Add Button */}
-                        {(() => {
-                          const qty = getItemQuantity(product.id, null);
-                          if (qty > 0) {
-                            return (
-                              <div className="flex items-center gap-0 rounded-full overflow-hidden border border-primary">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8 rounded-none"
-                                  onClick={() => updateQuantity(product.id, null, qty - 1)}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className="px-2 font-bold text-sm min-w-[24px] text-center">{qty}</span>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-8 w-8 rounded-none"
-                                  onClick={() => updateQuantity(product.id, null, qty + 1)}
-                                  disabled={isOutOfStock}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            );
-                          }
-                          return (
-                            <Button
-                              size="icon"
-                              className={`h-9 w-9 rounded-full ${isOutOfStock ? 'opacity-50' : ''}`}
-                              onClick={() => addToCart(product.id)}
-                              disabled={isOutOfStock}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          );
-                        })()}
+                        {isOutOfStock && (
+                          <Badge variant="destructive" className="w-full mt-2 justify-center">
+                            Out of Stock
+                          </Badge>
+                        )}
+                        {isLowStock && (
+                          <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-2 text-center">
+                            🔥 Hurry! Almost sold out
+                          </p>
+                        )}
                       </div>
-                      {isOutOfStock && (
-                        <Badge variant="destructive" className="w-full mt-2 justify-center">
-                          Out of Stock
-                        </Badge>
-                      )}
-                      {isLowStock && (
-                        <p className="text-xs text-red-600 dark:text-red-400 font-medium mt-2 text-center">
-                          🔥 Hurry! Almost sold out
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Buy Again Section - below products */}
       {
