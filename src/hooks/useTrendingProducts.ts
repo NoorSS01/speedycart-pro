@@ -80,38 +80,10 @@ export function useTrendingProducts(limit: number = 10): TrendingResult {
         setError(null);
 
         try {
-            // Try RPC function first (optimized server-side calculation)
-            const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
-                'get_trending_products',
-                { p_limit: limit + 5, p_days: 7 }
-            );
+            // Skip RPC - use client-side query to include product_variants
+            // The RPC function doesn't return variant data needed for proper unit display
 
-            if (!rpcError && rpcData && rpcData.length > 0) {
-                const trendingProducts: TrendingProduct[] = rpcData.map((p: any) => ({
-                    id: p.product_id,
-                    name: p.name,
-                    price: p.price,
-                    mrp: p.mrp,
-                    image_url: p.image_url,
-                    unit: p.unit,
-                    stock_quantity: p.stock_quantity,
-                    category_id: null,
-                    discount_percent: null,
-                    trendScore: p.trend_score
-                }));
-
-                // Update cache
-                cachedTrending = trendingProducts;
-                cacheTimestamp = Date.now();
-
-                if (isMountedRef.current) {
-                    setProducts(trendingProducts.slice(0, limit));
-                    setIsLoading(false);
-                }
-                return;
-            }
-
-            // Fallback: Calculate client-side
+            // Calculate client-side with variants included
             const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
             // Get delivered orders' items from last 7 days
