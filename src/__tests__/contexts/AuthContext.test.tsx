@@ -14,6 +14,7 @@ const mockSignUp = vi.fn();
 const mockSignInWithPassword = vi.fn();
 const mockSignOut = vi.fn();
 const mockGetSession = vi.fn();
+const mockRefreshSession = vi.fn();
 const mockOnAuthStateChange = vi.fn();
 const mockFrom = vi.fn();
 
@@ -24,6 +25,7 @@ vi.mock('@/integrations/supabase/client', () => ({
             signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
             signOut: () => mockSignOut(),
             getSession: () => mockGetSession(),
+            refreshSession: () => mockRefreshSession(),
             onAuthStateChange: (callback: unknown) => mockOnAuthStateChange(callback),
         },
         from: (table: string) => mockFrom(table),
@@ -80,6 +82,12 @@ describe('AuthContext', () => {
 
         // Default mock implementations
         mockGetSession.mockResolvedValue({
+            data: { session: null },
+            error: null,
+        });
+
+        // Default: refreshSession returns null session (no stored session to refresh)
+        mockRefreshSession.mockResolvedValue({
             data: { session: null },
             error: null,
         });
@@ -305,7 +313,14 @@ describe('AuthContext', () => {
 
     describe('session restoration', () => {
         it('should restore user from existing session', async () => {
+            // Mock getSession to return stored session
             mockGetSession.mockResolvedValue({
+                data: { session: mockSession },
+                error: null,
+            });
+
+            // Mock refreshSession to return refreshed session (new AuthContext proactively refreshes)
+            mockRefreshSession.mockResolvedValue({
                 data: { session: mockSession },
                 error: null,
             });

@@ -142,28 +142,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    // Get initial session
+    // Get initial session - ALWAYS try to refresh to ensure valid tokens
+    // This is critical when app opens after being closed for hours
     const initializeSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // First, check if we have stored tokens
+        const { data: { session: storedSession } } = await supabase.auth.getSession();
 
-        if (error) {
-          logger.error('Error getting session', { error });
-          // If there's an error getting session, try to refresh
-          const { data: refreshData } = await supabase.auth.refreshSession();
-          if (refreshData.session && isMounted) {
+        if (storedSession?.user) {
+          // We have a stored session, but tokens might be expired
+          // Proactively refresh to get new tokens
+          logger.debug('Found stored session, refreshing tokens');
+
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+
+          if (!refreshError && refreshData.session && isMounted) {
+            // Refresh successful - we have valid fresh tokens
             setSession(refreshData.session);
             setUser(refreshData.session.user);
             await fetchUserRole(refreshData.session.user.id);
+            logger.info('Session restored with fresh tokens');
             return;
+          }
+
+          // Refresh failed - check if it's an auth error vs network error
+          if (refreshError) {
+            const isAuthError = refreshError.message?.includes('invalid_grant') ||
+              refreshError.message?.includes('Invalid Refresh Token') ||
+              refreshError.message?.includes('refresh_token_not_found') ||
+              refreshError.status === 401 ||
+              refreshError.status === 400;
+
+            if (!isAuthError) {
+              // Network error - use stored session (tokens might still work)
+              logger.debug('Network error during refresh, using stored session');
+              if (isMounted) {
+                setSession(storedSession);
+                setUser(storedSession.user);
+                await fetchUserRole(storedSession.user.id);
+              }
+              return;
+            }
+
+            // Auth error - refresh token is definitely invalid
+            logger.warn('Refresh token invalid, user needs to re-login');
           }
         }
 
-        if (session?.user && isMounted) {
-          setSession(session);
-          setUser(session.user);
-          await fetchUserRole(session.user.id);
-        }
+        // No stored session or refresh failed with auth error
+        logger.debug('No valid session found');
+
       } catch (error) {
         logger.error('Error initializing session', { error });
       } finally {
@@ -177,46 +205,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // This is CRITICAL for PWA session persistence
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible' && isMounted) {
-        logger.debug('App became visible, refreshing session');
-        try {
-          // getSession() automatically refreshes expired tokens
-          const { data: { session }, error } = await supabase.auth.getSession();
+        logger.debug('App became visible, checking session');
 
-          if (error) {
-            logger.error('Session refresh failed on visibility change', { error });
-            // Try explicit refresh as fallback
-            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-            if (refreshError) {
-              logger.error('Explicit refresh also failed', { error: refreshError });
-              // Session is truly invalid, clear state
-              setUser(null);
-              setSession(null);
-              setUserRole(null);
-              return;
+        // Implement retry logic with exponential backoff
+        const maxRetries = 3;
+        let lastError: Error | null = null;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            // First try to get the session - this returns cached tokens
+            const { data: { session }, error } = await supabase.auth.getSession();
+
+            if (!error && session?.user) {
+              // Session is valid - update state if needed
+              if (!userRef.current || userRef.current.id !== session.user.id) {
+                setSession(session);
+                setUser(session.user);
+              }
+              // Refresh role if we don't have it
+              if (!userRoleRef.current) {
+                await fetchUserRole(session.user.id);
+              }
+              logger.debug('Session valid on visibility change');
+              return; // Success - exit retry loop
             }
-            if (refreshData.session) {
-              setSession(refreshData.session);
-              setUser(refreshData.session.user);
+
+            // If getSession failed or returned no session, try explicit refresh
+            if (error || !session) {
+              logger.debug('Session not found, attempting refresh', { attempt });
+              const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+
+              if (!refreshError && refreshData.session) {
+                // Refresh succeeded
+                setSession(refreshData.session);
+                setUser(refreshData.session.user);
+                if (!userRoleRef.current) {
+                  await fetchUserRole(refreshData.session.user.id);
+                }
+                logger.info('Session refreshed successfully', { attempt });
+                return; // Success - exit retry loop
+              }
+
+              // Check if this is an authentication error (token truly expired)
+              // vs a network/transient error that we should retry
+              if (refreshError) {
+                const isAuthError = refreshError.message?.includes('invalid_grant') ||
+                  refreshError.message?.includes('Invalid Refresh Token') ||
+                  refreshError.message?.includes('refresh_token_not_found') ||
+                  refreshError.status === 401 ||
+                  refreshError.status === 400;
+
+                if (isAuthError) {
+                  // Token is truly expired - user needs to re-login
+                  logger.warn('Refresh token expired, user must re-login', { error: refreshError.message });
+                  setUser(null);
+                  setSession(null);
+                  setUserRole(null);
+                  return; // Don't retry - token is definitively invalid
+                }
+
+                // Network or transient error - will retry
+                lastError = new Error(refreshError.message);
+                logger.debug('Transient error, will retry', { attempt, error: refreshError.message });
+              }
             }
-            return;
+          } catch (error) {
+            lastError = error as Error;
+            logger.debug('Exception during session check, will retry', { attempt, error });
           }
 
-          if (session?.user) {
-            setSession(session);
-            setUser(session.user);
-            // Only fetch role if we don't have it - use ref to avoid infinite loop
-            if (!userRoleRef.current) {
-              await fetchUserRole(session.user.id);
-            }
-          } else if (userRef.current) {
-            // Had a user but now session is null - user was logged out
-            logger.info('Session expired, user logged out');
-            setUser(null);
-            setSession(null);
-            setUserRole(null);
+          // Wait before retry (exponential backoff: 500ms, 1000ms, 2000ms)
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
           }
-        } catch (error) {
-          logger.error('Error refreshing session on visibility change', { error });
+        }
+
+        // All retries failed - but DON'T clear session if we still have a user ref
+        // This preserves the logged-in state through temporary network issues
+        if (lastError) {
+          logger.error('Session refresh failed after retries, keeping existing state', { error: lastError.message });
         }
       }
     };
@@ -257,14 +324,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Add visibility change listener for PWA session persistence
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Also refresh periodically when app is open (every 5 minutes)
-    // This prevents session from expiring while user is actively using the app
+    // Refresh tokens periodically when app is open to keep session alive
+    // This prevents token expiry during active use
     const refreshInterval = setInterval(async () => {
       if (document.visibilityState === 'visible' && userRef.current) {
-        logger.debug('Periodic session refresh');
-        await supabase.auth.getSession();
+        try {
+          logger.debug('Periodic token refresh');
+          // Use explicit refreshSession for guaranteed fresh tokens
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            logger.debug('Periodic refresh encountered error (will retry)', { error: error.message });
+          } else if (data.session) {
+            // Update session with fresh tokens
+            setSession(data.session);
+          }
+        } catch (e) {
+          // Silently handle errors - retry will happen on next interval
+          logger.debug('Periodic refresh exception', { error: e });
+        }
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 4 * 60 * 1000); // 4 minutes (before 5-min access token expiry)
 
     initializeSession();
 
